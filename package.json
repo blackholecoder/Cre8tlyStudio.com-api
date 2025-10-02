@@ -1,0 +1,31 @@
+{
+  "name": "cre8tlystudio.com",
+  "version": "1.0.0",
+  "description": "cre8tlystudio.com",
+  "main": "app.js",
+  "type": "module",
+  "homepage": ".",
+  "scripts": {
+    "start": "nodemon --delay 500ms app.js",
+    "build": "cd cre8tlystudio.com && npm install && npm run build"
+  },
+  "engines": {
+    "node": ">=18.7.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^2.0.21"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "joi": "^17.8.3",
+    "mysql2": "^3.14.3",
+    "nodemailer": "^7.0.5",
+    "stripe": "^18.4.0",
+    "uuid": "^9.0.0"
+  }
+}
