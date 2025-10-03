@@ -9,7 +9,7 @@ const router = express.Router();
 router.post("/", authenticateToken, async (req, res) => {
   try {
     const { prompt } = req.body;
-    const result = await createLeadMagnet(req.user.id, prompt);
+    const result = await createLeadMagnet(req.user.id, null);
     res.status(201).json(result);
   } catch (err) {
     console.error("LeadMagnet create error:", err);
@@ -62,12 +62,12 @@ router.get("/:sessionId", async (req, res) => {
 
 router.post("/prompt", authenticateToken, async (req, res) => {
   try {
-    const { magnetId, prompt } = req.body;
+    const { magnetId, prompt, theme } = req.body;  // 👈 include theme
     if (!magnetId || !prompt) {
       return res.status(400).json({ message: "magnetId and prompt are required" });
     }
 
-    const updated = await processPromptFlow(magnetId, req.user.id, prompt); // 👈 service handles everything
+    const updated = await processPromptFlow(magnetId, req.user.id, prompt, theme); 
     res.json(updated);
   } catch (err) {
     console.error("❌ ERROR in /prompt route:", err);

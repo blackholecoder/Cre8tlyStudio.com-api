@@ -6,17 +6,19 @@ export async function createLeadMagnet(userId, prompt) {
   const id = uuidv4();
   const createdAt = new Date();
 
+  // If no prompt yet, set status to awaiting_prompt
+  const status = prompt && prompt.trim() !== "" ? "pending" : "awaiting_prompt";
+
   await db.query(
     `INSERT INTO lead_magnets 
       (id, user_id, prompt, pdf_url, price, status, created_at) 
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [id, userId, prompt, "", 19.0, "pending", createdAt]
+    [id, userId, prompt || null, "", 19.0, status, createdAt]
   );
 
   await db.end();
-  return { id, status: "pending" };
+  return { id, status };
 }
-
 export async function markLeadMagnetComplete(id, pdfUrl) {
   const db = await connect();
   await db.query(
@@ -27,7 +29,6 @@ export async function markLeadMagnetComplete(id, pdfUrl) {
   );
   await db.end();
 }
-
 export async function insertLeadMagnet({
   id,
   userId,
@@ -37,17 +38,17 @@ export async function insertLeadMagnet({
   status,
   createdAt,
   stripeSessionId,
+  slot_number,
 }) {
   const db = await connect();
   await db.query(
     `INSERT INTO lead_magnets 
-      (id, user_id, prompt, pdf_url, price, status, created_at, stripe_session_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, userId, prompt, pdfUrl, price, status, createdAt, stripeSessionId]
+      (id, user_id, prompt, pdf_url, price, status, created_at, stripe_session_id, slot_number)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, userId, prompt, pdfUrl, price, status, createdAt, stripeSessionId, slot_number]
   );
   await db.end();
 }
-
 export async function getLeadMagnetBySessionId(sessionId) {
   const db = await connect();
   const [rows] = await db.query(
@@ -58,7 +59,6 @@ export async function getLeadMagnetBySessionId(sessionId) {
   console.log("DB lookup rows:", rows);
   return rows[0] || null;
 }
-
 export async function updateLeadMagnetPrompt(id, prompt) {
   const db = await connect();
   const [result] = await db.query(
@@ -68,7 +68,6 @@ export async function updateLeadMagnetPrompt(id, prompt) {
   await db.end();
   return result.affectedRows > 0; // false if already had a prompt
 }
-
 export async function getLeadMagnetsByUser(userId) {
   const db = await connect();
   const [rows] = await db.query(
@@ -78,7 +77,6 @@ export async function getLeadMagnetsByUser(userId) {
   await db.end();
   return rows;
 }
-
 export async function softDeleteLeadMagnet(id) {
   const db = await connect();
   await db.query(
@@ -87,13 +85,11 @@ export async function softDeleteLeadMagnet(id) {
   );
   await db.end();
 }
-
 export async function getLeadMagnetById(id) {
   const db = await connect();
   const [rows] = await db.query("SELECT * FROM lead_magnets WHERE id = ?", [id]);
   return rows[0] || null;
 }
-
 export async function updateLeadMagnetStatus(magnetId, userId, status) {
   const db = await connect();
   return db.query(
@@ -101,7 +97,6 @@ export async function updateLeadMagnetStatus(magnetId, userId, status) {
     [status, magnetId, userId]
   );
 }
-
 export async function saveLeadMagnetPdf(magnetId, userId, prompt, pdfUrl) {
   const db = await connect();
   return db.query(
