@@ -12,6 +12,8 @@ import indexRoutes from "./routes/indexRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
 import leadMagnetRoutes from "./routes/leadMagnetRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import gptRoutes from "./routes/gptRoutes.js";
 import cors from "cors";
 
 const app = express();
@@ -33,6 +35,8 @@ app.use(express.json({limit: "1000mb"})); // parse json
 app.use("/api", indexRoutes);
 app.use("/api/checkout", checkoutRoutes);
 app.use("/api/lead-magnets", leadMagnetRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/gpt", gptRoutes);
 
 
 

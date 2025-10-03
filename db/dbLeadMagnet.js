@@ -61,9 +61,51 @@ export async function getLeadMagnetBySessionId(sessionId) {
 
 export async function updateLeadMagnetPrompt(id, prompt) {
   const db = await connect();
-  await db.query(
-    "UPDATE lead_magnets SET prompt=?, status='pending' WHERE id=? AND deleted_at IS NULL",
+  const [result] = await db.query(
+    "UPDATE lead_magnets SET prompt=?, status='pending' WHERE id=? AND prompt='' AND deleted_at IS NULL",
     [prompt, id]
   );
   await db.end();
+  return result.affectedRows > 0; // false if already had a prompt
+}
+
+export async function getLeadMagnetsByUser(userId) {
+  const db = await connect();
+  const [rows] = await db.query(
+    "SELECT * FROM lead_magnets WHERE user_id=? AND deleted_at IS NULL ORDER BY created_at DESC",
+    [userId]
+  );
+  await db.end();
+  return rows;
+}
+
+export async function softDeleteLeadMagnet(id) {
+  const db = await connect();
+  await db.query(
+    "UPDATE lead_magnets SET deleted_at=NOW() WHERE id=? AND deleted_at IS NULL",
+    [id]
+  );
+  await db.end();
+}
+
+export async function getLeadMagnetById(id) {
+  const db = await connect();
+  const [rows] = await db.query("SELECT * FROM lead_magnets WHERE id = ?", [id]);
+  return rows[0] || null;
+}
+
+export async function updateLeadMagnetStatus(magnetId, userId, status) {
+  const db = await connect();
+  return db.query(
+    "UPDATE lead_magnets SET status = ? WHERE id = ? AND user_id = ?",
+    [status, magnetId, userId]
+  );
+}
+
+export async function saveLeadMagnetPdf(magnetId, userId, prompt, pdfUrl) {
+  const db = await connect();
+  return db.query(
+    "UPDATE lead_magnets SET status = ?, prompt = ?, pdf_url = ? WHERE id = ? AND user_id = ?",
+    ["completed", prompt, pdfUrl, magnetId, userId]
+  );
 }
