@@ -69,9 +69,6 @@ router.post("/refresh", async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(401).json({ message: "No refresh token provided" });
 
-  console.log("🔍 Incoming refresh token:", token);
-console.log("Decoded refresh:", jwt.decode(token));
-
 
   // ✅ Check DB
   const user = await getUserByRefreshToken(token);
