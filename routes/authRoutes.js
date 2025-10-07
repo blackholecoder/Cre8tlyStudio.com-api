@@ -1,9 +1,19 @@
 import express from "express";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
-import { createUser, getUserByEmail, getUserById, getUserByRefreshToken, saveRefreshToken } from "../db/dbUser.js";
+import {
+  createUser,
+  getUserByEmail,
+  getUserById,
+  getUserByRefreshToken,
+  saveRefreshToken,
+} from "../db/dbUser.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+import { loginAdmin } from "../db/dbAdminAuth.js";
+import { updateAdminSettings } from "../db/dbAdminSettings.js";
+import { generateTwoFA, verifyTwoFA } from "../db/db2FA.js";
+import { uploadAdminImage } from "../db/dbAdminImage.js";
 
 const router = express.Router();
 
@@ -29,8 +39,6 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-// LOGIN
-// /login
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const user = await getUserByEmail(email);
@@ -62,44 +70,33 @@ router.post("/login", async (req, res) => {
   });
 });
 
-
-// REFRESH → get new access token
-// /refresh
 router.post("/refresh", async (req, res) => {
   const { token } = req.body;
-  if (!token) return res.status(401).json({ message: "No refresh token provided" });
+  if (!token) return res.status(401).json({ message: "No refresh token" });
 
-
-  // ✅ Check DB
   const user = await getUserByRefreshToken(token);
   if (!user) return res.status(403).json({ message: "Invalid refresh token" });
 
-  // ✅ Verify JWT
-  jwt.verify(token, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
     if (err) return res.status(403).json({ message: "Expired refresh token" });
 
-    // ✅ Issue new access token
     const newAccessToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "15m" }
     );
 
-    // ✅ Optionally rotate refresh token
+    // Rotate refresh token
     const newRefreshToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "7d" }
     );
-    saveRefreshToken(user.id, newRefreshToken);
+    await saveRefreshToken(user.id, newRefreshToken);
 
-    res.json({ 
-      accessToken: newAccessToken, 
-      refreshToken: newRefreshToken // 👈 return this too
-    });
+    res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
   });
 });
-
 
 // LOGOUT → clear refresh token
 router.post("/logout", authenticateToken, async (req, res) => {
@@ -109,12 +106,133 @@ router.post("/logout", authenticateToken, async (req, res) => {
 
 router.get("/me", authenticateToken, async (req, res) => {
   try {
-    const user = await getUserById(req.user.id); // 👈 only call helper
+    const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
+
+    // return everything needed for header
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      profile_image: user.profile_image_url || null,
+    });
   } catch (err) {
     console.error("Error in /me:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ADMIN ROUTES
+
+router.post("/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const result = await loginAdmin(email, password);
+    res.json(result);
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(401).json({ message: err.message || "Invalid credentials" });
+  }
+});
+
+router.post("/admin/verify-login-2fa", async (req, res) => {
+  try {
+    const { token, twofaToken } = req.body;
+
+    if (!token || !twofaToken) {
+      return res.status(400).json({ message: "Missing 2FA data" });
+    }
+    // Decode temporary login token
+    const jwtPayload = jwt.verify(twofaToken, process.env.JWT_SECRET);
+    if (!jwtPayload?.id) {
+      return res.status(401).json({ message: "Invalid temporary token" });
+    }
+
+    // Verify code
+    await verifyTwoFA(jwtPayload.id, token);
+
+    // Fetch user info to include role + email
+    const user = await getUserById(jwtPayload.id);
+
+    // ✅ Issue final access token for the session
+    const accessToken = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" }
+    );
+
+    return res.json({
+      success: true,
+      message: "2FA verified successfully",
+      accessToken,
+    });
+  } catch (err) {
+    console.error("2FA login verify error:", err);
+    res.status(401).json({ message: err.message || "Invalid 2FA code" });
+  }
+});
+
+router.put("/admin/update", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await updateAdminSettings(userId, req.body);
+    res.json(result);
+  } catch (err) {
+    console.error("Settings update error:", err);
+    res
+      .status(400)
+      .json({ message: err.message || "Failed to update settings" });
+  }
+});
+
+router.post("/admin/enable-2fa", authenticateToken, async (req, res) => {
+  try {
+    const result = await generateTwoFA(req.user.id);
+    res.json(result);
+  } catch (err) {
+    console.error("2FA enable error:", err);
+    res.status(500).json({ message: err.message || "Failed to enable 2FA" });
+  }
+});
+
+// Verify 2FA token
+router.post("/admin/verify-2fa", authenticateToken, async (req, res) => {
+  try {
+    const { token } = req.body;
+    const result = await verifyTwoFA(req.user.id, token);
+
+    // ✅ After successful verification, issue a proper access token
+    const accessToken = jwt.sign(
+      {
+        id: req.user.id,
+        email: req.user.email,
+        role: req.user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" }
+    );
+
+    res.json({
+      success: true,
+      message: "2FA verified successfully",
+      accessToken, // 👈 send new JWT
+    });
+  } catch (err) {
+    console.error("2FA verify error:", err);
+    res.status(401).json({ message: err.message || "Invalid 2FA code" });
+  }
+});
+
+router.put("/admin/upload-image", authenticateToken, async (req, res) => {
+  console.log("🟢 /admin/upload-image hit");
+  try {
+    const userId = req.user.id;
+    const result = await uploadAdminImage(userId, req.body);
+    res.json(result);
+  } catch (err) {
+    console.error("Image upload error:", err);
+    res.status(400).json({ message: err.message || "Upload failed" });
   }
 });
 

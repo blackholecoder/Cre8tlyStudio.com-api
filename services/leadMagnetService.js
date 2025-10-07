@@ -80,7 +80,7 @@ Do not stop early. Add examples, case studies, bullet lists, and elaboration to 
     const uploaded = await uploadFileToSpaces(localPath, fileName, "application/pdf");
 
     // 6. Save result in DB
-    await saveLeadMagnetPdf(magnetId, userId, prompt, uploaded.Location);
+    await saveLeadMagnetPdf(magnetId, userId, prompt, uploaded.Location, theme);
 
     return { pdf_url: uploaded.Location, status: "completed" };
   } catch (err) {

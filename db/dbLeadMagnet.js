@@ -52,13 +52,18 @@ export async function insertLeadMagnet({
 export async function getLeadMagnetBySessionId(sessionId) {
   const db = await connect();
   const [rows] = await db.query(
-    "SELECT * FROM lead_magnets WHERE stripe_session_id = ? AND deleted_at IS NULL",
+    `
+    SELECT id, user_id, slot_number, status, prompt, pdf_url, created_at, theme
+    FROM lead_magnets
+    WHERE stripe_session_id = ? AND deleted_at IS NULL
+    `,
     [sessionId]
   );
   await db.end();
   console.log("DB lookup rows:", rows);
   return rows[0] || null;
 }
+
 export async function updateLeadMagnetPrompt(id, prompt) {
   const db = await connect();
   const [result] = await db.query(
@@ -71,7 +76,12 @@ export async function updateLeadMagnetPrompt(id, prompt) {
 export async function getLeadMagnetsByUser(userId) {
   const db = await connect();
   const [rows] = await db.query(
-    "SELECT * FROM lead_magnets WHERE user_id=? AND deleted_at IS NULL ORDER BY created_at DESC",
+    `
+    SELECT id, user_id, slot_number, status, prompt, pdf_url, created_at, theme
+    FROM lead_magnets
+    WHERE user_id = ? AND deleted_at IS NULL
+    ORDER BY created_at DESC
+    `,
     [userId]
   );
   await db.end();
@@ -97,10 +107,12 @@ export async function updateLeadMagnetStatus(magnetId, userId, status) {
     [status, magnetId, userId]
   );
 }
-export async function saveLeadMagnetPdf(magnetId, userId, prompt, pdfUrl) {
+export async function saveLeadMagnetPdf(magnetId, userId, prompt, pdfUrl, theme) {
   const db = await connect();
+  const finalTheme = theme || "modern"; // optional fallback
   return db.query(
-    "UPDATE lead_magnets SET status = ?, prompt = ?, pdf_url = ? WHERE id = ? AND user_id = ?",
-    ["completed", prompt, pdfUrl, magnetId, userId]
+    "UPDATE lead_magnets SET status = ?, prompt = ?, pdf_url = ?, theme = ? WHERE id = ? AND user_id = ?",
+    ["completed", prompt, pdfUrl, finalTheme, magnetId, userId]
   );
 }
+

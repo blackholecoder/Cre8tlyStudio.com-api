@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 
@@ -46,10 +46,17 @@ export async function updateUserRole(userId, role) {
 export async function getUserById(id) {
   const db = await connect();
   const [rows] = await db.query(
-    "SELECT id, name, email, role FROM users WHERE id=?",
+    `SELECT 
+       id, 
+       name, 
+       email, 
+       role, 
+       profile_image_url, 
+       twofa_secret IS NOT NULL AS twofa_enabled 
+     FROM users 
+     WHERE id = ?`,
     [id]
   );
   await db.end();
   return rows[0] || null;
 }
-
