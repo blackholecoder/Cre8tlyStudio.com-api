@@ -2,6 +2,7 @@ import express from "express";
 import { createLeadMagnet, getLeadMagnetBySessionId, getLeadMagnetsByUser, markLeadMagnetComplete } from "../db/dbLeadMagnet.js";
 import { processPromptFlow } from "../services/leadMagnetService.js";
 import { authenticateToken, requireAdmin } from "../middleware/authMiddleware.js";
+import { askGPT } from "../helpers/gptHelper.js";
 
 const router = express.Router();
 
@@ -62,18 +63,56 @@ router.get("/:sessionId", async (req, res) => {
 
 router.post("/prompt", authenticateToken, async (req, res) => {
   try {
-    const { magnetId, prompt, theme, pages, logo, link } = req.body;  // 👈 include theme
+    const { magnetId, prompt, theme, pages, logo, link, coverImage, cta, } = req.body;  // 👈 include theme
     if (!magnetId || !prompt) {
       return res.status(400).json({ message: "magnetId and prompt are required" });
     }
 
-    const updated = await processPromptFlow(magnetId, req.user.id, prompt, theme, pages, logo, link); 
+      // 🔒 Prompt length validation (server-side safety)
+    if (prompt.length > 2000) {
+      return res.status(413).json({
+        message: "Your input is too long. Please shorten your prompt. Max size: 5GB",
+      });
+    }
+
+    const updated = await processPromptFlow(magnetId, req.user.id, prompt, theme, pages, logo, link, coverImage, cta,); 
     res.json(updated);
   } catch (err) {
     console.error("❌ ERROR in /prompt route:", err);
     res.status(500).json({ message: "Failed to process prompt" });
   }
 });
+
+
+router.post("/prompt-builder", async (req, res) => {
+  const { audience, pain, promise, offer } = req.body;
+console.log("🎯 Received prompt-builder data:", req.body);
+  try {
+    const systemPrompt = `
+You are Cre8tlyStudio AI, an expert marketing strategist and creative lead magnet designer.
+Your task is to craft a clear, professional GPT prompt that will generate a high-converting lead magnet 
+for the user's target audience.
+
+Use the following answers as context:
+Audience: ${audience}
+Pain: ${pain}
+Promise: ${promise}
+Offer: ${offer || "none provided"}
+
+Your output should be one complete prompt ready to feed into another AI system.
+It should instruct the AI to create a lead magnet that educates, inspires, and builds trust with the audience.
+Do not include any preamble or commentary — just return the generated prompt text.
+`;
+
+    const gptResponse = await askGPT(systemPrompt);
+
+    res.json({ prompt: gptResponse });
+  } catch (err) {
+    console.error("❌ Error building smart prompt:", err);
+    res.status(500).json({ message: "Failed to generate smart prompt." });
+  }
+});
+
 
 
 

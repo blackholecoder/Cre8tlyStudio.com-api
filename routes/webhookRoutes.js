@@ -1,6 +1,7 @@
 import express from "express";
 import Stripe from "stripe";
 import { handleCheckoutCompleted } from "../services/leadMagnetService.js";
+import { upgradeUserToProCovers } from "../db/dbUser.js";
 
 
 const router = express.Router();
@@ -26,12 +27,19 @@ router.post(
 
     try {
       if (event.type === "checkout.session.completed") {
-        const session = await stripe.checkout.sessions.retrieve(
-          event.data.object.id,
-          { expand: ["line_items"] }
-        );
+        const session = event.data.object;
 
-        await handleCheckoutCompleted(session);
+        // ✅ safer: rely on metadata rather than product name
+        if (session.metadata?.product_type === "pro_covers") {
+          console.log("✨ Detected Pro Covers upgrade for:", session.metadata.email);
+          await upgradeUserToProCovers(session.metadata.email);
+        } else {
+          // optional: fetch expanded line items if needed by your existing handler
+          const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+            expand: ["line_items"],
+          });
+          await handleCheckoutCompleted(fullSession);
+        }
       }
 
       res.sendStatus(200);
@@ -41,6 +49,8 @@ router.post(
     }
   }
 );
+
+
 
 
 export default router;

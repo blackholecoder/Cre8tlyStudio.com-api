@@ -16,53 +16,57 @@ import authRoutes from "./routes/authRoutes.js";
 import gptRoutes from "./routes/gptRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import pdfRoutes from "./routes/pdfRoutes.js";
+import tempCoverRoutes from "./routes/uploads/tempCoverRoutes.js";
 
 // Admin Imports
 import usersRoutes from "./routes/admin/usersRoutes.js";
 import statsRoutes from "./routes/admin/statsRoutes.js";
 import leadsRoutes from "./routes/admin/leadsRoutes.js";
 import reportsRoutes from "./routes/admin/reportsRoutes.js";
+import addAdminRoutes from "./routes/admin/addAdminRoutes.js";
 
 import cors from "cors";
 
 const app = express();
 const port = 3001;
 
-app.use("/api/static", express.static(path.join(__dirname, "public")));
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "https://cre8tlystudio.com",
+      "https://www.cre8tlystudio.com",
+      "https://admin.cre8tlystudio.com",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "tauri://localhost",
+      "https://cre8tlystudio.nyc3.digitaloceanspaces.com", 
+      "https://cre8tlystudio.nyc3.cdn.digitaloceanspaces.com",
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log("Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
 
-// Middleware
-// app.use(cors());
-const allowedOrigins = [
-  "https://cre8tlystudio.com",
-  "https://www.cre8tlystudio.com",
-  "https://admin.cre8tlystudio.com",
-  "http://localhost:5173", // if you’re using Vite locally
-  "http://localhost:3000", // optional main site dev port
-  "http://localhost:3001"  // optional admin dev port
-];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.log("Blocked by CORS:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 
 
 app.use("/api/webhook", webhookRoutes);
 app.use(express.urlencoded({ extended: true }))
-app.use(express.json({limit: "1000mb"})); // parse json 
+app.use(express.json({limit: "5000mb"})); // parse json 
+
+app.use("/api/static", express.static(path.join(__dirname, "public")));
 
 
 app.use("/api", indexRoutes);
@@ -72,12 +76,14 @@ app.use("/api/auth", authRoutes);
 app.use("/api/gpt", gptRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/pdf", pdfRoutes);
+app.use("/api/uploads", tempCoverRoutes);
 
 // Admin
 app.use("/api/admin/users", usersRoutes);
 app.use("/api/admin/stats", statsRoutes);
 app.use("/api/admin/leads", leadsRoutes);
 app.use("/api/admin/reports", reportsRoutes);
+app.use("/api/admin", addAdminRoutes);
 
 
 

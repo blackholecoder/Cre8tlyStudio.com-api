@@ -47,6 +47,8 @@ export async function generatePDF({
   isHtml = false,
   logo,
   link,
+  coverImage,
+  cta,
 }) {
   console.log("✅ generatePDF() started for theme:", theme);
   const browser = await puppeteer.launch({
@@ -86,17 +88,6 @@ export async function generatePDF({
     ...sections.map((s) => `<div class="page">${s}</div>`),
     `<div class="page">
       ${lastSection}
-      ${
-        link
-          ? `
-        <div class="link-container" style="margin-top: 12px; margin-bottom: 6px;">
-          <a href="${link}" target="_blank" class="link-button">
-            Visit ${new URL(link).hostname.replace(/^www\\./, "")}
-          </a>
-        </div>
-      `
-          : ""
-      }
    </div>`,
   ].join("");
 
@@ -114,11 +105,20 @@ export async function generatePDF({
     ? "truetype"
     : "woff2";
 
-  console.log("Font path:", fontPath);
-
   const logoImgTag = logo
     ? `<div class="logo-wrapper"><img src="${logo}" alt="Brand Logo" class="logo" /></div>`
     : "";
+
+  let coverImgTag = "";
+if (coverImage && fs.existsSync(coverImage)) {
+  const base64Cover = fs.readFileSync(coverImage).toString("base64");
+  const ext = path.extname(coverImage).replace(".", "") || "png";
+  coverImgTag = `
+    <div class="cover-page">
+      <img src="data:image/${ext};base64,${base64Cover}" alt="Cover Image" class="cover-img" />
+    </div>
+  `;
+}
 
   const html = `
 <html>
@@ -252,11 +252,153 @@ export async function generatePDF({
           color: ${selectedTheme.textColor};
         }
       }
+
+        .cover-page {
+  page-break-before: always;
+  page-break-after: always;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 40mm); /* subtract top/bottom margins */
+  margin: 0;
+  padding: 0;
+}
+
+.cover-img {
+  width: 100%;
+  height: auto;
+  max-width: 667px;
+  max-height: calc(100vh - 40mm);
+  object-fit: contain;
+  margin: 0 auto;
+  display: block;
+}
+
+  .signature-page {
+  page-break-before: always;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: calc(100vh - 60mm); /* keeps content within margins */
+  background: linear-gradient(to bottom right, #0a0a0a, #111);
+  color: white;
+  padding: 40px 30px;
+  box-sizing: border-box;
+}
+
+.signature-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cta-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  color: #222;
+  margin-bottom: 32px;
+}
+
+.signature-footer {
+  font-size: 16px;
+  font-style: italic;
+  color: #a3a3a3;
+  margin-top: 16px;
+}
+
+.signature-page a {
+  color: #00b7ff;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.signature-page a:hover {
+  color: #00e0ff;
+  text-decoration: none;
+}
+
+.final-cta-page {
+  page-break-before: always;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: calc(100vh - 40mm);
+  background: #fff; /* White background for clarity */
+  color: #000;
+  padding: 40px 30px;
+  box-sizing: border-box;
+}
+
+
+.footer-link {
+  text-align: center;
+  margin-top: 12px;
+}
+
+.footer-link .link-button {
+  display: inline-block;
+  background: linear-gradient(90deg, #00E07A 0%, #670fe7 100%);
+  color: white;
+  padding: 12px 26px;
+  font-weight: 600;
+  font-size: 16px;
+  border: 1px solid white;
+  border-radius: 30px;
+  text-decoration: none;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.footer-link .link-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+
+
+
     </style>
   </head>
   <body>
+  ${coverImgTag} 
     ${logoImgTag}
     ${content}
+   ${
+  cta || link
+    ? (() => {
+        const linkedCta = cta
+          ? cta
+              .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')
+              .replace(/(www\.[^\s]+)/g, '<a href="https://$1" target="_blank">$1</a>')
+              .replace(/\n/g, "<br>")
+          : "";
+        return `
+          <div class="page final-cta-page">
+            <div class="signature-container">
+              ${
+                linkedCta
+                  ? `<p class="cta-text">${linkedCta}</p>`
+                  : ""
+              }
+              ${
+                link
+                  ? `<div class="footer-link">
+                      <a href="${link}" target="_blank" class="link-button">
+                        Visit ${new URL(link).hostname.replace(/^www\\./, "")}
+                      </a>
+                    </div>`
+                  : ""
+              }
+              <p class="signature-footer">— Your Partner in Growth</p>
+            </div>
+          </div>
+        `;
+      })()
+    : ""
+}
   </body>
 </html>
 `;
@@ -284,5 +426,14 @@ export async function generatePDF({
   });
 
   await browser.close();
+
+  if (coverImage && fs.existsSync(coverImage)) {
+  try {
+    fs.unlinkSync(coverImage);
+  } catch (err) {
+    console.error("⚠️ Failed to delete temp cover:", err);
+  }
+}
+
   return path.resolve(outputDir, `${id}.pdf`);
 }

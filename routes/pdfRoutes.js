@@ -1,5 +1,6 @@
 import express from "express";
 import nodemailer from "nodemailer";
+import axios from "axios";
 
 import dotenv from "dotenv";
 import { pdfLeads } from "../db/dbPdf.js";
@@ -72,6 +73,57 @@ router.post("/free-pdf", async (req, res) => {
     res.status(500).json({ errorMessage: e.message });
   }
 });
+
+
+router.get("/proxy", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send("Missing ?url");
+
+  try {
+    const response = await axios.get(url, { responseType: "arraybuffer" });
+    res.setHeader("Content-Type", "application/pdf");
+    res.send(response.data);
+  } catch (err) {
+    console.error("Proxy error:", err.message);
+    res.status(500).send("Failed to fetch PDF");
+  }
+});
+
+
+// router.get("/proxy", async (req, res) => {
+//   const { url } = req.query;
+//   if (!url) return res.status(400).send("Missing ?url param");
+
+//   try {
+//     console.log("Proxy fetching:", url);
+//     const response = await axios.get(url, {
+//       responseType: "stream", // stream improves performance + memory
+//       headers: {
+//         "User-Agent": "cre8tlystudio-proxy",
+//         "Accept": "application/pdf",
+//       },
+//       maxRedirects: 5,
+//       validateStatus: (status) => status < 500, // prevent throwing on 4xx
+//     });
+
+//     if (response.status >= 400) {
+//       console.error("PDF fetch failed:", response.status, response.statusText);
+//       return res.status(response.status).send(`Failed to fetch PDF (${response.status})`);
+//     }
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader("Cache-Control", "public, max-age=3600");
+
+//     response.data.pipe(res);
+//   } catch (err) {
+//     console.error("PDF proxy error:", err.message);
+//     res.status(500).send("Failed to load PDF");
+//   }
+// });
+
+
+
+
 
 export default router;
 

@@ -1,24 +1,34 @@
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 
+
 export async function createLeadMagnet(userId, prompt) {
   const db = await connect();
   const id = uuidv4();
   const createdAt = new Date();
 
-  // If no prompt yet, set status to awaiting_prompt
+  // ✅ Fetch user's pro_covers status
+  const [userRows] = await db.query("SELECT pro_covers FROM users WHERE id = ?", [userId]);
+  const hasProCovers = userRows.length > 0 ? userRows[0].pro_covers === 1 : false;
+
+  // ✅ Determine status and slot number
   const status = prompt && prompt.trim() !== "" ? "pending" : "awaiting_prompt";
+  const [existing] = await db.query("SELECT COUNT(*) AS total FROM lead_magnets WHERE user_id = ?", [userId]);
+  const slotCount = existing[0].total;
 
   await db.query(
     `INSERT INTO lead_magnets 
-      (id, user_id, prompt, pdf_url, price, status, created_at) 
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [id, userId, prompt || null, "", 19.0, status, createdAt]
+      (id, user_id, prompt, pdf_url, price, status, created_at, theme, slot_number)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, userId, prompt || null, "", 19.0, status, createdAt, "modern", slotCount + 1]
   );
 
   await db.end();
-  return { id, status };
+
+  return { id, status, hasProCovers };
 }
+
+
 export async function markLeadMagnetComplete(id, pdfUrl) {
   const db = await connect();
   await db.query(
@@ -29,6 +39,9 @@ export async function markLeadMagnetComplete(id, pdfUrl) {
   );
   await db.end();
 }
+
+
+
 export async function insertLeadMagnet({
   id,
   userId,
@@ -115,4 +128,5 @@ export async function saveLeadMagnetPdf(magnetId, userId, prompt, pdfUrl, theme)
     ["completed", prompt, pdfUrl, finalTheme, magnetId, userId]
   );
 }
+
 

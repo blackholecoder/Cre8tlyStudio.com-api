@@ -67,6 +67,7 @@ router.post("/login", async (req, res) => {
     user: { id: user.id, name: user.name, role: user.role },
     accessToken,
     refreshToken,
+    pro_covers: user.pro_covers,
   });
 });
 
@@ -115,6 +116,7 @@ router.get("/me", authenticateToken, async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      pro_covers: user.pro_covers,
       profile_image: user.profile_image_url || null,
     });
   } catch (err) {

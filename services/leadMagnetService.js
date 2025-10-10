@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import { insertLeadMagnet,  updateLeadMagnetPrompt, markLeadMagnetComplete, getLeadMagnetById, updateLeadMagnetStatus, saveLeadMagnetPdf } from "../db/dbLeadMagnet.js";
 import { generatePDF } from "./pdfService.js";
@@ -5,9 +8,9 @@ import { updateUserRole } from "../db/dbUser.js";
 import { askGPT } from "../helpers/gptHelper.js";
 import { sendEmail } from "../utils/email.js";
 import { uploadFileToSpaces } from "../helpers/uploadToSpace.js";
-import fs from "fs/promises";
 
-
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export async function processPromptFlow(
   magnetId,
@@ -16,7 +19,9 @@ export async function processPromptFlow(
   theme,
   pages = 5,
   logo, 
-  link
+  link,
+  coverImage,
+  cta,
 ) {
   // 🚨 clamp pages securely
   const safePages = Math.min(25, Math.max(1, pages));
@@ -66,6 +71,22 @@ Do not stop early. Add examples, case studies, bullet lists, and elaboration to 
       '<div class="page-break"></div>'
     );
 
+    let tempCoverPath = null;
+    if (coverImage && coverImage.startsWith("data:image")) {
+      const tmpDir = path.resolve(__dirname, "../uploads/tmp");
+      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+
+      const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
+      const extension = coverImage.substring(
+        coverImage.indexOf("/") + 1,
+        coverImage.indexOf(";")
+      );
+      tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
+      fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
+    }
+
+
+
     // 5. Generate PDF with theme
     const localPath = await generatePDF({
       id: magnetId,
@@ -73,6 +94,8 @@ Do not stop early. Add examples, case studies, bullet lists, and elaboration to 
       theme,
       logo,
       link,
+      coverImage: tempCoverPath,
+      cta,
       isHtml: true, // ✅ preserves our HTML
     });
  // 3. Upload to Spaces
@@ -88,8 +111,6 @@ Do not stop early. Add examples, case studies, bullet lists, and elaboration to 
     throw err;
   }
 }
-
-
 
 export async function handleCheckoutCompleted(session) {
   const createdAt = new Date();

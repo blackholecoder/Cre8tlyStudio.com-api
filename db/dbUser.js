@@ -52,6 +52,7 @@ export async function getUserById(id) {
        email, 
        role, 
        profile_image_url, 
+       pro_covers, 
        twofa_secret IS NOT NULL AS twofa_enabled 
      FROM users 
      WHERE id = ?`,
@@ -60,3 +61,28 @@ export async function getUserById(id) {
   await db.end();
   return rows[0] || null;
 }
+
+export async function upgradeUserToProCovers(email) {
+  const db = await connect();
+
+  try {
+    // Double-check the user exists before updating
+    const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (!rows.length) {
+      console.warn(`⚠️ No user found for email: ${email}`);
+      await db.end();
+      return false;
+    }
+
+    await db.query("UPDATE users SET pro_covers = 1 WHERE email = ?", [email]);
+    await db.end();
+
+    console.log(`✅ Upgraded ${email} to Pro Covers`);
+    return true;
+  } catch (err) {
+    console.error("❌ Failed to upgrade user to Pro Covers:", err.message);
+    await db.end();
+    throw err;
+  }
+}
+

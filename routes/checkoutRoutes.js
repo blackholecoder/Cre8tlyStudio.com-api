@@ -6,10 +6,9 @@ import { createCheckout } from "../services/stripeService.js"
 const router = express.Router();
 
 router.post("/", async (req, res) => {
-  console.log("API HIT FROM BACKEDN CRE8TLY CHECKOUT")
   try {
-    const { userId, priceId } = req.body;
-    const url = await createCheckout({ userId, priceId });
+    const { userId, priceId, productType } = req.body;
+    const url = await createCheckout({ userId, priceId, productType });
     res.json({ url });
   } catch (err) {
     console.error("Checkout failed:", err.message);
