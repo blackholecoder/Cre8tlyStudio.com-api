@@ -1,6 +1,6 @@
 import express from "express";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 
 import {
   createUser,
@@ -14,6 +14,7 @@ import { loginAdmin } from "../db/dbAdminAuth.js";
 import { updateAdminSettings } from "../db/dbAdminSettings.js";
 import { generateTwoFA, verifyTwoFA } from "../db/db2FA.js";
 import { uploadAdminImage } from "../db/dbAdminImage.js";
+import { forgotPassword, resetPassword } from "../db/dbAuth.js";
 
 const router = express.Router();
 
@@ -40,35 +41,48 @@ router.post("/signup", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user = await getUserByEmail(email);
-  if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
-  const isMatch = await bcrypt.compare(password, user.password_hash);
-  if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+  try {
+    const { email, password } = req.body;
 
-  // Short-lived access token
-  const accessToken = jwt.sign(
-    { id: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "15m" }
-  );
+    const user = await getUserByEmail(email);
 
-  // Long-lived refresh token
-  const refreshToken = jwt.sign(
-    { id: user.id, role: user.role }, // 👈 include role for future verification
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
-  );
+    if (!user) {
+      console.log("❌ No user found");
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-  await saveRefreshToken(user.id, refreshToken);
+    const isMatch = await bcrypt.compare(password, user.password_hash);
 
-  res.json({
-    user: { id: user.id, name: user.name, role: user.role },
-    accessToken,
-    refreshToken,
-    pro_covers: user.pro_covers,
-  });
+    if (!isMatch) {
+      console.log("❌ Password mismatch");
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    await saveRefreshToken(user.id, refreshToken);
+
+    res.json({
+      user: { id: user.id, name: user.name, role: user.role },
+      accessToken,
+      refreshToken,
+      pro_covers: user.pro_covers,
+    });
+  } catch (err) {
+    console.error("🔥 Login route error:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 router.post("/refresh", async (req, res) => {
@@ -235,6 +249,34 @@ router.put("/admin/upload-image", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("Image upload error:", err);
     res.status(400).json({ message: err.message || "Upload failed" });
+  }
+});
+
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    const result = await forgotPassword(email);
+    res.json(result);
+  } catch (err) {
+    console.error("Forgot password route error:", err);
+    res.status(500).json({ message: "Error sending reset email" });
+  }
+});
+
+// 🔹 Reset Password Route
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword)
+      return res.status(400).json({ message: "Token and new password are required" });
+
+    const result = await resetPassword(token, newPassword);
+    res.json(result);
+  } catch (err) {
+    console.error("Reset password route error:", err);
+    res.status(500).json({ message: "Error resetting password" });
   }
 });
 

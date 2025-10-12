@@ -30,6 +30,9 @@ import cors from "cors";
 const app = express();
 const port = 3001;
 
+app.use(express.urlencoded({ extended: true }))
+app.use(express.json({limit: "5000mb"})); // parse json 
+
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -63,9 +66,6 @@ app.options('*', cors(corsOptions));
 
 
 app.use("/api/webhook", webhookRoutes);
-app.use(express.urlencoded({ extended: true }))
-app.use(express.json({limit: "5000mb"})); // parse json 
-
 app.use("/api/static", express.static(path.join(__dirname, "public")));
 
 

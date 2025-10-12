@@ -13,7 +13,7 @@ export async function createUser({ name, email, password }) {
     [id, name, email, hashedPassword]
   );
 
-  await db.end();
+  // await db.end();
   return { id, email, name, role: "customer" };
 }
 

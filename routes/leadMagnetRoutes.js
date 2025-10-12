@@ -106,7 +106,8 @@ Do not include any preamble or commentary — just return the generated prompt t
 
     const gptResponse = await askGPT(systemPrompt);
 
-    res.json({ prompt: gptResponse });
+    const cleanPrompt = gptResponse.replace(/<[^>]*>?/gm, "").trim();
+res.json({ prompt: cleanPrompt });
   } catch (err) {
     console.error("❌ Error building smart prompt:", err);
     res.status(500).json({ message: "Failed to generate smart prompt." });
