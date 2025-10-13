@@ -49,7 +49,7 @@ export async function markBookComplete(id, pdfUrl) {
 export async function getBooksByUser(userId) {
   const db = await connect();
   const [rows] = await db.query(
-    `SELECT id, user_id, title, slot_number, part_number, status, prompt, pdf_url, created_at
+    `SELECT id, user_id, title, slot_number, part_number, status, prompt, pdf_url, pages, created_at
      FROM generated_books
      WHERE user_id = ? AND deleted_at IS NULL
      ORDER BY created_at DESC`,
@@ -64,7 +64,7 @@ export async function getBooksByUser(userId) {
 export async function getAllBooks() {
   const db = await connect();
   const [rows] = await db.query(
-    `SELECT id, user_id, title, slot_number, status, prompt, pdf_url, created_at
+    `SELECT id, user_id, title, slot_number, status, prompt, pdf_url, pages, created_at
      FROM generated_books
      WHERE deleted_at IS NULL
      ORDER BY created_at DESC`
