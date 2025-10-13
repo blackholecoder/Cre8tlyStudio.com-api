@@ -27,8 +27,6 @@ export async function createLeadMagnet(userId, prompt) {
 
   return { id, status, hasProCovers };
 }
-
-
 export async function markLeadMagnetComplete(id, pdfUrl) {
   const db = await connect();
   await db.query(
@@ -39,9 +37,6 @@ export async function markLeadMagnetComplete(id, pdfUrl) {
   );
   await db.end();
 }
-
-
-
 export async function insertLeadMagnet({
   id,
   userId,
@@ -76,7 +71,6 @@ export async function getLeadMagnetBySessionId(sessionId) {
   console.log("DB lookup rows:", rows);
   return rows[0] || null;
 }
-
 export async function updateLeadMagnetPrompt(id, prompt) {
   const db = await connect();
   const [result] = await db.query(

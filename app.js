@@ -17,6 +17,9 @@ import gptRoutes from "./routes/gptRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import pdfRoutes from "./routes/pdfRoutes.js";
 import tempCoverRoutes from "./routes/uploads/tempCoverRoutes.js";
+import bookRoutes from "./routes/books/bookRoutes.js";
+// Checkout for Ebooks
+import ebookCheckoutRoutes from "./routes/ebookCheckout/ebookCheckoutRoutes.js";
 
 // Admin Imports
 import usersRoutes from "./routes/admin/usersRoutes.js";
@@ -24,6 +27,8 @@ import statsRoutes from "./routes/admin/statsRoutes.js";
 import leadsRoutes from "./routes/admin/leadsRoutes.js";
 import reportsRoutes from "./routes/admin/reportsRoutes.js";
 import addAdminRoutes from "./routes/admin/addAdminRoutes.js";
+import ebooksRoutes from "./routes/admin/ebookRoutes.js";
+import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 
 import cors from "cors";
 
@@ -84,6 +89,10 @@ app.use("/api/admin/stats", statsRoutes);
 app.use("/api/admin/leads", leadsRoutes);
 app.use("/api/admin/reports", reportsRoutes);
 app.use("/api/admin", addAdminRoutes);
+app.use("/api/admin", freeBookRoutes);
+app.use("/api/ebooks", ebooksRoutes);
+app.use("/api/ebooks/checkout", ebookCheckoutRoutes);
+app.use("/api/books", bookRoutes);
 
 
 
