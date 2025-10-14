@@ -239,10 +239,6 @@ export async function handleCheckoutCompleted(session) {
   console.log(`✅ ${slots.length} lead magnet slots created for user ${userId}`);
 }
 
-
-
-
-
 export async function attachPromptToLeadMagnet(magnetId, prompt) {
   const leadMagnet = await getLeadMagnetById(magnetId); // 👈 FIX: lookup by ID, not sessionId
   if (!leadMagnet) throw new Error("Lead magnet not found");

@@ -1,8 +1,7 @@
 import express from "express";
 import Stripe from "stripe";
 import { handleCheckoutCompleted } from "../services/leadMagnetService.js";
-import { upgradeUserToProCovers } from "../db/dbUser.js";
-
+import { upgradeUserToBooks, upgradeUserToMagnets, upgradeUserToProCovers } from "../db/dbUser.js";
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -31,13 +30,31 @@ router.post(
 
         // ✅ safer: rely on metadata rather than product name
         if (session.metadata?.product_type === "pro_covers") {
-          console.log("✨ Detected Pro Covers upgrade for:", session.metadata.email);
+          console.log(
+            "✨ Detected Pro Covers upgrade for:",
+            session.metadata.email
+          );
           await upgradeUserToProCovers(session.metadata.email);
+        } else if (session.metadata?.product_type === "books") {
+          console.log(
+            "📚 Detected Book Dashboard upgrade for:",
+            session.metadata.email
+          );
+          await upgradeUserToBooks(session.metadata.email);
+        } else if (session.metadata?.product_type === "lead_magnets") {
+          console.log(
+            "🎯 Detected Lead Magnet Plan for:",
+            session.metadata.email
+          );
+          await upgradeUserToMagnets(session.metadata.email);
         } else {
           // optional: fetch expanded line items if needed by your existing handler
-          const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-            expand: ["line_items"],
-          });
+          const fullSession = await stripe.checkout.sessions.retrieve(
+            session.id,
+            {
+              expand: ["line_items"],
+            }
+          );
           await handleCheckoutCompleted(fullSession);
         }
       }
@@ -49,8 +66,5 @@ router.post(
     }
   }
 );
-
-
-
 
 export default router;

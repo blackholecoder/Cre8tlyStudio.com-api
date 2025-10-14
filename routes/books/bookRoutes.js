@@ -7,6 +7,7 @@ import {
   getAllBooks,
   getBookById,
   getBookParts,
+  updateBookInfo,
 } from "../../db/book/dbBooks.js";
 import { enforcePageLimit, processBookPrompt, validateBookPromptInput } from "../../db/book/dbCreateBookPrompt.js";
 
@@ -15,7 +16,9 @@ const router = express.Router();
 // ✅ Create empty book slot
 router.post("/", authenticateToken, async (req, res) => {
   try {
-    const result = await createBook(req.user.id, null);
+    
+    const { title, authorName } = req.body;
+    const result = await createBook(req.user.id, null, title, authorName);
     res.status(201).json(result);
   } catch (err) {
     console.error("Book create error:", err);
@@ -81,7 +84,9 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       coverImage,
       title,
       authorName,
+      bookName, 
       partNumber = 1,
+      
     } = req.body;
     const userId = req.user.id;
 
@@ -107,8 +112,12 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       coverImage,
       title,
       authorName,
+      bookName, 
       partNumber,
+      
     });
+
+
 
     res.json(generated);
   } catch (err) {
@@ -116,6 +125,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Failed to process book prompt" });
   }
 });
+
 router.get("/:bookId/parts", authenticateToken, async (req, res) => {
   try {
     const { bookId } = req.params;
@@ -126,6 +136,17 @@ router.get("/:bookId/parts", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching book parts:", err);
     res.status(500).json({ message: "Failed to load book parts" });
+  }
+});
+
+router.put("/update-info/:id", authenticateToken, async (req, res) => {
+  try {
+    const { title, authorName } = req.body;
+    await updateBookInfo(req.params.id, req.user.id, title, authorName);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Book info update failed:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

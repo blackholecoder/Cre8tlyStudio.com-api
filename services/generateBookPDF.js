@@ -15,7 +15,6 @@ export async function generateBookPDF({
   coverImage = null,
   link = null,
 }) {
-  console.log("📖 generateBookPDF() started:", title);
 
   const browser = await puppeteer.launch({
     headless: "new",
@@ -166,19 +165,28 @@ export async function generateBookPDF({
     margin: { top: "15mm", bottom: "20mm", left: "15mm", right: "15mm" },
   });
 
-  await browser.close();
 
-  let pageCount = 1;
-  try {
+await browser.close();
+
+// ✅ Ensure file is fully written before reading
+await new Promise((res) => setTimeout(res, 300));
+
+let pageCount = 0;
+try {
+  if (fs.existsSync(localPdfPath)) {
     const pdfBytes = fs.readFileSync(localPdfPath);
     const pdfDoc = await PDFDocument.load(pdfBytes);
     pageCount = pdfDoc.getPageCount();
-  } catch (err) {
-    console.warn("⚠️ Page count read error:", err.message);
+    console.log("✅ True page count:", pageCount);
+  } else {
+    console.warn("⚠️ PDF file not found:", localPdfPath);
   }
+} catch (err) {
+  console.warn("⚠️ Page count read error:", err.message);
+}
 
-  console.log(`📄 True printed page count: ${pageCount}`);
-  console.log("✅ Book PDF generated:", localPdfPath);
+console.log(`📄 Final PDF page count: ${pageCount}`);
+console.log("✅ Book PDF generated:", localPdfPath);
 
-  return { localPdfPath, pageCount };
+return { localPdfPath, pageCount };
 }

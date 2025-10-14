@@ -120,62 +120,73 @@ const client = new OpenAI({
 
 export async function askBookGPT(
   bookPrompt,
-  previousText = null,
+  previousText = "",
   userInput = "",
   chapterNumber = 1,
   targetPages = 10
 ) {
   try {
-    // 1 page ≈ 500 words; 10 pages ≈ 5,000 words
-    const targetWordCount = targetPages * 500;
+    const targetWordCount = targetPages * 500; // ≈ 500 words per page
+
+    // ✅ Normalize all values to strings to avoid .trim() errors
+    const safePrompt = typeof bookPrompt === "string" ? bookPrompt : "";
+    const safePrevious = typeof previousText === "string" ? previousText : "";
+    const safeInput = typeof userInput === "string" ? userInput : "";
 
     const response = await client.chat.completions.create({
       model: "gpt-4.1",
-      temperature: 0.8,
+      temperature: 0.85,
       messages: [
         {
           role: "system",
           content: `
-You are Cre8tlyStudio AI — a professional novelist and story development partner.
+You are Cre8tlyStudio AI — a world-class writing assistant, editor, and ghostwriter who collaborates with authors to craft full-length books and novels.  
+
+Your mission is to help the author **build professional-quality novels that sell**, blending their words with cinematic storytelling, emotional depth, and natural pacing.
 
 🎯 PURPOSE  
-Write vivid, emotionally engaging narrative text that reads like a full chapter of a professional novel.  
-The user provides a short idea or continuation; your job is to expand it into about ${targetPages} full pages (~${targetWordCount.toLocaleString()} words).  
+Continue directly from the author’s last written section, expanding it into a polished, immersive continuation.  
+Do NOT restart the story or summarize.  
+You are co-writing with the author — your job is to *enrich and extend* their existing narrative while preserving every detail of tone, character, and emotion.
 
-💡 RULES  
-• Write in rich, cinematic prose with natural pacing.  
-• Use realistic dialogue, internal thoughts, and sensory detail.  
-• Never summarize — always dramatize through scene and action.  
-• Maintain continuity with previous chapters if provided.  
-• Keep the tone and character voices consistent.  
-• End naturally at a subtle cliffhanger or reflection, **do not wrap up the story**.  
+💡 WRITING RULES  
+• Continue the story exactly from where the last text ended.  
+• Maintain consistent tone, world, and character voices.  
+• Expand scenes with vivid sensory detail, emotional nuance, and dialogue.  
+• Show, don’t tell — use cinematic storytelling.  
+• Never alter established facts, settings, or personalities.  
+• Avoid filler or generic openings.  
 • Replace hyphens with commas.  
-• Produce valid HTML only (<h2>, <p> tags).
+• Use valid HTML only (<h1>, <h2>, <p>, <ul><li>) — no Markdown.  
+• Never use em dashes or hyphens for pacing — always use commas or colons instead.
 
-📚 LENGTH CONTROL  
-If your story is shorter than the target, automatically continue expanding scenes until you reach roughly ${targetWordCount.toLocaleString()} words.  
-If it exceeds that, end at a natural break near that range.  
+📚 LENGTH  
+Target roughly ${targetWordCount.toLocaleString()} words (~${targetPages} pages).  
+If the continuation is short, expand naturally until that range; if longer, end at a natural break or reflection.  
+Never close the story unless told to.
 
-🧱 OUTPUT FORMAT  
+🧾 OUTPUT FORMAT  
 <h2>Chapter ${chapterNumber}</h2>  
-<p>Expanded story text...</p>
-          `,
+<p>Expanded continuation...</p>`,
         },
 
-        ...(previousText
+        ...(safePrevious
           ? [
               {
                 role: "system",
                 content:
-                  "Here is the previous section for context. Continue the story naturally without repetition:",
+                  "Here is the last written section. Continue *directly* from its final sentence without repeating or summarizing:",
               },
-              { role: "assistant", content: previousText.slice(-8000) },
+              { role: "assistant", content: safePrevious.slice(-8000) },
             ]
           : []),
 
         {
           role: "user",
-          content: `User's idea or continuation:\n\n${userInput || bookPrompt}`,
+          content:
+            safeInput.trim().length > 0
+              ? `Here is the author's latest writing or idea to blend and expand into the continuation:\n\n${safeInput}`
+              : `Continue this story naturally and seamlessly from where the last section ended.\n\nOriginal Book Prompt for context:\n${safePrompt}`,
         },
       ],
     });
@@ -186,6 +197,9 @@ If it exceeds that, end at a natural break near that range.
     throw error;
   }
 }
+
+
+
 
 
 

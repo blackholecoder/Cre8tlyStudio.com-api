@@ -78,6 +78,10 @@ router.post("/login", async (req, res) => {
       accessToken,
       refreshToken,
       pro_covers: user.pro_covers,
+      has_book: user.has_book,
+      has_magnet: user.has_magnet,
+      book_slots: user.book_slots,
+      magnet_slots: user.magnet_slots,
     });
   } catch (err) {
     console.error("🔥 Login route error:", err);
@@ -131,6 +135,10 @@ router.get("/me", authenticateToken, async (req, res) => {
       email: user.email,
       role: user.role,
       pro_covers: user.pro_covers,
+      has_book: user.has_book,
+      has_magnet: user.has_magnet,
+      book_slots: user.book_slots,
+      magnet_slots: user.magnet_slots,
       profile_image: user.profile_image_url || null,
     });
   } catch (err) {

@@ -19,7 +19,23 @@ export async function createUser({ name, email, password }) {
 
 export async function getUserByEmail(email) {
   const db = await connect();
-  const [rows] = await db.query("SELECT * FROM users WHERE email=? LIMIT 1", [email]);
+  const [rows] = await db.query(
+    `SELECT 
+       id,
+       name,
+       email,
+       role,
+       password_hash,
+       pro_covers,
+       has_book,
+       has_magnet,
+       book_slots,
+       magnet_slots
+     FROM users
+     WHERE email = ?
+     LIMIT 1`,
+    [email]
+  );
   await db.end();
   return rows[0] || null;
 }
@@ -49,10 +65,14 @@ export async function getUserById(id) {
     `SELECT 
        id, 
        name, 
-       email, 
+       email,
+       has_book, 
        role, 
        profile_image_url, 
        pro_covers, 
+       has_magnet,
+       book_slots,
+       magnet_slots,
        twofa_secret IS NOT NULL AS twofa_enabled 
      FROM users 
      WHERE id = ?`,
@@ -86,3 +106,68 @@ export async function upgradeUserToProCovers(email) {
   }
 }
 
+export async function upgradeUserToBooks(email) {
+  const db = await connect();
+  try {
+    const [rows] = await db.query(
+      "SELECT id, book_slots FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (!rows.length) {
+      console.warn(`⚠️ No user found for email: ${email}`);
+      await db.end();
+      return false;
+    }
+
+    const user = rows[0];
+    let newSlots = user.book_slots || 0;
+
+    // ✅ If user has no available slot, give them 1
+    if (newSlots < 1) newSlots = 1;
+
+    await db.query(
+      "UPDATE users SET has_book = 1, book_slots = ? WHERE email = ?",
+      [newSlots, email]
+    );
+
+    console.log(`📚 Activated 1 book slot (750 pages) for ${email}`);
+    await db.end();
+    return true;
+  } catch (err) {
+    console.error("❌ upgradeUserToBooks failed:", err.message);
+    await db.end();
+    throw err;
+  }
+}
+
+export async function upgradeUserToMagnets(email) {
+  const db = await connect();
+  try {
+    const [rows] = await db.query(
+      "SELECT id, magnet_slots FROM users WHERE email = ?",
+      [email]
+    );
+    if (!rows.length) {
+      console.warn(`⚠️ No user found for email: ${email}`);
+      await db.end();
+      return false;
+    }
+
+    const user = rows[0];
+    const newSlots = (user.magnet_slots || 0) + 5;
+
+    await db.query(
+      "UPDATE users SET has_magnet = 1, magnet_slots = ? WHERE email = ?",
+      [newSlots, email]
+    );
+
+    console.log(`🎯 Added 5 lead magnet slots for ${email} (total: ${newSlots})`);
+    await db.end();
+    return true;
+  } catch (err) {
+    console.error("❌ upgradeUserToMagnets failed:", err.message);
+    await db.end();
+    throw err;
+  }
+}
