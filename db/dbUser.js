@@ -121,17 +121,14 @@ export async function upgradeUserToBooks(email) {
     }
 
     const user = rows[0];
-    let newSlots = user.book_slots || 0;
-
-    // ✅ If user has no available slot, give them 1
-    if (newSlots < 1) newSlots = 1;
+    const newSlots = user.book_slots > 0 ? user.book_slots : 1;
 
     await db.query(
-      "UPDATE users SET has_book = 1, book_slots = ? WHERE email = ?",
+      "UPDATE users SET has_book = 1, pro_covers = 1, book_slots = ? WHERE email = ?",
       [newSlots, email]
     );
 
-    console.log(`📚 Activated 1 book slot (750 pages) for ${email}`);
+    console.log(`📚 Activated Book slot + Pro Covers for ${email}`);
     await db.end();
     return true;
   } catch (err) {
@@ -171,3 +168,41 @@ export async function upgradeUserToMagnets(email) {
     throw err;
   }
 }
+
+export async function upgradeUserToBundle(email) {
+  const db = await connect();
+  try {
+    const [rows] = await db.query(
+      "SELECT id, book_slots, has_magnet, has_book, pro_covers FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (!rows.length) {
+      console.warn(`⚠️ No user found for email: ${email}`);
+      await db.end();
+      return false;
+    }
+
+    const user = rows[0];
+    const newBookSlots = user.book_slots > 0 ? user.book_slots : 1;
+
+    await db.query(
+      `UPDATE users 
+       SET has_magnet = 1, 
+           pro_covers = 1, 
+           has_book = 1, 
+           book_slots = ? 
+       WHERE email = ?`,
+      [newBookSlots, email]
+    );
+
+    console.log(`🎁 Bundle activated for ${email}: 5 magnets, Pro Covers, 1 book slot`);
+    await db.end();
+    return true;
+  } catch (err) {
+    console.error("❌ upgradeUserToBundle failed:", err.message);
+    await db.end();
+    throw err;
+  }
+}
+

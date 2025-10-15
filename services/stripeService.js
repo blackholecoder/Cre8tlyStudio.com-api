@@ -1,17 +1,17 @@
 import Stripe from "stripe";
-import connect from "../db/connect.js"; // ✅ only if you need user email from DB
+import connect from "../db/connect.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ✅ Load these from your environment (.env)
+// ✅ Load from environment
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://cre8tlystudio.com";
 const BASIC_PRICE_ID = process.env.STRIPE_PRICE_BASIC;
 const PRO_COVERS_PRICE_ID = process.env.STRIPE_PRICE_PRO_COVERS;
 const BOOKS_PRICE_ID = process.env.STRIPE_PRICE_BOOKS;
-
+const ALL_IN_ONE_BUNDLE_PRICE_ID = process.env.STRIPE_CRE8TLY_ALL_IN_ONE_BUNDLE;
 
 export async function createCheckout({ userId, priceId, productType }) {
-  // ✅ Fetch user email for Stripe receipts
+  // ✅ Fetch user email
   const db = await connect();
   const [rows] = await db.query("SELECT email FROM users WHERE id = ?", [userId]);
   await db.end();
@@ -19,23 +19,27 @@ export async function createCheckout({ userId, priceId, productType }) {
   if (!rows.length) throw new Error("User not found");
   const email = rows[0].email;
 
-  // ✅ Decide which price to use
+  // ✅ Choose price ID based on plan
   let finalPriceId;
 
   switch (productType) {
-    case "books":
+    case "author":
       finalPriceId = BOOKS_PRICE_ID;
       break;
-    case "pro_covers":
+    case "bundle":
+      finalPriceId = ALL_IN_ONE_BUNDLE_PRICE_ID;
+      break;
+    case "pro":
       finalPriceId = PRO_COVERS_PRICE_ID;
       break;
     case "lead_magnets":
+    case "basic":
     default:
       finalPriceId = priceId || BASIC_PRICE_ID;
       break;
   }
 
-  // ✅ Create the Stripe checkout session
+  // ✅ Create checkout session
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
@@ -46,7 +50,7 @@ export async function createCheckout({ userId, priceId, productType }) {
     metadata: {
       user_id: userId,
       email,
-      product_type: productType || "lead_magnets", // drives webhook logic
+      product_type: productType || "basic",
     },
   });
 

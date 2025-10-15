@@ -24,7 +24,7 @@ export async function processPromptFlow(
   cta,
 ) {
   // 🚨 clamp pages securely
-  const safePages = Math.min(25, Math.max(1, pages));
+  const safePages = Math.min(50, Math.max(1, pages));
 
   // 1. Mark as pending
   await updateLeadMagnetStatus(magnetId, userId, "pending");

@@ -69,9 +69,9 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     }
 
       // 🔒 Prompt length validation (server-side safety)
-    if (prompt.length > 2000) {
+    if (prompt.length > 100000) {
       return res.status(413).json({
-        message: "Your input is too long. Please shorten your prompt. Max size: 5GB",
+        message: "Your input is too long. Please shorten your prompt. Max size: 10GB",
       });
     }
 

@@ -36,7 +36,7 @@ const app = express();
 const port = 3001;
 
 app.use(express.urlencoded({ extended: true }))
-app.use(express.json({limit: "5000mb"})); // parse json 
+app.use(express.json({limit: "10000mb"})); // parse json 
 
 
 const corsOptions = {
