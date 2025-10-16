@@ -8,6 +8,8 @@ import { updateUserRole } from "../db/dbUser.js";
 import { askGPT } from "../helpers/gptHelper.js";
 import { sendEmail } from "../utils/email.js";
 import { uploadFileToSpaces } from "../helpers/uploadToSpace.js";
+import { getUserBrandFile } from "../db/dbUploads.js";
+import axios from "axios";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,17 +27,37 @@ export async function processPromptFlow(
 ) {
   // 🚨 clamp pages securely
   const safePages = Math.min(50, Math.max(1, pages));
-
-  // 1. Mark as pending
   await updateLeadMagnetStatus(magnetId, userId, "pending");
 
   try {
+    const brandFile = await getUserBrandFile(userId);
+
+    let brandContext = "";
+    if (brandFile && brandFile.endsWith(".txt")) {
+      try {
+        const response = await axios.get(brandFile);
+        brandContext = response.data.slice(0, 5000);
+      } catch (err) {
+        console.warn("⚠️ Unable to fetch brand context:", err.message);
+      }
+    }
+
+    // 🧠 3️⃣ Append brand tone or reference
+    let finalPrompt = prompt;
+    if (brandContext) {
+      finalPrompt += `\n\nUse the following brand tone and style guide while writing:\n${brandContext}`;
+    } else if (brandFile) {
+      finalPrompt += `\n\nReference the tone, voice, and style from this document: ${brandFile}`;
+    }
+
+
     const wordsPerPage = 500;
     const totalWords = safePages * wordsPerPage; // ✅ use safePages everywhere
 
+
     // 2. Ask GPT with page instruction
     const gptAnswer = await askGPT(
-      `${prompt}\n\nWrite approximately ${totalWords} words of detailed content.
+      `${finalPrompt}\n\nWrite approximately ${totalWords} words of detailed content.
 Break it into ${safePages} sections, each around ${wordsPerPage} words.
 Insert "<!--PAGEBREAK-->" between sections so each page is clearly separated.
 

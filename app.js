@@ -18,6 +18,7 @@ import supportRoutes from "./routes/supportRoutes.js";
 import pdfRoutes from "./routes/pdfRoutes.js";
 import tempCoverRoutes from "./routes/uploads/tempCoverRoutes.js";
 import bookRoutes from "./routes/books/bookRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 // Checkout for Ebooks
 import ebookCheckoutRoutes from "./routes/ebookCheckout/ebookCheckoutRoutes.js";
 
@@ -93,6 +94,7 @@ app.use("/api/admin", freeBookRoutes);
 app.use("/api/ebooks", ebooksRoutes);
 app.use("/api/ebooks/checkout", ebookCheckoutRoutes);
 app.use("/api/books", bookRoutes);
+app.use("/api/upload-data", uploadRoutes);
 
 
 
