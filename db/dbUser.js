@@ -30,7 +30,8 @@ export async function getUserByEmail(email) {
        has_book,
        has_magnet,
        book_slots,
-       magnet_slots
+       magnet_slots,
+       brand_identity_file
      FROM users
      WHERE email = ?
      LIMIT 1`,
@@ -73,6 +74,7 @@ export async function getUserById(id) {
        has_magnet,
        book_slots,
        magnet_slots,
+       brand_identity_file,
        twofa_secret IS NOT NULL AS twofa_enabled 
      FROM users 
      WHERE id = ?`,

@@ -19,12 +19,15 @@ export async function processPromptFlow(
   userId,
   prompt,
   theme,
+  bgTheme,
   pages = 5,
   logo, 
   link,
   coverImage,
   cta,
 ) {
+  console.log("🧠 processPromptFlow got bgTheme:", bgTheme);
+
   // 🚨 clamp pages securely
   const safePages = Math.min(50, Math.max(1, pages));
   await updateLeadMagnetStatus(magnetId, userId, "pending");
@@ -114,6 +117,7 @@ Do not stop early. Add examples, case studies, bullet lists, and elaboration to 
       id: magnetId,
       prompt: formattedAnswer,
       theme,
+      bgTheme,
       logo,
       link,
       coverImage: tempCoverPath,

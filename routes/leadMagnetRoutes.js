@@ -63,7 +63,9 @@ router.get("/:sessionId", async (req, res) => {
 
 router.post("/prompt", authenticateToken, async (req, res) => {
   try {
-    const { magnetId, prompt, theme, pages, logo, link, coverImage, cta, } = req.body;  // 👈 include theme
+    const { magnetId, prompt, theme, bgTheme, pages, logo, link, coverImage, cta, } = req.body;  // 👈 include theme
+    console.log("🎨 Route got bgTheme:", bgTheme);
+
     if (!magnetId || !prompt) {
       return res.status(400).json({ message: "magnetId and prompt are required" });
     }
@@ -75,7 +77,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       });
     }
 
-    const updated = await processPromptFlow(magnetId, req.user.id, prompt, theme, pages, logo, link, coverImage, cta,); 
+    const updated = await processPromptFlow(magnetId, req.user.id, prompt, theme, bgTheme, pages, logo, link, coverImage, cta,); 
     res.json(updated);
   } catch (err) {
     console.error("❌ ERROR in /prompt route:", err);
