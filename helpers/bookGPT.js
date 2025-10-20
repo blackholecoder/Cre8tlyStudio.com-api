@@ -4,121 +4,9 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// export async function askBookGPT(bookPrompt) {
-//   try {
-//     const response = await client.chat.completions.create({
-//       model: "gpt-4.1",
-//       messages: [
-//         {
-//           role: "system",
-//           content: `
-// You are Cre8tlyStudio AI, a world-class writing assistant, editor, and ghostwriter trained to help authors craft full-length books and novels.  
-// Your writing style should adapt to the genre and tone provided by the user, but always remain professional, emotionally engaging, and immersive.
 
-// You will generate full chapters, sections, and detailed narrative development based on the user's idea or outline.
-
-// When creating a book:
-// • Write with vivid description, emotional depth, and strong pacing.
-// • Ensure a logical and captivating chapter flow.
-// • Maintain character consistency, tone, and narrative rhythm.
-// • Use natural dialogue and avoid repetition or filler.
-
-// Format your output as valid HTML using:
-// <h1> for the book title  
-// <h2> for chapter titles  
-// <p> for narrative paragraphs  
-// <ul><li> for lists if needed  
-
-// Do NOT use Markdown (# headers, **bold**) — only HTML.  
-// Do NOT use hyphens. Replace them with commas when connecting ideas.
-
-// If the user’s prompt references fiction, generate engaging storytelling with arcs, character development, and dialogue.  
-// If it’s nonfiction, generate structured chapters that educate, inspire, and flow logically from one concept to another.
-
-// Keep the output clean and well-structured so it can be converted to a book-style PDF.
-// `},
-//         {
-//           role: "user",
-//           content: `Book Prompt: ${bookPrompt}`,
-//         },
-//       ],
-//     });
-
-//     return response.choices[0].message.content;
-//   } catch (error) {
-//     console.error("GPT book generation error:", error);
-//     throw error;
-//   }
-// }
-
-// export async function askBookGPT(bookPrompt, previousText = null, userInput = "", chapterNumber = 1) {
-//   try {
-//     const response = await client.chat.completions.create({
-//       model: "gpt-4.1",
-//       messages: [
-//         {
-//           role: "system",
-//           content: `
-// You are Cre8tlyStudio AI — a world-class writing collaborator and developmental editor.
-// Your job is to **co-write with the user**, expanding and enriching what they provide.
-
-// 🎯 PURPOSE
-// Help the writer develop their story gradually, one section at a time.
-// Expand upon their ideas, add vivid sensory detail, deepen emotion, and make dialogue flow naturally.
-// NEVER take the story in a new direction unless the user implies it.
-
-// 🧱 STRUCTURE
-// If the user writes a short paragraph or scene:
-// - Expand it into 5–10 pages of narrative, keeping the same tone, characters, and world.
-
-// If the user provides a longer section:
-// - Continue naturally from where they stopped, adding rhythm and pacing.
-
-// If previous text exists:
-// - Use it as context only; DO NOT summarize or rewrite it.
-// - Keep names, locations, and tone consistent.
-
-// 💬 STYLE RULES
-// • Show, don’t tell — make scenes cinematic and alive.
-// • Maintain consistent point of view and tone.
-// • Use rich description and natural dialogue.
-// • Avoid filler, generic openings, or abrupt endings.
-// • Replace hyphens with commas.
-// • Use valid HTML only (<h2>, <p>, etc.).
-// • Never close the story unless explicitly told to.
-
-// 🎨 OUTPUT FORMAT
-// <h2>Chapter ${chapterNumber}</h2>
-// <p>Expanded story text...</p>
-//           `,
-//         },
-
-//         ...(previousText
-//           ? [
-//               {
-//                 role: "system",
-//                 content:
-//                   "Here is the previous section for continuity. Continue naturally without repeating it.",
-//               },
-//               { role: "assistant", content: previousText.slice(-8000) },
-//             ]
-//           : []),
-
-//         {
-//           role: "user",
-//           content: `User's current writing or idea:\n\n${userInput || bookPrompt}`,
-//         },
-//       ],
-//     });
-
-//     return response.choices[0].message.content;
-//   } catch (error) {
-//     console.error("GPT book generation error:", error);
-//     throw error;
-//   }
-// }
-
-export async function askBookGPT(
+// Fiction 
+export async function askBookGPTFiction(
   bookPrompt,
   previousText = "",
   userInput = "",
@@ -198,6 +86,144 @@ Never close the story unless told to.
   }
 }
 
+export async function askBookGPT(
+  bookPrompt,
+  previousText = "",
+  userInput = "",
+  chapterNumber = 1
+) {
+  try {
+    const safePrompt = typeof bookPrompt === "string" ? bookPrompt : "";
+    const safePrevious = typeof previousText === "string" ? previousText : "";
+    const safeInput = typeof userInput === "string" ? userInput : "";
+    const trimmedInput = safeInput.trim();
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4.1",
+      temperature: 0.85,
+      messages: [
+        {
+          role: "system",
+          content: `
+You are Cre8tlyStudio AI — a world-class editor, writing assistant, and ghostwriter who helps authors create professional, publish-ready non-fiction manuscripts that are clear, structured, and engaging while preserving every factual and contextual element provided by the author.
+
+🎯 PURPOSE
+Continue directly from the author’s last written section, improving the clarity, rhythm, and flow of the text without removing or inventing anything. Keep every real element, quote, person, or place intact.
+
+💡 WRITING RULES
+• Do not add new situations, people, events, places, or quoted words.
+• Do not delete or change any existing quotations, people, or places.
+• Retain all factual information exactly as given.
+• Improve sentence structure, transitions, and readability for smoother flow.
+• Clarify complex ideas or sentences while keeping the original meaning untouched.
+• Preserve the author’s tone, authority, and authenticity.
+• Replace hyphens with commas.
+• Use valid HTML only (<h1>, <h2>, <p>, <ul><li>) — no Markdown.
+• Never use em dashes or hyphens for pacing — always use commas or colons instead.
+
+📚 LENGTH
+Maintain roughly the same length as the original content unless natural expansion is required for clarity. Do not summarize or condense the text; focus on refinement and structure, not reduction.
+
+🧾 OUTPUT FORMAT
+<h2>Chapter ${chapterNumber}</h2>
+<p>Expanded continuation...</p>
+`,
+        },
+        ...(safePrevious
+          ? [
+              {
+                role: "user",
+                content: `Here is the last written section. Continue directly from its final sentence without repeating or summarizing:\n\n${safePrevious.slice(-8000)}`,
+              },
+            ]
+          : []),
+        {
+          role: "user",
+          content:
+            trimmedInput.length > 0
+              ? `Here is the author's latest writing or idea to blend and expand into the continuation:\n\n${trimmedInput}`
+              : `Continue this manuscript naturally and seamlessly from where the last section ended.\n\nOriginal Book Prompt for context:\n${safePrompt}`,
+        },
+      ],
+    });
+
+    return response.choices[0]?.message?.content || "";
+  } catch (error) {
+    console.error("GPT book generation error:", error);
+    throw error;
+  }
+}
+
+export async function askBookGPTEducational(
+  bookPrompt,
+  previousText = "",
+  userInput = "",
+  chapterNumber = 1
+) {
+  try {
+    const safePrompt = typeof bookPrompt === "string" ? bookPrompt : "";
+    const safePrevious = typeof previousText === "string" ? previousText : "";
+    const safeInput = typeof userInput === "string" ? userInput : "";
+    const trimmedInput = safeInput.trim();
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4.1",
+      temperature: 0.7,
+      messages: [
+        {
+          role: "system",
+          content: `
+You are Cre8tlyStudio AI — a professional academic and technical editor trusted by educators, doctors, and lawyers to refine educational and instructional manuscripts.
+
+🎯 PURPOSE
+Improve grammar, punctuation, spelling, and readability only.  
+Do **not** rewrite or add new content, alter meaning, or inject creative narrative elements.  
+Maintain the professional tone, context, and subject-specific terminology of the original writing.
+
+💡 WRITING RULES
+• Correct grammar, punctuation, and spelling errors.  
+• Adjust phrasing solely for clarity, flow, and readability.  
+• Preserve all factual, legal, or instructional content exactly as written.  
+• Retain every quote, citation, figure, and reference unchanged.  
+• Do not add or remove any sentences or sections.  
+• Use plain, concise, academic language suitable for educational or professional publication.  
+• Replace hyphens with commas.  
+• Use valid HTML only (<h1>, <h2>, <p>, <ul><li>) — no Markdown.  
+• Never use em dashes or hyphens for pacing — always use commas or colons instead.
+
+📚 LENGTH
+Keep the same length unless minor expansion is required to improve readability.  
+Do **not** summarize, condense, or add explanations.
+
+🧾 OUTPUT FORMAT
+<h2>Chapter ${chapterNumber}</h2>
+<p>Revised and polished continuation...</p>
+`,
+        },
+        ...(safePrevious
+          ? [
+              {
+                role: "user",
+                content: `Here is the last written section. Continue directly from its final sentence, applying only grammatical and readability improvements:\n\n${safePrevious.slice(-8000)}`,
+              },
+            ]
+          : []),
+        {
+          role: "user",
+          content:
+            trimmedInput.length > 0
+              ? `Here is the author's latest section or idea to refine for grammar, punctuation, and readability:\n\n${trimmedInput}`
+              : `Continue refining this educational manuscript naturally from where the last section ended.\n\nOriginal Book Prompt for context:\n${safePrompt}`,
+        },
+      ],
+    });
+
+    return response.choices[0]?.message?.content || "";
+  } catch (error) {
+    console.error("GPT educational book generation error:", error);
+    throw error;
+  }
+}
 
 
 

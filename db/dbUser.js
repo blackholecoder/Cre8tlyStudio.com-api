@@ -31,7 +31,8 @@ export async function getUserByEmail(email) {
        has_magnet,
        book_slots,
        magnet_slots,
-       brand_identity_file
+       brand_identity_file,
+       cta
      FROM users
      WHERE email = ?
      LIMIT 1`,
@@ -75,6 +76,7 @@ export async function getUserById(id) {
        book_slots,
        magnet_slots,
        brand_identity_file,
+       cta,
        twofa_secret IS NOT NULL AS twofa_enabled 
      FROM users 
      WHERE id = ?`,
@@ -207,4 +209,5 @@ export async function upgradeUserToBundle(email) {
     throw err;
   }
 }
+
 

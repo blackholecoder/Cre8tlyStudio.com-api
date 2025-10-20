@@ -8,6 +8,7 @@ import {
   getBookById,
   getBookParts,
   updateBookInfo,
+  getBookTypeById,
 } from "../../db/book/dbBooks.js";
 import { enforcePageLimit, processBookPrompt, validateBookPromptInput } from "../../db/book/dbCreateBookPrompt.js";
 
@@ -17,8 +18,8 @@ const router = express.Router();
 router.post("/", authenticateToken, async (req, res) => {
   try {
     
-    const { title, authorName } = req.body;
-    const result = await createBook(req.user.id, null, title, authorName);
+    const { title, authorName, bookType } = req.body;
+    const result = await createBook(req.user.id, null, title, authorName, bookType);
     res.status(201).json(result);
   } catch (err) {
     console.error("Book create error:", err);
@@ -62,13 +63,13 @@ router.post("/:id/complete", async (req, res) => {
 });
 
 // ✅ Fetch single book
-router.get("/:id", async (req, res) => {
+router.get("/:id", authenticateToken, async (req, res) => {
   try {
-    const book = await getBookById(req.params.id);
+    const book = await getBookById(req.params.id, req.user.id); // ✅ include userId check
     if (!book) return res.status(404).json({ error: "Book not found" });
     res.json(book);
   } catch (err) {
-    console.error("Error fetching book:", err);
+    console.error("❌ Error fetching book:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -86,8 +87,9 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       authorName,
       bookName, 
       partNumber = 1,
-      
+      bookType,
     } = req.body;
+
     const userId = req.user.id;
 
     // ✅ Step 1: Validate user input
@@ -102,6 +104,21 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       return res.status(limitCheck.status).json({ message: limitCheck.error });
     }
 
+    // ✅ Step 3: Update book info (clean helper, no SQL in route)
+    try {
+      await updateBookInfo(
+        bookId,
+        userId,
+        title || bookName,
+        authorName,
+        bookType
+      );
+    } catch (err) {
+      console.error("⚠️ Book info update failed:", err.message);
+      // non-fatal — we continue generation
+    }
+
+
     // ✅ Step 3: Process and generate the new book part
     const generated = await processBookPrompt({
       userId,
@@ -114,7 +131,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       authorName,
       bookName, 
       partNumber,
-      
+      bookType,
     });
 
 
@@ -141,8 +158,10 @@ router.get("/:bookId/parts", authenticateToken, async (req, res) => {
 
 router.put("/update-info/:id", authenticateToken, async (req, res) => {
   try {
-    const { title, authorName } = req.body;
-    await updateBookInfo(req.params.id, req.user.id, title, authorName);
+    const { title, authorName, bookType } = req.body; // ✅ match camelCase
+    console.log("📘 API HIT BOOK TYPE:", bookType);
+
+    await updateBookInfo(req.params.id, req.user.id, title, authorName, bookType);
     res.json({ success: true });
   } catch (err) {
     console.error("Book info update failed:", err);

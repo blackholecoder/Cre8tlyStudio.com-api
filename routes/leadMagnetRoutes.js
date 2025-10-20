@@ -64,7 +64,6 @@ router.get("/:sessionId", async (req, res) => {
 router.post("/prompt", authenticateToken, async (req, res) => {
   try {
     const { magnetId, prompt, theme, bgTheme, pages, logo, link, coverImage, cta, } = req.body;  // 👈 include theme
-    console.log("🎨 Route got bgTheme:", bgTheme);
 
     if (!magnetId || !prompt) {
       return res.status(400).json({ message: "magnetId and prompt are required" });

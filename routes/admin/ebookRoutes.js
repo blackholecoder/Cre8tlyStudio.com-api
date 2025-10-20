@@ -1,6 +1,5 @@
 import express from "express";
 import { createEbook, deleteEbook, getEbooks, updateEbook } from "../../db/dbEbooks.js";
-import { simulateEbookSale } from "../../db/ebookCheckout/Simulation.js";
 
 
 const router = express.Router();
@@ -19,7 +18,7 @@ router.get("/", async (req, res) => {
 // Create a new ebook (admin)
 router.post("/", async (req, res) => {
   try {
-    const { title, description, price, color, imageBase64, productType } = req.body;
+    const { title, description, price, imageBase64, productType } = req.body;
     const result = await createEbook({ title, description, price, color, imageBase64, productType });
     res.json(result);
   } catch (err) {
@@ -42,7 +41,7 @@ router.delete("/", async (req, res) => {
 
 router.put("/", async (req, res) => {
   try {
-    const { id, title, description, price, color } = req.body;
+    const { id, title, description, price } = req.body;
     const result = await updateEbook({ id, title, description, price, color });
     res.json(result);
   } catch (err) {
@@ -52,20 +51,20 @@ router.put("/", async (req, res) => {
 });
 
 
-router.post("/test-ebook-sale", async (req, res) => {
-  try {
-    const { email, productType } = req.body;
+// router.post("/test-ebook-sale", async (req, res) => {
+//   try {
+//     const { email, productType } = req.body;
 
-    if (!email || !productType) {
-      return res.status(400).json({ error: "Missing email or productType" });
-    }
+//     if (!email || !productType) {
+//       return res.status(400).json({ error: "Missing email or productType" });
+//     }
 
-    const result = await simulateEbookSale({ email, productType });
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to simulate ebook sale" });
-  }
-});
+//     const result = await simulateEbookSale({ email, productType });
+//     res.json(result);
+//   } catch (err) {
+//     res.status(500).json({ error: "Failed to simulate ebook sale" });
+//   }
+// });
 
 export default router;
 

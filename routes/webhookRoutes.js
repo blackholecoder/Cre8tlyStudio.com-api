@@ -6,12 +6,9 @@ import { upgradeUserToBooks, upgradeUserToBundle, upgradeUserToMagnets, upgradeU
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-router.post(
-  "/",
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const sig = req.headers["stripe-signature"];
-    let event;
+router.post("/", async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  let event;
 
     try {
       event = stripe.webhooks.constructEvent(

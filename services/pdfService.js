@@ -380,7 +380,7 @@ ${
 
       .logo-wrapper {
         text-align: center;
-        margin-top: 0;
+        margin-top: 45px;
         margin-bottom: 20px;
       }
 
@@ -467,6 +467,10 @@ ${
         box-shadow: 0 0 10px rgba(0,0,0,0.3);
       }
 
+      .page:last-child {
+  page-break-after: auto;
+}
+
  .page {
   width: 100%;
   min-height: 100vh;
@@ -488,22 +492,35 @@ ${
   };
   page-break-after: always;
   break-after: page;
+/* ✅ Prevent Chrome from drawing the thin black divider */
+ transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-clip: content-box !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  margin-bottom: -0.5px; 
 }
 
-.page:last-child {
-  page-break-after: auto;
-}
+
 
       @page {
         size: A4;
         margin: 0;
         @bottom-center {
-          content: "Page " counter(page) " of " counter(pages);
+          content: none;
           font-family: '${selectedTheme.font}', ${selectedTheme.fallback};
           font-size: 12px;
           color: ${selectedTheme.textColor};
         }
       }
+        /* Force Chrome not to draw implicit page numbers */
+body::after,
+.page::after {
+  content: none !important;
+}
 
         .cover-page {
 page-break-before: always !important;
@@ -627,6 +644,23 @@ page-break-before: always !important;
 .footer-link .link-button:hover {
   transform: scale(1.05);
   box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+* {
+  -webkit-print-color-adjust: exact !important;
+}
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border: none !important;
+    margin: 0;
+  }
+  div, section, .page, .cover-page {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
 }
 
 

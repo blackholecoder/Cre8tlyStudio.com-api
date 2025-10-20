@@ -1,10 +1,11 @@
 import express from "express";
-import { getUserSettings, removeUserBrandFile, uploadBrandIdentity } from "../db/dbUploads.js";
+import { getUserSettings, removeUserBrandFile, updateUserCta, uploadBrandIdentity } from "../db/dbUploads.js";
 import { uploadBrandFileSchema } from "../middleware/uploadBrandFileSchema.js";
+import { authenticateToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/user/settings/upload", async (req, res) => {
+router.post("/user/settings/upload", authenticateToken, async (req, res) => {
   try {
     const { error, value } = uploadBrandFileSchema.validate(req.body);
     if (error) {
@@ -19,7 +20,7 @@ router.post("/user/settings/upload", async (req, res) => {
   }
 });
 
-router.get("/user/settings/:id", async (req, res) => {
+router.get("/user/settings/:id", authenticateToken, async (req, res) => {
   try {
     const settings = await getUserSettings(req.params.id);
     res.status(200).json({ success: true, settings });
@@ -29,7 +30,7 @@ router.get("/user/settings/:id", async (req, res) => {
   }
 });
 
-router.delete("/user/settings/remove/:id", async (req, res) => {
+router.delete("/user/settings/remove/:id", authenticateToken, async (req, res) => {
   try {
     const result = await removeUserBrandFile(req.params.id);
     res.status(200).json(result);
@@ -38,6 +39,28 @@ router.delete("/user/settings/remove/:id", async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to remove brand file" });
   }
 });
+
+router.put("/user/settings/update-cta", authenticateToken, async (req, res) => {
+  console.log("API HIT CTA")
+  try {
+    const { userId, cta } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "Missing userId" });
+    }
+
+    await updateUserCta(userId, cta);
+
+    res.json({
+      success: true,
+      message: "CTA updated successfully",
+    });
+  } catch (err) {
+    console.error("🔥 Error in /update-cta:", err);
+    res.status(500).json({ message: "Failed to update CTA" });
+  }
+});
+
 
 
 

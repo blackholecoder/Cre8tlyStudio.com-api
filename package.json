@@ -22,6 +22,7 @@
     "aws-sdk": "^2.1692.0",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
+    "body-parser": "^2.2.0",
     "clamscan": "^2.4.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",

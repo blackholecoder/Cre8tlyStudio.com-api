@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import connect from "../connect.js";
 
 // ✅ Create a new empty book slot for a user
-export async function createBook(userId, prompt, title = "Untitled Book", authorName = null) {
+export async function createBook(userId, prompt, title = "Untitled Book", authorName = null, bookType = "fiction") {
   const db = await connect();
   const id = uuidv4();
   const createdAt = new Date();
@@ -17,8 +17,8 @@ export async function createBook(userId, prompt, title = "Untitled Book", author
 
   await db.query(
     `INSERT INTO generated_books 
-      (id, user_id, title, author_name, prompt, pdf_url, status, pages, created_at, slot_number)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, title, author_name, prompt, pdf_url, status, pages, created_at, slot_number, book_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       userId,
@@ -30,6 +30,7 @@ export async function createBook(userId, prompt, title = "Untitled Book", author
       0, // ✅ Always start at 0 pages
       createdAt,
       slotCount + 1,
+      bookType,
     ]
   );
 
@@ -193,19 +194,38 @@ export async function getBookParts(bookId, userId) {
   }
 }
 
-export async function updateBookInfo(bookId, userId, title, authorName) {
+export async function updateBookInfo(bookId, userId, title, authorName, bookType) {
   const db = await connect();
 
   try {
     await db.query(
       `UPDATE generated_books
-         SET title = ?, author_name = ?, updated_at = CURRENT_TIMESTAMP
+         SET title = ?, author_name = ?, book_type = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND user_id = ?`,
-      [title?.trim() || "Untitled Book", authorName?.trim() || null, bookId, userId]
+      [
+        title?.trim() || "Untitled Book",
+        authorName?.trim() || null,
+        bookType || "fiction", // ✅ add bookType argument
+        bookId,
+        userId,
+      ]
     );
   } catch (err) {
     console.error("❌ updateBookInfo failed:", err.message);
     throw err;
+  } finally {
+    await db.end();
+  }
+}
+
+export async function getBookTypeById(bookId, userId) {
+  const db = await connect();
+  try {
+    const [rows] = await db.query(
+      "SELECT book_type FROM generated_books WHERE id = ? AND user_id = ?",
+      [bookId, userId]
+    );
+    return rows.length ? rows[0].book_type : null;
   } finally {
     await db.end();
   }

@@ -26,7 +26,7 @@ export async function processPromptFlow(
   coverImage,
   cta,
 ) {
-  console.log("🧠 processPromptFlow got bgTheme:", bgTheme);
+
 
   // 🚨 clamp pages securely
   const safePages = Math.min(50, Math.max(1, pages));
@@ -182,7 +182,7 @@ export async function handleCheckoutCompleted(session) {
   // ---------------------------
   try {
     await sendEmail({
-      to: ["nathanelson2026@gmail.com"],
+      to: ["nathannelson2026@gmail.com"],
       subject: "🎉 New Sale! Lead Magnet Slots Purchased",
       html: `
         <div style="font-family: Arial, sans-serif; background-color: #f9fafb; padding: 30px;">

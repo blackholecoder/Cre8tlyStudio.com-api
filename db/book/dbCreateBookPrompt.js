@@ -1,7 +1,7 @@
 import connect from "../connect.js";
 import { generateBookPDF } from "../../services/generateBookPDF.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
-import { askBookGPT } from "../../helpers/bookGPT.js";
+import { askBookGPT, askBookGPTEducational, askBookGPTFiction } from "../../helpers/bookGPT.js";
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
@@ -9,7 +9,7 @@ import {
   getLastBookPartText,
   saveBookPartText,
 } from "./getLastBookPartText.js";
-import { saveBookPdf } from "./dbBooks.js";
+import { getBookTypeById, saveBookPdf } from "./dbBooks.js";
 
 // export async function createBookPrompt({
 //   prompt,
@@ -147,6 +147,7 @@ export async function createBookPrompt({
   partNumber = 1,
   bookId = null,
   userId = null,
+  bookType,
 }) {
   console.log(`✍️ Running Book GPT Engine (Part ${partNumber})...`);
   const db = await connect();
@@ -168,11 +169,30 @@ export async function createBookPrompt({
       }
     }
 
-    // ✅ 2. Ask GPT to generate content
-    const gptOutput = await askBookGPT(prompt, previousText, partNumber);
+    let resolvedBookType = bookType;
+    if (!resolvedBookType) {
+      resolvedBookType = await getBookTypeById(thisBookId, userId);
+    }
+
+    console.log("BOOK TYPE:", resolvedBookType);
+
+    // ✅ 3. Choose correct GPT engine based on type
+    let gptOutput = "";
+    if (resolvedBookType === "fiction") {
+      gptOutput = await askBookGPTFiction(prompt, previousText, "", partNumber);
+    } else if (resolvedBookType === "non-fiction") {
+      gptOutput = await askBookGPT(prompt, previousText, "", partNumber);
+    } else if (resolvedBookType === "educational") {
+      gptOutput = await askBookGPTEducational(prompt, previousText, "", partNumber);
+    } else {
+      console.log("⚠️ Unknown type, defaulting to non-fiction GPT");
+      gptOutput = await askBookGPT(prompt, previousText, "", partNumber);
+    }
+
     if (!gptOutput || typeof gptOutput !== "string") {
       throw new Error("GPT did not return valid text for the book section");
     }
+
 
     // ✅ 3. Temporary cover handling
     let tempCoverPath = null;
@@ -314,8 +334,10 @@ export async function processBookPrompt({
   authorName,
   partNumber,
   bookName,
+  bookType,
 }) {
   const db = await connect();
+
 
   // ✅ Generate content and upload
   const generated = await createBookPrompt({
@@ -328,6 +350,7 @@ export async function processBookPrompt({
     title,
     authorName,
     partNumber,
+    bookType,
   });
 
   const actualPages = generated.actualPages || pages;

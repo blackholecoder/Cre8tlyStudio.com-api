@@ -141,6 +141,7 @@ router.get("/me", authenticateToken, async (req, res) => {
       magnet_slots: user.magnet_slots,
       profile_image: user.profile_image_url || null,
       brand_identity_file: user.brand_identity_file || null,
+      cta: user.cta || null,
     });
   } catch (err) {
     console.error("Error in /me:", err);

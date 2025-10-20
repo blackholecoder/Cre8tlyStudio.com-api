@@ -19,6 +19,7 @@ import pdfRoutes from "./routes/pdfRoutes.js";
 import tempCoverRoutes from "./routes/uploads/tempCoverRoutes.js";
 import bookRoutes from "./routes/books/bookRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import bodyParser from "body-parser";
 // Checkout for Ebooks
 import ebookCheckoutRoutes from "./routes/ebookCheckout/ebookCheckoutRoutes.js";
 
@@ -35,6 +36,12 @@ import cors from "cors";
 
 const app = express();
 const port = 3001;
+
+app.use(
+  "/api/webhook",
+  bodyParser.raw({ type: "application/json" }),
+  webhookRoutes
+);
 
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json({limit: "10000mb"})); // parse json 
@@ -70,8 +77,6 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 
-
-app.use("/api/webhook", webhookRoutes);
 app.use("/api/static", express.static(path.join(__dirname, "public")));
 
 

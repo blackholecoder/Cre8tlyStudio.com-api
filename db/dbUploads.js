@@ -113,9 +113,9 @@ export async function getUserSettings(userId) {
   const db = await connect();
   try {
     const [rows] = await db.query(
-      "SELECT id, email, name, brand_identity_file FROM users WHERE id = ?",
-      [userId]
-    );
+  "SELECT id, email, name, brand_identity_file, cta FROM users WHERE id = ?",
+  [userId]
+);
 
     if (rows.length === 0) throw new Error("User not found");
     return rows[0];
@@ -194,6 +194,21 @@ export async function removeUserBrandFile(userId) {
     await db.end();
   }
 }
+
+export async function updateUserCta(userId, cta) {
+  const db = await connect();
+  try {
+    const [result] = await db.query(
+      "UPDATE users SET cta = ? WHERE id = ?",
+      [cta, userId]
+    );
+    return result;
+  } catch (err) {
+    console.error("❌ Error updating user CTA:", err);
+    throw err;
+  }
+}
+
 
 
 

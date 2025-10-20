@@ -23,10 +23,32 @@ export const forgotPassword = async (email) => {
   const resetLink = `https://cre8tlystudio.com/reset-password?token=${rawToken}`;
 
   await sendMail({
-    to: email,
-    subject: "Reset Your Cre8tly Studio Password",
-    html: `<p><a href="${resetLink}">Reset Password</a></p>`,
-  });
+  to: email,
+  subject: "Reset Your Cre8tly Studio Password",
+  html: `
+  <div style="background-color:#0a0a0a; color:#ffffff; font-family:'Montserrat',Arial,sans-serif; padding:40px 20px; text-align:center; border-radius:12px;">
+    <h1 style="color:#00ff9d; margin-bottom:16px;">Cre8tly Studio</h1>
+    <p style="font-size:16px; color:#cccccc; margin-bottom:30px;">
+      You requested to reset your password for your Cre8tly Studio account.<br/>
+      Click the button below to securely reset it.
+    </p>
+    <a href="${resetLink}"
+      style="display:inline-block; background-color:#00ff9d; color:#000000;
+             font-weight:600; text-decoration:none; padding:14px 28px;
+             border-radius:8px; font-size:15px;">
+      Reset Password
+    </a>
+    <p style="color:#999999; font-size:14px; margin-top:30px;">
+      If you didn’t request this, please ignore this email.<br/>
+      Your password will remain unchanged.
+    </p>
+    <p style="color:#555555; font-size:12px; margin-top:40px;">
+      © ${new Date().getFullYear()} Cre8tly Studio. All rights reserved.
+    </p>
+  </div>
+  `,
+});
+
 
   return { message: "If that email exists, a reset link has been sent." };
 };

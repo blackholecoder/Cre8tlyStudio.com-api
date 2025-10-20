@@ -2,7 +2,7 @@ import connect from "./connect.js";
 import { v4 as uuidv4 } from "uuid";
 import AWS from "aws-sdk";
 
-export async function createEbook({ title, description, price, color, imageBase64, productType }) {
+export async function createEbook({ title, description, price, imageBase64, productType }) {
   const db = await connect();
 
   try {
@@ -59,9 +59,9 @@ export async function createEbook({ title, description, price, color, imageBase6
 
     // ✅ Save ebook record in DB
     await db.query(
-      `INSERT INTO ebooks (id, title, description, price, color, image_url, product_type, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, title, formattedDescription, price, color || "purple", imageUrl, productType, now]
+      `INSERT INTO ebooks (id, title, description, price, image_url, product_type, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, title, formattedDescription, price, imageUrl, productType, now]
     );
 
     await db.end();
@@ -141,7 +141,7 @@ export async function deleteEbook(ebookId) {
   }
 }
 
-export async function updateEbook({ id, title, description, price, color }) {
+export async function updateEbook({ id, title, description, price }) {
   const db = await connect();
 
   try {
@@ -161,10 +161,6 @@ export async function updateEbook({ id, title, description, price, color }) {
     if (price) {
       fields.push("price = ?");
       values.push(price);
-    }
-    if (color) {
-      fields.push("color = ?");
-      values.push(color);
     }
 
     if (fields.length === 0) throw new Error("No fields to update");

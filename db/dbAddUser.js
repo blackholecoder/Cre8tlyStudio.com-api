@@ -13,23 +13,25 @@ export async function createUserAndGiveFreeSlots({
   const now = new Date();
 
   try {
-    // check if user already exists
+    // 1️⃣ Check if user already exists
     const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (existing.length > 0) {
       throw new Error("User with this email already exists");
     }
 
-    // generate id and hash password
+    // 2️⃣ Generate id and hash password
     const id = uuidv4();
     const hash = await bcrypt.hash(password || Math.random().toString(36).slice(-8), 10);
 
-    // insert user
+    // 3️⃣ Insert user with has_magnet and magnet_slots
     await db.query(
-      "INSERT INTO users (id, name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-      [id, name, email, hash, role, now]
+      `INSERT INTO users 
+        (id, name, email, password_hash, role, has_magnet, magnet_slots, created_at) 
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+      [id, name, email, hash, role, slots, now]
     );
 
-    // build 5 free slot rows
+    // 4️⃣ Create lead_magnet slot rows
     const leadMagnets = Array.from({ length: slots }).map((_, i) => [
       uuidv4(),
       id,
@@ -51,11 +53,13 @@ export async function createUserAndGiveFreeSlots({
       [leadMagnets]
     );
 
+    console.log(`✅ Created ${email} with ${slots} free lead magnet slots`);
     await db.end();
 
     return { message: `Created ${email} with ${slots} free slots`, userId: id };
   } catch (err) {
     await db.end();
+    console.error("❌ createUserAndGiveFreeSlots failed:", err.message);
     throw err;
   }
 }
@@ -65,10 +69,16 @@ export async function giveFreeLeadMagnets(userId, count = 5) {
 
   try {
     // 1️⃣ Confirm user exists
-    const [userRows] = await db.query("SELECT email FROM users WHERE id = ?", [userId]);
+    const [userRows] = await db.query(
+      "SELECT email, magnet_slots FROM users WHERE id = ?",
+      [userId]
+    );
     if (userRows.length === 0) throw new Error("User not found");
 
-    const userEmail = userRows[0].email;
+    const user = userRows[0];
+    const userEmail = user.email;
+    const currentSlots = user.magnet_slots || 0;
+    const newSlotCount = currentSlots + count;
 
     // 2️⃣ Find the current highest slot_number for that user
     const [slotRows] = await db.query(
@@ -102,15 +112,27 @@ export async function giveFreeLeadMagnets(userId, count = 5) {
       [leadMagnets]
     );
 
+    // 5️⃣ Update the user’s has_magnet + magnet_slots count
+    await db.query(
+      "UPDATE users SET has_magnet = 1, magnet_slots = ? WHERE id = ?",
+      [newSlotCount, userId]
+    );
+
+    console.log(
+      `✅ Gave ${count} free lead magnet slots to ${userEmail} (total: ${newSlotCount})`
+    );
+
     await db.end();
 
     return {
       success: true,
       message: `Gave ${count} free slots to ${userEmail}`,
-      newSlots: leadMagnets.map((s) => s[10]), // optional: returns the slot numbers
+      totalSlots: newSlotCount,
+      newSlots: leadMagnets.map((s) => s[10]), // optional: returns slot numbers
     };
   } catch (err) {
     await db.end();
+    console.error("❌ giveFreeLeadMagnets failed:", err.message);
     throw err;
   }
 }
