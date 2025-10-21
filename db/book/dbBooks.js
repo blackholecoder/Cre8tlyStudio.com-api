@@ -54,7 +54,7 @@ export async function markBookComplete(id, pdfUrl) {
 export async function getBooksByUser(userId) {
   const db = await connect();
   const [rows] = await db.query(
-    `SELECT id, user_id, title AS book_name, slot_number, part_number, status, prompt, pdf_url, pages, created_at, author_name
+    `SELECT id, user_id, title AS book_name, slot_number, part_number, status, prompt, pdf_url, pages, created_at, created_at_prompt, author_name
      FROM generated_books
      WHERE user_id = ? AND deleted_at IS NULL
      ORDER BY created_at DESC`,
@@ -90,11 +90,19 @@ export async function softDeleteBook(id) {
 // ✅ Get single book by ID
 export async function getBookById(id) {
   const db = await connect();
-  const [rows] = await db.query("SELECT * FROM generated_books WHERE id = ?", [
-    id,
-  ]);
+  const [rows] = await db.query("SELECT * FROM generated_books WHERE id = ?", [id]);
   await db.end();
-  return rows[0] || null;
+
+  if (!rows[0]) return null;
+
+  const book = rows[0];
+  return {
+    id: book.id,
+    title: book.title,
+    authorName: book.author_name,
+    bookType: book.book_type, // ✅ normalized
+    ...book, // keep everything else
+  };
 }
 
 // ✅ Update prompt after submission
@@ -117,7 +125,7 @@ export async function saveBookPdf(
   partNumber = 1,
   title = null,
   gptOutput = null,
-  pageCount = 0 // 👈 must be passed from createBookPrompt → processBookPrompt
+  pageCount = 0 
 ) {
   try {
     const safeTitle = title?.trim() || "Untitled";
@@ -163,6 +171,7 @@ SET
   prompt = ?,
   pdf_url = ?,
   part_number = ?,
+  created_at_prompt = NOW(),
   updated_at = CURRENT_TIMESTAMP
 WHERE id = ? AND user_id = ?`,
       [newStatus, totalPages, prompt, pdfUrl, partNumber, bookId, userId]
@@ -182,7 +191,7 @@ export async function getBookParts(bookId, userId) {
 
   try {
     const [rows] = await db.query(
-      `SELECT id, part_number, title, file_url, pages, created_at
+      `SELECT id, part_number, title, file_url, pages, created_at 
        FROM book_parts
        WHERE book_id = ? AND user_id = ?
        ORDER BY part_number ASC`,
@@ -226,6 +235,48 @@ export async function getBookTypeById(bookId, userId) {
       [bookId, userId]
     );
     return rows.length ? rows[0].book_type : null;
+  } finally {
+    await db.end();
+  }
+}
+
+export async function markBookOnboardingComplete(userId) {
+  const db = await connect();
+
+  try {
+    const [result] = await db.query(
+      "UPDATE users SET has_completed_book_onboarding = 1 WHERE id = ?",
+      [userId]
+    );
+
+    // Optional: confirm it actually updated a row
+    if (result.affectedRows === 0) {
+      console.warn(`⚠️ No user found with id: ${userId}`);
+      return { success: false, message: "User not found" };
+    }
+
+    console.log(`✅ Onboarding marked complete for user ID: ${userId}`);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Database error updating onboarding:", err);
+    return { success: false, message: "Database update failed", error: err };
+  } finally {
+    if (db) await db.end();
+  }
+}
+
+export async function resetBookOnboarding(userId) {
+  const db = await connect();
+
+  try {
+    await db.query(
+      "UPDATE users SET has_completed_book_onboarding = 0 WHERE id = ?",
+      [userId]
+    );
+    return { success: true };
+  } catch (err) {
+    console.error("❌ dbResetBookOnboarding error:", err);
+    throw err;
   } finally {
     await db.end();
   }

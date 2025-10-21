@@ -296,7 +296,7 @@ export async function createBookPrompt({
 
 export function validateBookPromptInput(bookId, prompt) {
   if (!bookId || !prompt) return "bookId and prompt are required";
-  if (prompt.length > 20000)
+  if (prompt.length > 2_000_000)
     return "Your input is too long. Please shorten your prompt.";
   return null;
 }

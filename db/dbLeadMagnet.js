@@ -84,7 +84,7 @@ export async function getLeadMagnetsByUser(userId) {
   const db = await connect();
   const [rows] = await db.query(
     `
-    SELECT id, user_id, slot_number, status, prompt, pdf_url, created_at, theme
+    SELECT id, user_id, slot_number, status, prompt, pdf_url, created_at, theme, created_at_prompt
     FROM lead_magnets
     WHERE user_id = ? AND deleted_at IS NULL
     ORDER BY created_at DESC
@@ -118,9 +118,38 @@ export async function saveLeadMagnetPdf(magnetId, userId, prompt, pdfUrl, theme)
   const db = await connect();
   const finalTheme = theme || "modern"; // optional fallback
   return db.query(
-    "UPDATE lead_magnets SET status = ?, prompt = ?, pdf_url = ?, theme = ? WHERE id = ? AND user_id = ?",
+    "UPDATE lead_magnets SET status = ?, prompt = ?, pdf_url = ?, theme = ?, created_at_prompt = NOW() WHERE id = ? AND user_id = ?",
     ["completed", prompt, pdfUrl, finalTheme, magnetId, userId]
   );
+}
+
+export async function getPromptMemory(userId) {
+  const db = await connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT 
+        id, 
+        prompt, 
+        created_at, 
+        created_at_prompt
+      FROM lead_magnets
+      WHERE user_id = ?
+        AND prompt IS NOT NULL 
+        AND prompt != ''
+      ORDER BY COALESCE(created_at_prompt, created_at) DESC
+      `,
+      [userId]
+    );
+
+    return rows;
+  } catch (err) {
+    console.error("❌ Error fetching prompt memory:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
 }
 
 

@@ -74,14 +74,24 @@ router.post("/login", async (req, res) => {
     await saveRefreshToken(user.id, refreshToken);
 
     res.json({
-      user: { id: user.id, name: user.name, role: user.role },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        has_magnet: user.has_magnet,
+        magnet_slots: user.magnet_slots,
+        has_book: user.has_book,
+        book_slots: user.book_slots,
+        has_memory: user.has_memory,
+        has_completed_book_onboarding: user.has_completed_book_onboarding,
+        pro_covers: user.pro_covers,
+        profile_image: user.profile_image_url || null,
+        brand_identity_file: user.brand_identity_file || null,
+        cta: user.cta || null,
+      },
       accessToken,
       refreshToken,
-      pro_covers: user.pro_covers,
-      has_book: user.has_book,
-      has_magnet: user.has_magnet,
-      book_slots: user.book_slots,
-      magnet_slots: user.magnet_slots,
     });
   } catch (err) {
     console.error("🔥 Login route error:", err);
@@ -134,14 +144,17 @@ router.get("/me", authenticateToken, async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      pro_covers: user.pro_covers,
-      has_book: user.has_book,
       has_magnet: user.has_magnet,
-      book_slots: user.book_slots,
       magnet_slots: user.magnet_slots,
+      has_book: user.has_book,
+      book_slots: user.book_slots,
+      has_memory: user.has_memory,
+      has_completed_book_onboarding: user.has_completed_book_onboarding,
+      pro_covers: user.pro_covers,
       profile_image: user.profile_image_url || null,
       brand_identity_file: user.brand_identity_file || null,
       cta: user.cta || null,
+      created_at: user.created_at,
     });
   } catch (err) {
     console.error("Error in /me:", err);

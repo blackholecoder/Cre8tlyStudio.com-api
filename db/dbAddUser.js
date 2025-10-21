@@ -23,44 +23,43 @@ export async function createUserAndGiveFreeSlots({
     const id = uuidv4();
     const hash = await bcrypt.hash(password || Math.random().toString(36).slice(-8), 10);
 
-    // 3️⃣ Insert user with has_magnet and magnet_slots
+    // 3️⃣ Insert user with onboarding + free magnet slots
     await db.query(
-      `INSERT INTO users 
-        (id, name, email, password_hash, role, has_magnet, magnet_slots, created_at) 
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
-      [id, name, email, hash, role, slots, now]
-    );
+  `INSERT INTO users 
+   (id, name, email, password_hash, role, has_magnet, magnet_slots, has_completed_book_onboarding, has_memory, created_at)
+   VALUES (?, ?, ?, ?, ?, 1, ?, 0, 0, ?)`,
+  [id, name, email, hash, role, slots, now]
+);
 
     // 4️⃣ Create lead_magnet slot rows
     const leadMagnets = Array.from({ length: slots }).map((_, i) => [
-      uuidv4(),
-      id,
-      "",
-      "",
-      0.0,
-      "awaiting_prompt",
-      now,
-      null,
-      null,
-      "modern",
-      i + 1,
+      uuidv4(), // id
+      id, // user_id
+      "", // prompt
+      "", // pdf_url
+      9.4, // price
+      "awaiting_prompt", // status
+      now, // created_at
+      null, // deleted_at
+      null, // stripe_session_id
+      "modern", // theme
+      i + 1, // slot_number
     ]);
 
     await db.query(
       `INSERT INTO lead_magnets 
-        (id, user_id, prompt, pdf_url, price, status, created_at, deleted_at, stripe_session_id, theme, slot_number)
+        (id, user_id, prompt, pdf_url, price, status, created_at, created_at_prompt, deleted_at, stripe_session_id, theme, slot_number)
        VALUES ?`,
       [leadMagnets]
     );
 
-    console.log(`✅ Created ${email} with ${slots} free lead magnet slots`);
-    await db.end();
-
+    console.log(`✅ Created ${email} with ${slots} free lead magnet slots and onboarding flag.`);
     return { message: `Created ${email} with ${slots} free slots`, userId: id };
   } catch (err) {
-    await db.end();
     console.error("❌ createUserAndGiveFreeSlots failed:", err.message);
     throw err;
+  } finally {
+    await db.end();
   }
 }
 
@@ -107,7 +106,7 @@ export async function giveFreeLeadMagnets(userId, count = 5) {
     // 4️⃣ Insert the new slots
     await db.query(
       `INSERT INTO lead_magnets 
-        (id, user_id, prompt, pdf_url, price, status, created_at, deleted_at, stripe_session_id, theme, slot_number)
+        (id, user_id, prompt, pdf_url, price, status, created_at, created_at_prompt, deleted_at, stripe_session_id, theme, slot_number)
        VALUES ?`,
       [leadMagnets]
     );

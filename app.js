@@ -44,7 +44,7 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: true }))
-app.use(express.json({limit: "10000mb"})); // parse json 
+app.use(express.json({limit: "500mb"})); // parse json 
 
 
 const corsOptions = {
@@ -75,6 +75,17 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+
+// check size of iput data from front end prompt
+// app.use((req, res, next) => {
+//   const len = parseInt(req.headers["content-length"] || "0", 10);
+//   console.log(
+//     `[REQ] ${req.method} ${req.originalUrl} — content-length: ${len} bytes`
+//   );
+//   next();
+// });
+
 
 
 app.use("/api/static", express.static(path.join(__dirname, "public")));

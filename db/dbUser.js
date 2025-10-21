@@ -7,39 +7,68 @@ export async function createUser({ name, email, password }) {
   const id = uuidv4();
   const hashedPassword = await bcrypt.hash(password, 12);
 
-  await db.query(
-    `INSERT INTO users (id, name, email, password_hash) 
-     VALUES (?, ?, ?, ?)`,
-    [id, name, email, hashedPassword]
-  );
+  try {
+    await db.query(
+      `INSERT INTO users 
+       (id, name, email, password_hash, role, has_magnet, magnet_slots, has_completed_book_onboarding, has_memory, created_at)
+       VALUES (?, ?, ?, ?, 'customer', 0, 0, 0, 0, NOW())`,
+      [id, name, email, hashedPassword]
+    );
 
-  // await db.end();
-  return { id, email, name, role: "customer" };
+    console.log(`✅ New user created: ${email}`);
+
+    return {
+      id,
+      name,
+      email,
+      role: "customer",
+      has_magnet: 0,
+      magnet_slots: 0,
+      has_completed_book_onboarding: 0,
+      has_memory: 0,
+      created_at: new Date(),
+    };
+  } catch (err) {
+    console.error("❌ Error creating user:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
 }
 
 export async function getUserByEmail(email) {
   const db = await connect();
-  const [rows] = await db.query(
-    `SELECT 
-       id,
-       name,
-       email,
-       role,
-       password_hash,
-       pro_covers,
-       has_book,
-       has_magnet,
-       book_slots,
-       magnet_slots,
-       brand_identity_file,
-       cta
-     FROM users
-     WHERE email = ?
-     LIMIT 1`,
-    [email]
-  );
-  await db.end();
-  return rows[0] || null;
+
+  try {
+    const [rows] = await db.query(
+      `SELECT 
+         id,
+         name,
+         email,
+         role,
+         password_hash,
+         pro_covers,
+         has_book,
+         has_magnet,
+         book_slots,
+         magnet_slots,
+         brand_identity_file,
+         has_completed_book_onboarding,
+         has_memory,
+         cta
+       FROM users
+       WHERE email = ?
+       LIMIT 1`,
+      [email]
+    );
+
+    return rows[0] || null;
+  } catch (err) {
+    console.error("❌ Error in getUserByEmail:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
 }
 
 export async function saveRefreshToken(userId, refreshToken) {
@@ -63,27 +92,38 @@ export async function updateUserRole(userId, role) {
 
 export async function getUserById(id) {
   const db = await connect();
-  const [rows] = await db.query(
-    `SELECT 
-       id, 
-       name, 
-       email,
-       has_book, 
-       role, 
-       profile_image_url, 
-       pro_covers, 
-       has_magnet,
-       book_slots,
-       magnet_slots,
-       brand_identity_file,
-       cta,
-       twofa_secret IS NOT NULL AS twofa_enabled 
-     FROM users 
-     WHERE id = ?`,
-    [id]
-  );
-  await db.end();
-  return rows[0] || null;
+
+  try {
+    const [rows] = await db.query(
+      `SELECT 
+         id, 
+         name, 
+         email,
+         role, 
+         profile_image_url, 
+         brand_identity_file,
+         pro_covers, 
+         has_book, 
+         book_slots,
+         has_magnet,
+         magnet_slots,
+         has_memory,
+         has_completed_book_onboarding,
+         cta,
+         created_at,
+         twofa_secret IS NOT NULL AS twofa_enabled
+       FROM users 
+       WHERE id = ?`,
+      [id]
+    );
+
+    return rows[0] || null;
+  } catch (err) {
+    console.error("❌ Error in getUserById:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
 }
 
 export async function upgradeUserToProCovers(email) {

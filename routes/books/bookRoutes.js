@@ -8,7 +8,8 @@ import {
   getBookById,
   getBookParts,
   updateBookInfo,
-  getBookTypeById,
+  markBookOnboardingComplete,
+  resetBookOnboarding,
 } from "../../db/book/dbBooks.js";
 import { enforcePageLimit, processBookPrompt, validateBookPromptInput } from "../../db/book/dbCreateBookPrompt.js";
 
@@ -168,6 +169,30 @@ router.put("/update-info/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+router.post("/book-complete", async (req, res) => {
+  // console.log("")
+  try {
+    const { userId } = req.body;
+    await markBookOnboardingComplete(userId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Failed to update onboarding:", err);
+    res.status(500).json({ error: "Failed to update onboarding status" });
+  }
+});
+
+router.post("/onboarding/replay", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await resetBookOnboarding(userId);
+    res.json({ success: true, message: "Onboarding reset successfully." });
+  } catch (err) {
+    console.error("🔥 Error resetting onboarding:", err);
+    res.status(500).json({ success: false, message: "Failed to reset onboarding." });
+  }
+});
+
 
 
 

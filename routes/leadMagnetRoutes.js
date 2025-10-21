@@ -1,5 +1,5 @@
 import express from "express";
-import { createLeadMagnet, getLeadMagnetBySessionId, getLeadMagnetsByUser, markLeadMagnetComplete } from "../db/dbLeadMagnet.js";
+import { createLeadMagnet, getLeadMagnetBySessionId, getLeadMagnetsByUser, getPromptMemory, markLeadMagnetComplete } from "../db/dbLeadMagnet.js";
 import { processPromptFlow } from "../services/leadMagnetService.js";
 import { authenticateToken, requireAdmin } from "../middleware/authMiddleware.js";
 import { askGPT } from "../helpers/gptHelper.js";
@@ -70,9 +70,9 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     }
 
       // 🔒 Prompt length validation (server-side safety)
-    if (prompt.length > 100000) {
+    if (prompt.length > 2_000_000) {
       return res.status(413).json({
-        message: "Your input is too long. Please shorten your prompt. Max size: 10GB",
+        message: "Your input is too long. Please shorten your prompt. Max size: 500mb",
       });
     }
 
@@ -112,6 +112,17 @@ res.json({ prompt: cleanPrompt });
   } catch (err) {
     console.error("❌ Error building smart prompt:", err);
     res.status(500).json({ message: "Failed to generate smart prompt." });
+  }
+});
+
+router.get("/prompt-memory/:userId", authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const data = await getPromptMemory(userId);
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching prompt memory:", err);
+    res.status(500).json({ error: "Failed to load prompt memory" });
   }
 });
 
