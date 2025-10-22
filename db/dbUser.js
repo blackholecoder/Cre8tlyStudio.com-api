@@ -250,4 +250,38 @@ export async function upgradeUserToBundle(email) {
   }
 }
 
+export async function activatePromptMemory(email) {
+  try {
+    const db = await connect();
+    const [result] = await db.query("UPDATE users SET has_memory = 1 WHERE email = ?", [email]);
+    await db.end();
+
+    if (result.affectedRows === 0) {
+      console.warn(`⚠️ No user found for activation with email: ${email}`);
+    } else {
+      console.log(`✅ Activated Prompt Memory for ${email}`);
+    }
+  } catch (err) {
+    console.error(`❌ Error activating Prompt Memory for ${email}:`, err.message);
+    throw err;
+  }
+}
+
+export async function deactivatePromptMemory(email) {
+  try {
+    const db = await connect();
+    const [result] = await db.query("UPDATE users SET has_memory = 0 WHERE email = ?", [email]);
+    await db.end();
+
+    if (result.affectedRows === 0) {
+      console.warn(`⚠️ No user found for deactivation with email: ${email}`);
+    } else {
+      console.log(`❌ Deactivated Prompt Memory for ${email}`);
+    }
+  } catch (err) {
+    console.error(`❌ Error deactivating Prompt Memory for ${email}:`, err.message);
+    throw err;
+  }
+}
+
 
