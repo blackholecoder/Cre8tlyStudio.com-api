@@ -96,15 +96,28 @@ await transporter.sendMail({
 
 
 router.get("/proxy", async (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).send("Missing ?url");
+  let { url } = req.query;
+
+  if (!url || typeof url !== "string") {
+    console.error("❌ Missing or invalid ?url:", url);
+    return res.status(400).send("Invalid or missing ?url parameter");
+  }
 
   try {
+    url = decodeURIComponent(url);
+
+    // ✅ Ensure full URL
+    if (!/^https?:\/\//i.test(url)) {
+      url = `https://${url}`;
+    }
+
+    console.log("📄 Proxy fetching:", url);
+
     const response = await axios.get(url, { responseType: "arraybuffer" });
     res.setHeader("Content-Type", "application/pdf");
     res.send(response.data);
   } catch (err) {
-    console.error("Proxy error:", err.message);
+    console.error("Proxy error fetching:", url, err.message);
     res.status(500).send("Failed to fetch PDF");
   }
 });

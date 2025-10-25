@@ -230,7 +230,6 @@ const pdfThemes = {
 };
 
 
-
 export async function generatePDF({
   id,
   prompt,
@@ -275,15 +274,19 @@ export async function generatePDF({
     content = paragraphs;
   }
 
-  const sections = content.split(/<!--PAGEBREAK-->/g);
-  const lastSection = sections.pop();
+const sections = content.split(/<!--PAGEBREAK-->/g);
+const lastSection = sections.pop();
 
-  content = [
-    ...sections.map((s) => `<div class="page">${s}</div>`),
-    `<div class="page">
-      ${lastSection}
-   </div>`,
-  ].join("");
+// content = [
+//   ...sections.map((s) => `<div class="page">${s}</div>`),
+//   `<div class="page">${lastSection}</div>`,
+// ].join("");
+content = [
+  ...sections.map((s) => `<div class="page"><div class="page-inner">${s}</div></div>`),
+  `<div class="page"><div class="page-inner">${lastSection}</div></div>`,
+].join("");
+
+
 
   const fontPath = path.resolve(
     __dirname,
@@ -351,7 +354,7 @@ ${
 }
 
       body {
-  margin: 0;
+   margin: 0;
   padding: 0;
   background: ${
     pdfThemes[bgTheme]?.background ||
@@ -472,8 +475,12 @@ ${
 }
 
  .page {
+  position: relative;
   width: 100%;
+  padding: 0mm 25mm 20mm 25mm;
   min-height: 100vh;
+  box-sizing: border-box; 
+  page-break-after: always;
   background: ${
     pdfThemes[bgTheme]?.background ||
     (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
@@ -483,32 +490,56 @@ ${
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
-  padding: 30mm;
-  box-sizing: border-box;
   color: ${
     ["royal", "dark", "graphite"].includes(bgTheme)
       ? "#f9fafb"
       : selectedTheme.textColor || "#111"
   };
-  page-break-after: always;
-  break-after: page;
-/* ✅ Prevent Chrome from drawing the thin black divider */
- transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  background-clip: content-box !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  margin-bottom: -0.5px; 
+  overflow: visible; 
+}
+
+.page-inner {
+  padding: 25mm 10mm 0mm 10mm;
+  box-sizing: border-box;
+  min-height: calc(100vh - 45mm);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 
+.page + .page {
+  page-break-before: always;
+}
+
+.page-inner > :first-child { margin-top: 0 !important; }
+
+
+.cover-page,
+.final-cta-page {
+  width: 210mm;
+  height: 297mm;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  page-break-before: always;
+   page-break-after: avoid; 
+  background: ${
+    pdfThemes[bgTheme]?.background ||
+    (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
+      ? bgTheme
+      : "#ffffff")
+  };
+  color: ${
+    ["royal", "dark", "graphite"].includes(bgTheme)
+      ? "#ffffff"
+      : "#111111"
+  };
+}
 
       @page {
         size: A4;
-        margin: 0;
+        margin: 0; 
         @bottom-center {
           content: none;
           font-family: '${selectedTheme.font}', ${selectedTheme.fallback};
@@ -522,27 +553,30 @@ body::after,
   content: none !important;
 }
 
-        .cover-page {
-page-break-before: always !important;
-  page-break-after: always !important;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  width: 100vw;
-  height: 100vh;
-  background: ${
-    pdfThemes[bgTheme]?.background ||
-    (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
-      ? bgTheme
-      : "#ffffff")
-  };
+.page-bg {
+  position: fixed;
+  z-index: -1;
+  /* Expand into page margins to keep the background full bleed */
+  top: -25mm;    /* = -top margin  */
+  right: -25mm;  /* = -right margin */
+  bottom: -20mm; /* = -bottom margin */
+  left: -25mm;   /* = -left margin  */
+  background: 
+    ${pdfThemes[bgTheme]?.background ||
+      (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")};
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
-  margin: 0;
-  padding: 0;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
+
+/* Avoid double top space from your existing padding hacks */
+
+/* Nice to have: stop first child margins from eating your top area */
+.page-inner > :first-child { margin-top: 0 !important; }
+
+       
 
 .cover-img {
   width: 100%;
@@ -598,29 +632,6 @@ page-break-before: always !important;
   text-decoration: none;
 }
 
-.final-cta-page {
-  page-break-before: always !important;
-  page-break-after: always !important;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  min-height: 100vh;
-  background: ${
-    pdfThemes[bgTheme]?.background ||
-    (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
-      ? bgTheme
-      : "#ffffff")
-  };
-  color: ${
-    ["royal", "dark", "graphite"].includes(bgTheme)
-      ? "#ffffff"
-      : "#111111"
-  };
-  padding: 40px 30px;
-  box-sizing: border-box;
-}
-
 
 .footer-link {
   text-align: center;
@@ -646,9 +657,28 @@ page-break-before: always !important;
   box-shadow: 0 0 10px rgba(0,0,0,0.3);
 }
 
+ pre, code {
+   white-space: pre-wrap !important;
+   word-wrap: break-word !important;
+   overflow-wrap: anywhere !important;
+   page-break-inside: avoid !important;
+ }
+
+ pre {
+   background: #1e1e1e !important;
+   color: #f8f8f2 !important;
+   padding: 10px !important;
+   border-radius: 6px !important;
+   font-size: 12px !important;
+   line-height: 1.5 !important;
+   max-width: 100% !important;
+   overflow-x: auto !important;
+ }
+
 * {
   -webkit-print-color-adjust: exact !important;
 }
+  
 @media print {
   body {
     -webkit-print-color-adjust: exact !important;
@@ -656,6 +686,15 @@ page-break-before: always !important;
     border: none !important;
     margin: 0;
   }
+
+
+
+
+  /* Keep color/gradient full bleed */
+  html, body {
+    background-clip: border-box;
+  }
+
   div, section, .page, .cover-page {
     border: none !important;
     outline: none !important;
@@ -669,6 +708,7 @@ page-break-before: always !important;
     </style>
   </head>
   <body>
+  <div class="page-bg"></div>
   ${coverImgTag} 
     <div class="pdf-content">
   ${logoImgTag}
@@ -696,9 +736,8 @@ page-break-before: always !important;
 
 
         <section class="final-cta-page" style="
-  break-before: page;
   width:100%;
-  min-height:100vh;
+  min-height:calc(297mm - 15mm); 
   display:flex;
   flex-direction:column;
   justify-content:center;
@@ -747,7 +786,6 @@ page-break-before: always !important;
               font-size:15px;
               color:${isDarkBg ? "#d1d5db" : "#666"};
             ">
-              — Your Partner in Growth
             </p>
           </div>
         </section>
@@ -795,3 +833,5 @@ page-break-before: always !important;
 
   return path.resolve(outputDir, `${id}.pdf`);
 }
+
+
