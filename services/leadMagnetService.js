@@ -2,7 +2,14 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
-import { insertLeadMagnet,  updateLeadMagnetPrompt, markLeadMagnetComplete, getLeadMagnetById, updateLeadMagnetStatus, saveLeadMagnetPdf } from "../db/dbLeadMagnet.js";
+import {
+  insertLeadMagnet,
+  updateLeadMagnetPrompt,
+  markLeadMagnetComplete,
+  getLeadMagnetById,
+  updateLeadMagnetStatus,
+  saveLeadMagnetPdf,
+} from "../db/dbLeadMagnet.js";
 import { generatePDF } from "./pdfService.js";
 import { updateUserRole } from "../db/dbUser.js";
 import { askGPT, generateLearningDoc } from "../helpers/gptHelper.js";
@@ -10,154 +17,11 @@ import { sendEmail } from "../utils/email.js";
 import { uploadFileToSpaces } from "../helpers/uploadToSpace.js";
 import { getUserBrandFile } from "../db/dbUploads.js";
 import axios from "axios";
+import { pdfThemes } from "./pdfThemes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// export async function processPromptFlow(
-//   magnetId,
-//   userId,
-//   prompt,
-//   theme,
-//   bgTheme,
-//   pages = 5,
-//   logo, 
-//   link,
-//   coverImage,
-//   cta,
-//   contentType
-// ) {
-
-
-//   // 🚨 clamp pages securely
-//   const safePages = Math.min(50, Math.max(1, pages));
-//   await updateLeadMagnetStatus(magnetId, userId, "pending");
-
-//   try {
-//     const brandFile = await getUserBrandFile(userId);
-
-//     let brandContext = "";
-//     if (brandFile && brandFile.endsWith(".txt")) {
-//       try {
-//         const response = await axios.get(brandFile);
-//         brandContext = response.data.slice(0, 5000);
-//       } catch (err) {
-//         console.warn("⚠️ Unable to fetch brand context:", err.message);
-//       }
-//     }
-
-//     // 🧠 3️⃣ Append brand tone or reference
-//     let finalPrompt = prompt;
-//     if (brandContext) {
-//       finalPrompt += `\n\nUse the following brand tone and style guide while writing:\n${brandContext}`;
-//     } else if (brandFile) {
-//       finalPrompt += `\n\nReference the tone, voice, and style from this document: ${brandFile}`;
-//     }
-
-
-//     const wordsPerPage = 500;
-//     const totalWords = safePages * wordsPerPage; // ✅ use safePages everywhere
-
-
-//     // 2. Ask GPT with page instruction
-//     const gptAnswer = await askGPT(
-//       `${finalPrompt}\n\nWrite approximately ${totalWords} words of detailed content.
-// Break it into ${safePages} sections, each around ${wordsPerPage} words.
-// Insert "<!--PAGEBREAK-->" between sections so each page is clearly separated.
-
-// Do not stop early. Add examples, case studies, bullet lists, and elaboration to ensure each section is full length.`
-//     );
-
-//     if (!gptAnswer || typeof gptAnswer !== "string") {
-//       throw new Error("processPromptFlow: GPT did not return valid text");
-//     }
-
-//     let formattedAnswer = gptAnswer;
-
-//     // 3. Fallback: if GPT didn’t insert enough pagebreaks, auto-break text
-//     const existingBreaks = (formattedAnswer.match(/<!--PAGEBREAK-->/g) || []).length;
-
-//     if (existingBreaks < safePages - 1) {
-//       const words = formattedAnswer.split(/\s+/);
-//       const wordsPerPageCalc = Math.ceil(words.length / safePages);
-
-//       let rebuilt = [];
-//       for (let i = 0; i < words.length; i++) {
-//         rebuilt.push(words[i]);
-//         if ((i + 1) % wordsPerPageCalc === 0 && i < words.length - 1) {
-//           rebuilt.push("<!--PAGEBREAK-->");
-//         }
-//       }
-//       formattedAnswer = rebuilt.join(" ");
-//     }
-
-//     // 4. Replace markers with actual HTML page breaks
-//     formattedAnswer = formattedAnswer.replace(
-//       /<!--PAGEBREAK-->/g,
-//       '<div class="page-break"></div>'
-//     );
-
-//     let tempCoverPath = null;
-
-// if (coverImage) {
-//   const tmpDir = path.resolve(__dirname, "../uploads/tmp");
-//   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-
-//   // 🖼️ Case 1: base64 upload
-//   if (coverImage.startsWith("data:image")) {
-//     const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
-//     const extension = coverImage.substring(
-//       coverImage.indexOf("/") + 1,
-//       coverImage.indexOf(";")
-//     );
-//     tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
-//     fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
-//   }
-
-//   // 🌐 Case 2: Unsplash / remote image
-//   else if (coverImage.startsWith("http")) {
-//     try {
-//       const response = await axios.get(coverImage, {
-//         responseType: "arraybuffer",
-//         timeout: 10000, // 10s safety timeout
-//       });
-//       const extension = path.extname(new URL(coverImage).pathname) || ".jpg";
-//       tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${extension}`);
-//       fs.writeFileSync(tempCoverPath, Buffer.from(response.data));
-//     } catch (err) {
-//       console.warn("⚠️ Failed to fetch remote cover image:", err.message);
-//     }
-//   }
-// }
-
-
-
-
-//     // 5. Generate PDF with theme
-//     const localPath = await generatePDF({
-//       id: magnetId,
-//       prompt: formattedAnswer,
-//       theme,
-//       bgTheme,
-//       logo,
-//       link,
-//       coverImage: tempCoverPath,
-//       cta,
-//       isHtml: true, // ✅ preserves our HTML
-//     });
-//  // 3. Upload to Spaces
-//     const fileName = `pdfs/${userId}-${magnetId}-${Date.now()}.pdf`;
-//     const uploaded = await uploadFileToSpaces(localPath, fileName, "application/pdf");
-
-//     // 6. Save result in DB
-//     await saveLeadMagnetPdf(magnetId, userId, prompt, uploaded.Location, theme);
-
-//     return { pdf_url: uploaded.Location, status: "completed" };
-//   } catch (err) {
-//     await updateLeadMagnetStatus(magnetId, userId, "failed");
-//     throw err;
-//   }
-// }
 export async function processPromptFlow(
   magnetId,
   userId,
@@ -169,75 +33,67 @@ export async function processPromptFlow(
   link,
   coverImage,
   cta,
-  contentType // 👈 determines which GPT helper to use
+  contentType
 ) {
+
   const safePages = Math.min(50, Math.max(1, pages));
   await updateLeadMagnetStatus(magnetId, userId, "pending");
 
   try {
-    const brandFile = await getUserBrandFile(userId);
-    let brandContext = "";
+    const brandTone = await getUserBrandFile(userId);
 
-    if (brandFile && brandFile.endsWith(".txt")) {
-      try {
-        const response = await axios.get(brandFile);
-        brandContext = response.data.slice(0, 5000);
-      } catch (err) {
-        console.warn("⚠️ Unable to fetch brand context:", err.message);
-      }
-    }
-
+    // ✅ Build prompt (no brandFile URL fallback)
     let finalPrompt = prompt;
-    if (brandContext) {
-      finalPrompt += `\n\nUse the following brand tone and style guide while writing:\n${brandContext}`;
-    } else if (brandFile) {
-      finalPrompt += `\n\nReference the tone, voice, and style from this document: ${brandFile}`;
+    if (brandTone) {
+      finalPrompt += `
+
+Use the following brand tone and style guide while writing (match voice and slang exactly):
+${brandTone.slice(0, 4000)}
+`;
     }
 
     const wordsPerPage = 500;
     const totalWords = safePages * wordsPerPage;
 
-    // 🧠 ✨ MAGIC SWITCH ✨
+    // 🧠 Pick helper + pass brandTone
     let gptAnswer;
-
     if (contentType === "learning_doc") {
-  console.log("🧠 Using Learning Document GPT helper...");
-  gptAnswer = await generateLearningDoc(finalPrompt, {
-    totalWords,
-    safePages,
-    wordsPerPage,
-  });
-} else {
-  console.log("💡 Using Lead Magnet GPT helper...");
-  gptAnswer = await askGPT(finalPrompt, {
-    totalWords,
-    safePages,
-    wordsPerPage,
-    mode: "lead_magnet",
-  });
-}
+      gptAnswer = await generateLearningDoc(finalPrompt, {
+        totalWords,
+        safePages,
+        wordsPerPage,
+        brandTone: brandTone || null,
+      });
+    } else {
+      gptAnswer = await askGPT(finalPrompt, {
+        totalWords,
+        safePages,
+        wordsPerPage,
+        mode: "lead_magnet",
+        brandTone: brandTone || null,
+      });
+    }
 
-    // 🧾 Validate response
     if (!gptAnswer || typeof gptAnswer !== "string") {
       throw new Error("processPromptFlow: GPT did not return valid text");
     }
 
-    // 🧱 Pagebreak handling
+    // 🧱 Ensure page breaks
     let formattedAnswer = gptAnswer;
-    const existingBreaks = (formattedAnswer.match(/<!--PAGEBREAK-->/g) || []).length;
+    const existingBreaks = (formattedAnswer.match(/<!--PAGEBREAK-->/g) || [])
+      .length;
     if (existingBreaks < safePages - 1) {
       const words = formattedAnswer.split(/\s+/);
-      const wordsPerPageCalc = Math.ceil(words.length / safePages);
-      let rebuilt = [];
+      const per = Math.ceil(words.length / safePages);
+      const rebuilt = [];
       for (let i = 0; i < words.length; i++) {
         rebuilt.push(words[i]);
-        if ((i + 1) % wordsPerPageCalc === 0 && i < words.length - 1) {
+        if ((i + 1) % per === 0 && i < words.length - 1) {
           rebuilt.push("<!--PAGEBREAK-->");
         }
       }
       formattedAnswer = rebuilt.join(" ");
     }
-
     formattedAnswer = formattedAnswer.replace(
       /<!--PAGEBREAK-->/g,
       '<div class="page-break"></div>'
@@ -263,7 +119,8 @@ export async function processPromptFlow(
             responseType: "arraybuffer",
             timeout: 10000,
           });
-          const extension = path.extname(new URL(coverImage).pathname) || ".jpg";
+          const extension =
+            path.extname(new URL(coverImage).pathname) || ".jpg";
           tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${extension}`);
           fs.writeFileSync(tempCoverPath, Buffer.from(response.data));
         } catch (err) {
@@ -272,25 +129,163 @@ export async function processPromptFlow(
       }
     }
 
+
+    let finalLogoUrl = logo;
+    if (logo && logo.startsWith("data:image")) {
+      const tmpDir = path.resolve(__dirname, "../uploads/tmp");
+      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+
+      const logosDir = path.join(tmpDir, "logos");
+      if (!fs.existsSync(logosDir)) fs.mkdirSync(logosDir, { recursive: true });
+
+      try {
+        const base64Data = logo.replace(/^data:image\/\w+;base64,/, "");
+        const extension = logo.substring(
+          logo.indexOf("/") + 1,
+          logo.indexOf(";")
+        );
+        const logoFileName = `logos/${userId}-${magnetId}-${Date.now()}.${extension}`;
+        const tempLogoPath = path.join(tmpDir, logoFileName);
+        fs.writeFileSync(tempLogoPath, Buffer.from(base64Data, "base64"));
+
+        // Upload logo to Spaces
+        const uploadedLogo = await uploadFileToSpaces(
+          tempLogoPath,
+          logoFileName,
+          `image/${extension}`
+        );
+        finalLogoUrl = uploadedLogo.Location;
+
+        // Cleanup local file
+        await fs.promises.unlink(tempLogoPath).catch(() => {});
+      } catch (err) {
+        console.warn("⚠️ Failed to upload logo image:", err.message);
+      }
+    }
+
+if (tempCoverPath && fs.existsSync(tempCoverPath)) {
+  const stats = fs.statSync(tempCoverPath);
+} else {
+  console.log("⚠️ No local cover image file found at:", tempCoverPath);
+}
+
     // 📄 Generate PDF
     const localPath = await generatePDF({
       id: magnetId,
       prompt: formattedAnswer,
       theme,
       bgTheme,
-      logo,
+      logo: finalLogoUrl,
       link,
       coverImage: tempCoverPath,
       cta,
       isHtml: true,
     });
 
-    // ☁️ Upload to Spaces
+    // ☁️ Upload + save
     const fileName = `pdfs/${userId}-${magnetId}-${Date.now()}.pdf`;
-    const uploaded = await uploadFileToSpaces(localPath, fileName, "application/pdf");
+    const uploaded = await uploadFileToSpaces(
+      localPath,
+      fileName,
+      "application/pdf"
+    );
 
-    // 💾 Save in DB
-    await saveLeadMagnetPdf(magnetId, userId, prompt, uploaded.Location, theme);
+   // ✅ Detect dark themes for correct text color
+const isDarkBg = ["royal", "dark", "graphite", "purple", "navy", "lavender"].includes(bgTheme);
+
+// ✅ Pick proper colors dynamically
+const resolvedTheme = {
+  background: pdfThemes[bgTheme]?.background || bgTheme || "#fff",
+  color: isDarkBg ? "#fff" : "#000",
+};
+
+// ✅ CTA contrast (light on dark, dark on light)
+const ctaBg = pdfThemes[bgTheme]?.ctaBg || (isDarkBg ? "#fff" : "#00E07A");
+const ctaText = pdfThemes[bgTheme]?.ctaText || (isDarkBg ? "#000" : "#000");
+
+// ✅ Load CSS and inject variables
+const cssPath = path.resolve(__dirname, "../public/pdf-style.css");
+const cssTemplate = fs.readFileSync(cssPath, "utf8");
+
+const css = cssTemplate
+  .replace(/{{font}}/g, "Montserrat")
+  .replace(/{{background}}/g, resolvedTheme.background)
+  .replace(/{{textColor}}/g, resolvedTheme.color)
+  .replace(/{{ctaBg}}/g, ctaBg)
+  .replace(/{{ctaText}}/g, ctaText);
+
+  // ✅ Resolve cover image inline (base64 preferred)
+const coverSrc =
+  tempCoverPath && fs.existsSync(tempCoverPath)
+    ? `data:image/${path.extname(tempCoverPath).replace(".", "")};base64,${fs
+        .readFileSync(tempCoverPath)
+        .toString("base64")}`
+    : coverImage || "";
+
+const coverImgTag = coverSrc
+  ? `<div class="cover-page"><img src="${coverSrc}" alt="Cover Image" class="cover-img" /></div>`
+  : "";
+
+
+let htmlContent = `
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>${css}</style>
+  </head>
+  <body>
+    ${coverImgTag || ""}
+    <div class="page">
+      <div class="page-inner">
+      ${formattedAnswer}
+      </div>
+    </div>
+
+    ${
+      cta
+        ? `
+          <div contenteditable="false" class="footer-link">
+            <p style="font-size:1.2rem;font-weight:600;margin-bottom:20px;">
+              ${cta}
+            </p>
+            ${
+              link
+                ? `
+                  <a href="${link}" target="_blank" class="link-button" style="
+                    background:${ctaBg};
+                    color:${ctaText};
+                    border:2px solid ${isDarkBg ? "#fff" : "#000"};
+                  ">
+                    Visit ${new URL(link).hostname.replace(/^www\\./, "")}
+                  </a>
+                `
+                : ""
+            }
+          </div>
+        `
+        : ""
+    }
+  </body>
+</html>
+`;
+
+console.log("🧩 HTML being saved to DB (truncated):");
+console.log(htmlContent.substring(0, 1000)); // first 1k chars is enough
+
+
+    await saveLeadMagnetPdf(
+      magnetId,
+      userId,
+      prompt,
+      uploaded.Location,
+      theme,
+      htmlContent,
+      bgTheme,
+      finalLogoUrl,
+      link,
+      coverImage,
+      cta
+    );
 
     return { pdf_url: uploaded.Location, status: "completed" };
   } catch (err) {
@@ -298,7 +293,6 @@ export async function processPromptFlow(
     throw err;
   }
 }
-
 
 export async function handleCheckoutCompleted(session) {
   const createdAt = new Date();
@@ -374,7 +368,9 @@ export async function handleCheckoutCompleted(session) {
                 </tr>
                 <tr style="background: #f9fafb;">
                   <td style="padding: 8px; font-weight: bold;">Stripe Session ID:</td>
-                  <td style="padding: 8px; font-family: monospace; font-size: 13px;">${session.id}</td>
+                  <td style="padding: 8px; font-family: monospace; font-size: 13px;">${
+                    session.id
+                  }</td>
                 </tr>
               </table>
             </div>
@@ -424,7 +420,9 @@ export async function handleCheckoutCompleted(session) {
     console.warn("⚠️ No customer email found in session");
   }
 
-  console.log(`✅ ${slots.length} lead magnet slots created for user ${userId}`);
+  console.log(
+    `✅ ${slots.length} lead magnet slots created for user ${userId}`
+  );
 }
 
 export async function attachPromptToLeadMagnet(magnetId, prompt) {

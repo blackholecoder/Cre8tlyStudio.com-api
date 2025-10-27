@@ -1,10 +1,12 @@
 import connect from "./connect.js";
-
 import { s3 } from "../utils/s3Client.js";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import { scanUploadedFile } from "../middleware/NodeClam.js";
+import axios from "axios";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import mammoth from "mammoth";
 
 export async function uploadBrandIdentity(userId, fileName, base64Data) {
   const db = await connect();
@@ -22,8 +24,21 @@ export async function uploadBrandIdentity(userId, fileName, base64Data) {
     const buffer = Buffer.from(base64Data, "base64");
     fs.writeFileSync(tempPath, buffer);
 
+    if (buffer.length > 25 * 1024 * 1024) {
+      throw new Error("File too large — max 25MB allowed");
+    }
+
     // 3️⃣ Scan file before upload
     await scanUploadedFile(tempPath);
+
+    const mimeType =
+      ext === ".pdf"
+        ? "application/pdf"
+        : ext === ".jpg" || ext === ".jpeg"
+        ? "image/jpeg"
+        : ext === ".png"
+        ? "image/png"
+        : "application/octet-stream";
 
     // 4️⃣ Upload to DigitalOcean Spaces
     const upload = await s3
@@ -32,20 +47,21 @@ export async function uploadBrandIdentity(userId, fileName, base64Data) {
         Key: `brand_identity/${safeName}`,
         Body: fs.createReadStream(tempPath),
         ACL: "public-read",
-        ContentType: "application/octet-stream",
+        ContentType: mimeType,
       })
       .promise();
 
     // 5️⃣ Clean up temp file
     fs.unlinkSync(tempPath);
 
-    // 6️⃣ Store file URL in DB
-    await db.query("UPDATE users SET brand_identity_file = ? WHERE id = ?", [
-      upload.Location,
-      userId,
-    ]);
-
-    await db.end();
+    try {
+      await db.query("UPDATE users SET brand_identity_file = ? WHERE id = ?", [
+        upload.Location,
+        userId,
+      ]);
+    } finally {
+      await db.end();
+    }
 
     return {
       success: true,
@@ -91,10 +107,9 @@ export async function deleteBrandIdentity(userId) {
     }
 
     // 3️⃣ Remove reference from DB
-    await db.query(
-      "UPDATE users SET brand_identity_file = NULL WHERE id = ?",
-      [userId]
-    );
+    await db.query("UPDATE users SET brand_identity_file = NULL WHERE id = ?", [
+      userId,
+    ]);
 
     await db.end();
 
@@ -113,9 +128,9 @@ export async function getUserSettings(userId) {
   const db = await connect();
   try {
     const [rows] = await db.query(
-  "SELECT id, email, name, brand_identity_file, cta FROM users WHERE id = ?",
-  [userId]
-);
+      "SELECT id, email, name, brand_identity_file, cta FROM users WHERE id = ?",
+      [userId]
+    );
 
     if (rows.length === 0) throw new Error("User not found");
     return rows[0];
@@ -130,28 +145,64 @@ export async function getUserSettings(userId) {
 export async function getUserBrandFile(userId) {
   const db = await connect();
   try {
-    // gracefully handle if column doesn’t exist yet (older DBs)
-    const [rows] = await db.query(`
-      SELECT
-        CASE
-          WHEN COLUMN_NAME IS NOT NULL THEN (SELECT brand_identity_file FROM users WHERE id = ?)
-          ELSE NULL
-        END AS brand_identity_file
-      FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_NAME = 'users' AND COLUMN_NAME = 'brand_identity_file'
-      LIMIT 1;
-    `, [userId]);
+    const [rows] = await db.query(
+      "SELECT brand_identity_file FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
 
-    // If column missing or user not found
     if (!rows.length || !rows[0].brand_identity_file) return null;
-    return rows[0].brand_identity_file;
+    const fileUrl = rows[0].brand_identity_file.toLowerCase();
+
+    // 🧩 Handle .txt files
+    if (fileUrl.endsWith(".txt")) {
+      const response = await axios.get(fileUrl);
+      return response.data.slice(0, 8000);
+    }
+
+    // 🧩 Handle .docx files
+    if (fileUrl.endsWith(".docx")) {
+      const resp = await axios.get(fileUrl, { responseType: "arraybuffer" });
+      const buffer = Buffer.from(resp.data);
+      const { value: text } = await mammoth.extractRawText({ buffer });
+      return text.trim().slice(0, 8000);
+    }
+
+    // 🧩 Handle .pdf files
+    if (fileUrl.endsWith(".pdf")) {
+      const resp = await axios.get(fileUrl, { responseType: "arraybuffer" });
+      const data = new Uint8Array(resp.data);
+
+      const loadingTask = pdfjsLib.getDocument({
+        data,
+        useSystemFonts: true,
+        disableFontFace: true,
+      });
+
+      const pdfDoc = await loadingTask.promise;
+      let text = "";
+
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum);
+        const content = await page.getTextContent();
+        text += content.items.map((it) => it.str).join(" ") + "\n";
+        if (text.length > 12000) break; // stop if it gets too long
+      }
+
+      return text.trim().slice(0, 8000);
+    }
+
+    // 🚫 Unsupported file type
+    console.warn("⚠️ Unsupported brand file type:", fileUrl);
+    return null;
+
   } catch (err) {
     console.error("Error fetching user brand file:", err);
-    return null; // fail safe, never crash GPT generation
+    return null;
   } finally {
     await db.end();
   }
 }
+
 
 export async function removeUserBrandFile(userId) {
   const db = await connect();
@@ -186,7 +237,10 @@ export async function removeUserBrandFile(userId) {
       userId,
     ]);
 
-    return { success: true, message: "Brand identity file removed successfully" };
+    return {
+      success: true,
+      message: "Brand identity file removed successfully",
+    };
   } catch (err) {
     console.error("Error removing brand file:", err);
     throw err;
@@ -198,17 +252,13 @@ export async function removeUserBrandFile(userId) {
 export async function updateUserCta(userId, cta) {
   const db = await connect();
   try {
-    const [result] = await db.query(
-      "UPDATE users SET cta = ? WHERE id = ?",
-      [cta, userId]
-    );
+    const [result] = await db.query("UPDATE users SET cta = ? WHERE id = ?", [
+      cta,
+      userId,
+    ]);
     return result;
   } catch (err) {
     console.error("❌ Error updating user CTA:", err);
     throw err;
   }
 }
-
-
-
-

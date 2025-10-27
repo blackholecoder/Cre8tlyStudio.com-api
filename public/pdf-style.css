@@ -1,0 +1,277 @@
+@font-face {
+  font-family: '{{font}}';
+  src: url('data:font/{{fontFormat}};base64,{{fontBase64}}') format('{{fontFormat}}');
+  font-weight: normal;
+  font-style: normal;
+}
+
+html, body, h1, h2, h3, p, div, span {
+  font-family: '{{font}}', {{fallback}} !important;
+}
+
+body, .page {
+  color: {{textColor}};
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: {{background}};
+  font-size: {{fontSize}};
+  line-height: 1.7;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+header {
+  position: fixed;
+  top: 0mm;
+  left: 0mm;
+  right: 0mm;
+  height: 20mm;
+  text-align: left;
+  padding: 5mm 0 0 10mm;
+}
+
+.logo-wrapper {
+  text-align: center;
+  padding-top: 160px; 
+  margin-top: 90px;
+  margin-bottom: 20px;
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+h1 {
+  text-align: center;
+  font-weight: 700;
+  font-size: {{h1Size}};
+  letter-spacing: 0.2pt;
+  line-height: 1.2;
+  margin-top: 10mm;
+  margin-bottom: 6mm;
+}
+
+h2 {
+  font-weight: 600;
+  font-size: {{h2Size}};
+  margin-top: 8mm;
+  margin-bottom: 4mm;
+}
+
+h1, h2, h3 {
+  color: {{headingColor}};
+}
+
+p {
+  margin: 0 0 12px;
+  font-size: {{pSize}};
+}
+
+.cta {
+  background: {{ctaBg}};
+  color: {{ctaText}};
+  padding: 16px;
+  border-radius: 8px;
+  margin: 24px 0;
+  text-align: center;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.page {
+  position: relative;
+  width: 100%;
+  padding: 0mm 25mm 20mm 25mm;
+  min-height: 100vh;
+  box-sizing: border-box;
+  page-break-after: always;
+  background: {{background}};
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  color: {{textColor}};
+  overflow: visible;
+}
+
+.page-inner {
+  padding: 25mm 10mm 0mm 10mm;
+  box-sizing: border-box;
+  min-height: calc(100vh - 45mm);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.page-inner > :first-child { margin-top: 0 !important; }
+
+.cover-page, .final-cta-page {
+  width: 210mm;
+  height: 297mm;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: {{background}};
+  color: {{textColor}};
+}
+
+/* ✅ prevent page break before the first cover */
+.cover-page:first-child {
+  page-break-before: avoid !important;
+}
+
+/* ✅ only apply break before cta or later pages */
+.final-cta-page {
+  page-break-before: always;
+  page-break-after: avoid;
+}
+
+.cover-img {
+  width: 100%;
+  height: auto;
+  max-width: 667px;
+  max-height: calc(100vh - 40mm);
+  object-fit: contain;
+  margin: 0 auto;
+  display: block;
+}
+
+.signature-page {
+  page-break-before: always;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: calc(100vh - 60mm);
+  background: linear-gradient(to bottom right, #0a0a0a, #111);
+  color: white;
+  padding: 40px 30px;
+  box-sizing: border-box;
+}
+
+.signature-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cta-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  color: #222;
+  margin-bottom: 32px;
+}
+
+.signature-footer {
+  font-size: 16px;
+  font-style: italic;
+  color: #a3a3a3;
+  margin-top: 16px;
+}
+
+.footer-link {
+  text-align: center;
+  margin-top: 12px;
+}
+
+.footer-link .link-button {
+  display: inline-block;
+  background: linear-gradient(90deg, #00E07A 0%, #670fe7 100%);
+  color: white;
+  padding: 12px 26px;
+  font-weight: 600;
+  font-size: 16px;
+  border: 1px solid white;
+  border-radius: 30px;
+  text-decoration: none;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.footer-link .link-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+* {
+  -webkit-print-color-adjust: exact !important;
+}
+.formatted-content {
+  max-width: 90%;
+  margin: 0 auto;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+formatted-content p,
+.formatted-content h1,
+.formatted-content h2,
+.formatted-content h3 {
+  line-height: 1.8;
+  font-size: 1.05em;
+}
+
+@media print {
+  .formatted-content {
+    max-width: 85%;
+  }
+}
+
+pre {
+  background-color: #0f0f0f;
+  color: #f5f5f5;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  font-family: "Courier New", monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin: 0 0 1.5rem 0; /* remove top margin, only keep bottom spacing */
+  white-space: pre-wrap;
+  page-break-inside: avoid; /* keeps the block from splitting across PDF pages */
+  box-decoration-break: clone;
+}
+
+pre + pre {
+  margin-top: -0.25rem; /* closes any hairline gap between stacked blocks */
+}
+
+/* Inline code (like `variable_name`) */
+code {
+  background-color: #1a1a1a;
+  color: #00ff80;
+  padding: 0.2rem 0.4rem;
+  border-radius: 5px;
+  font-family: "Courier New", monospace;
+  font-size: 0.85rem;
+}
+
+/* Optional — better color contrast for multi-line snippets */
+pre code {
+  background: transparent; /* removes duplicate block background */
+  color: #f5f5f5;
+}
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border: none !important;
+    margin: 0;
+  }
+
+  div, section, .page, .cover-page {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+   pre {
+    background-color: #0f0f0f !important;
+    color: #fff !important;
+    border: none;
+  }
+}

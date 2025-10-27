@@ -3,6 +3,7 @@ import { createLeadMagnet, getLeadMagnetBySessionId, getLeadMagnetsByUser, getPr
 import { processPromptFlow } from "../services/leadMagnetService.js";
 import { authenticateToken, requireAdmin } from "../middleware/authMiddleware.js";
 import { askGPT } from "../helpers/gptHelper.js";
+import { getUserBrandFile } from "../db/dbUploads.js";
 
 const router = express.Router();
 
@@ -85,35 +86,56 @@ router.post("/prompt", authenticateToken, async (req, res) => {
 });
 
 
-router.post("/prompt-builder", async (req, res) => {
-  const { audience, pain, promise, offer } = req.body;
-console.log("🎯 Received prompt-builder data:", req.body);
+router.post("/prompt-builder", authenticateToken, async (req, res) => {
+  const { audience, pain, promise, offer, userId } = req.body;
+  console.log("🎯 Received prompt-builder data:", req.body);
+
   try {
+    // ✅ This already returns TONE TEXT (from pdf/txt) or null
+    const brandTone = await getUserBrandFile(userId);
+
     const systemPrompt = `
 You are Cre8tlyStudio AI, an expert marketing strategist and creative lead magnet designer.
-Your task is to craft a clear, professional GPT prompt that will generate a high-converting lead magnet 
-for the user's target audience.
+Your job is to craft a GPT prompt that generates a high-converting lead magnet for the user's target audience.
+Write in a tone that reflects the brand voice provided (if available).
 
-Use the following answers as context:
+Context:
 Audience: ${audience}
 Pain: ${pain}
 Promise: ${promise}
 Offer: ${offer || "none provided"}
 
-Your output should be one complete prompt ready to feed into another AI system.
-It should instruct the AI to create a lead magnet that educates, inspires, and builds trust with the audience.
-Do not include any preamble or commentary — just return the generated prompt text.
+${
+  brandTone && brandTone.trim()
+    ? `Brand Tone and Style (match this exactly):\n${brandTone.slice(0, 8000)}`
+    : `No brand tone file provided, use default professional creative voice.`
+}
+
+Your output must be one clean, complete prompt ready for another AI system to use.
+Do not include preamble or commentary — only output the generated GPT prompt text.
 `;
 
-    const gptResponse = await askGPT(systemPrompt);
+    if (brandTone && brandTone.trim()) {
+      console.log(`🗣️ Using brand tone for user ${userId} (${brandTone.length} chars)`);
+    } else {
+      console.log(`🎨 No brand tone for user ${userId}, using default creative voice`);
+    }
+
+    // ✅ Pass the tone text to askGPT so it can blend voice at the system level
+    const gptResponse = await askGPT(systemPrompt, {
+      debug: true,
+      brandTone: brandTone || null,
+    });
 
     const cleanPrompt = gptResponse.replace(/<[^>]*>?/gm, "").trim();
-res.json({ prompt: cleanPrompt });
+    res.json({ prompt: cleanPrompt });
   } catch (err) {
     console.error("❌ Error building smart prompt:", err);
     res.status(500).json({ message: "Failed to generate smart prompt." });
   }
 });
+
+
 
 router.get("/prompt-memory/:userId", authenticateToken, async (req, res) => {
   try {

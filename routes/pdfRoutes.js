@@ -111,7 +111,6 @@ router.get("/proxy", async (req, res) => {
       url = `https://${url}`;
     }
 
-    console.log("📄 Proxy fetching:", url);
 
     const response = await axios.get(url, { responseType: "arraybuffer" });
     res.setHeader("Content-Type", "application/pdf");
@@ -121,38 +120,6 @@ router.get("/proxy", async (req, res) => {
     res.status(500).send("Failed to fetch PDF");
   }
 });
-
-
-// router.get("/proxy", async (req, res) => {
-//   const { url } = req.query;
-//   if (!url) return res.status(400).send("Missing ?url param");
-
-//   try {
-//     console.log("Proxy fetching:", url);
-//     const response = await axios.get(url, {
-//       responseType: "stream", // stream improves performance + memory
-//       headers: {
-//         "User-Agent": "cre8tlystudio-proxy",
-//         "Accept": "application/pdf",
-//       },
-//       maxRedirects: 5,
-//       validateStatus: (status) => status < 500, // prevent throwing on 4xx
-//     });
-
-//     if (response.status >= 400) {
-//       console.error("PDF fetch failed:", response.status, response.statusText);
-//       return res.status(response.status).send(`Failed to fetch PDF (${response.status})`);
-//     }
-
-//     res.setHeader("Content-Type", "application/pdf");
-//     res.setHeader("Cache-Control", "public, max-age=3600");
-
-//     response.data.pipe(res);
-//   } catch (err) {
-//     console.error("PDF proxy error:", err.message);
-//     res.status(500).send("Failed to load PDF");
-//   }
-// });
 
 
 

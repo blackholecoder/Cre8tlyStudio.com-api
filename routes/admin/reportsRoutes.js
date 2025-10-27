@@ -8,6 +8,8 @@ const router = express.Router();
 router.get("/", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const reports = await getAllReports();
+
+
     res.json({ success: true, reports });
   } catch (err) {
     console.error("Error fetching reports:", err);

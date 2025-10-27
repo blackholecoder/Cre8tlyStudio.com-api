@@ -20,6 +20,7 @@ import tempCoverRoutes from "./routes/uploads/tempCoverRoutes.js";
 import bookRoutes from "./routes/books/bookRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import unsplashRoutes from "./routes/unsplashRoutes.js";
+import editorRoutes from "./routes/editor/editorRoutes.js";
 import bodyParser from "body-parser";
 // Checkout for Ebooks
 import ebookCheckoutRoutes from "./routes/ebookCheckout/ebookCheckoutRoutes.js";
@@ -57,6 +58,7 @@ const corsOptions = {
       "http://localhost:5173",
       "http://localhost:3000",
       "http://localhost:3001",
+       "http://localhost:3002",
       "tauri://localhost",
       "https://cre8tlystudio.nyc3.digitaloceanspaces.com", 
       "https://cre8tlystudio.nyc3.cdn.digitaloceanspaces.com",
@@ -100,6 +102,7 @@ app.use("/api/gpt", gptRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/uploads", tempCoverRoutes);
+app.use("/api/edit", editorRoutes);
 
 // Admin
 app.use("/api/admin/users", usersRoutes);

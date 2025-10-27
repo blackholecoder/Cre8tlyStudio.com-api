@@ -29,7 +29,6 @@ export async function uploadFileToSpaces(localPath, fileName, contentType = "app
     ContentType: contentType,
   };
 
-  console.log("📤 Uploading to Spaces:", params.Key);
 
   const result = await s3.upload(params).promise();
 
@@ -38,7 +37,6 @@ export async function uploadFileToSpaces(localPath, fileName, contentType = "app
     console.warn("⚠️ Could not delete temp file:", localPath)
   );
 
-  console.log("✅ Uploaded to:", result.Location);
 
   return result;
 }

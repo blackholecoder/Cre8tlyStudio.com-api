@@ -90,26 +90,27 @@ export async function giveFreeLeadMagnets(userId, count = 5) {
 
     // 3️⃣ Create new lead_magnets rows starting from the next slot number
     const leadMagnets = Array.from({ length: count }).map((_, i) => [
-      uuidv4(), // id
-      userId,   // user_id
-      "",       // prompt
-      "",       // pdf_url
-      0.0,      // price (free)
-      "awaiting_prompt",
-      now,
-      null,     // deleted_at
-      null,     // stripe_session_id
-      "modern", // theme
-      startFrom + i, // ✅ Correct next slot number
-    ]);
+  uuidv4(),         // id
+  userId,           // user_id
+  "",               // prompt
+  "",               // pdf_url
+  "modern",         // theme
+  0.0,              // price
+  "awaiting_prompt",// status
+  now,              // created_at
+  null,             // created_at_prompt
+  null,             // deleted_at
+  null,             // stripe_session_id
+  startFrom + i,    // slot_number
+]);
 
     // 4️⃣ Insert the new slots
     await db.query(
-      `INSERT INTO lead_magnets 
-        (id, user_id, prompt, pdf_url, price, status, created_at, created_at_prompt, deleted_at, stripe_session_id, theme, slot_number)
-       VALUES ?`,
-      [leadMagnets]
-    );
+  `INSERT INTO lead_magnets 
+    (id, user_id, prompt, pdf_url, theme, price, status, created_at, created_at_prompt, deleted_at, stripe_session_id, slot_number)
+   VALUES ?`,
+  [leadMagnets]
+);
 
     // 5️⃣ Update the user’s has_magnet + magnet_slots count
     await db.query(
