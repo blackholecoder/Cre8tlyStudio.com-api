@@ -63,8 +63,9 @@ router.get("/:sessionId", async (req, res) => {
 
 
 router.post("/prompt", authenticateToken, async (req, res) => {
+  // console.log("🟢 /prompt route hit with body keys:", Object.keys(req.body));
   try {
-    const { magnetId, prompt, theme, bgTheme, pages, logo, link, coverImage, cta, contentType } = req.body;  // 👈 include theme
+    const { magnetId, prompt, title, theme, bgTheme, pages, logo, link, coverImage, cta, contentType } = req.body;  // 👈 include theme
 
     if (!magnetId || !prompt) {
       return res.status(400).json({ message: "magnetId and prompt are required" });
@@ -77,11 +78,38 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       });
     }
 
-    const updated = await processPromptFlow(magnetId, req.user.id, prompt, theme, bgTheme, pages, logo, link, coverImage, cta, contentType); 
+    const updated = await processPromptFlow(magnetId, req.user.id, prompt, title, theme, bgTheme, pages, logo, link, coverImage, cta, contentType); 
     res.json(updated);
   } catch (err) {
-    console.error("❌ ERROR in /prompt route:", err);
-    res.status(500).json({ message: "Failed to process prompt" });
+    // 🧠 Enhanced error logging
+    console.error("❌ ERROR in /prompt route:");
+    console.error("Message:", err.message);
+    if (err.stack) console.error("Stack trace:", err.stack);
+    if (err.response) {
+      console.error("Response data:", err.response.data);
+      console.error("Response status:", err.response.status);
+    }
+    if (err.request) {
+      console.error("Request error:", err.request.path || "(unknown request path)");
+    }
+
+    // ⚙️ Send more informative error feedback to frontend
+    if (err.response?.status === 429) {
+      return res.status(429).json({ message: "OpenAI rate limit reached, please try again shortly." });
+    }
+    if (err.response?.data?.error?.message?.includes("context_length_exceeded")) {
+      return res.status(400).json({
+        message: "Requested document is too long for one generation, please reduce the number of pages.",
+      });
+    }
+
+    // 🚨 Default fallback
+    res.status(500).json({
+      message:
+        err.response?.data?.error?.message ||
+        err.message ||
+        "Something went wrong on the server. Check logs for details.",
+    });
   }
 });
 

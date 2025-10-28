@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
+import { optimizeCoverImage } from "../utils/optimizeCoverImage.js";
 
 export async function createLeadMagnet(userId, prompt) {
   const db = await connect();
@@ -24,12 +25,13 @@ export async function createLeadMagnet(userId, prompt) {
 
   await db.query(
     `INSERT INTO lead_magnets 
-      (id, user_id, prompt, pdf_url, price, status, created_at, theme, slot_number)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, prompt, title, pdf_url, price, status, created_at, theme, slot_number)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       userId,
       prompt || null,
+      title || null,
       "",
       19.0,
       status,
@@ -57,6 +59,7 @@ export async function insertLeadMagnet({
   id,
   userId,
   prompt,
+  title,
   pdfUrl,
   price,
   status,
@@ -67,12 +70,13 @@ export async function insertLeadMagnet({
   const db = await connect();
   await db.query(
     `INSERT INTO lead_magnets 
-      (id, user_id, prompt, pdf_url, price, status, created_at, stripe_session_id, slot_number)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, prompt, title, pdf_url, price, status, created_at, stripe_session_id, slot_number)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       userId,
       prompt,
+      title,
       pdfUrl,
       price,
       status,
@@ -118,12 +122,14 @@ export async function getLeadMagnetsByUser(userId) {
       lm.slot_number,
       lm.status,
       lm.prompt,
+      lm.title,
       lm.pdf_url,
       lm.created_at,
       lm.theme,
       lm.created_at_prompt,
       lm.edit_used,
       lm.edit_committed_at,
+      lm.cover_image,
       u.magnet_slots AS total_slots,
       (
         SELECT COUNT(*) 
@@ -141,8 +147,16 @@ export async function getLeadMagnetsByUser(userId) {
   );
 
   await db.end();
+const optimizedRows = await Promise.all(
+    rows.map(async (row) => {
+      if (row.cover_image) {
+        row.cover_image = await optimizeCoverImage(row.cover_image, "medium");
+      }
+      return row;
+    })
+  );
 
-  // ✅ Return both rows and a summary at the top level
+  // ✅ Build summary
   const summary =
     rows.length > 0
       ? {
@@ -152,10 +166,8 @@ export async function getLeadMagnetsByUser(userId) {
         }
       : { total_slots: 0, used_slots: 0, available_slots: 0 };
 
-  return { magnets: rows, summary };
+  return { magnets: optimizedRows, summary };
 }
-
-
 export async function softDeleteLeadMagnet(id) {
   const db = await connect();
   await db.query(
@@ -182,6 +194,7 @@ export async function saveLeadMagnetPdf(
   magnetId,
   userId,
   prompt,
+  title,
   pdfUrl,
   theme,
   htmlContent,
@@ -191,7 +204,7 @@ export async function saveLeadMagnetPdf(
   coverImage,
   cta
 ) {
-  console.log("🧾 DB Save coverImage:", coverImage);
+
   const db = await connect();
   const finalTheme = theme || "modern";
   const finalBgTheme = bgTheme || "modern";
@@ -202,6 +215,7 @@ export async function saveLeadMagnetPdf(
     SET 
       status = ?, 
       prompt = ?, 
+      title = ?, 
       pdf_url = ?, 
       theme = ?, 
       bg_theme = ?, 
@@ -217,6 +231,7 @@ export async function saveLeadMagnetPdf(
     [
       "completed",
       prompt,
+      title,
       pdfUrl,
       finalTheme,
       finalBgTheme,

@@ -4,8 +4,9 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// updated with promise
 
-// Fiction 
+// Fiction
 export async function askBookGPTFiction(
   bookPrompt,
   previousText = "",
@@ -21,7 +22,14 @@ export async function askBookGPTFiction(
     const safePrevious = typeof previousText === "string" ? previousText : "";
     const safeInput = typeof userInput === "string" ? userInput : "";
 
-    const response = await client.chat.completions.create({
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error("OpenAI request timed out after 240s")),
+        240000
+      )
+    );
+
+    const gptPromise = client.chat.completions.create({
       model: "gpt-4.1",
       temperature: 0.85,
       messages: [
@@ -78,7 +86,7 @@ Never close the story unless told to.
         },
       ],
     });
-
+    const response = await Promise.race([gptPromise, timeoutPromise]);
     return response.choices[0].message.content;
   } catch (error) {
     console.error("GPT book generation error:", error);
@@ -98,7 +106,14 @@ export async function askBookGPT(
     const safeInput = typeof userInput === "string" ? userInput : "";
     const trimmedInput = safeInput.trim();
 
-    const response = await client.chat.completions.create({
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error("OpenAI request timed out after 240s")),
+        240000
+      )
+    );
+
+    const gptPromise = client.chat.completions.create({
       model: "gpt-4.1",
       temperature: 0.85,
       messages: [
@@ -133,7 +148,9 @@ Maintain roughly the same length as the original content unless natural expansio
           ? [
               {
                 role: "user",
-                content: `Here is the last written section. Continue directly from its final sentence without repeating or summarizing:\n\n${safePrevious.slice(-8000)}`,
+                content: `Here is the last written section. Continue directly from its final sentence without repeating or summarizing:\n\n${safePrevious.slice(
+                  -8000
+                )}`,
               },
             ]
           : []),
@@ -146,7 +163,7 @@ Maintain roughly the same length as the original content unless natural expansio
         },
       ],
     });
-
+    const response = await Promise.race([gptPromise, timeoutPromise]);
     return response.choices[0]?.message?.content || "";
   } catch (error) {
     console.error("GPT book generation error:", error);
@@ -166,7 +183,14 @@ export async function askBookGPTEducational(
     const safeInput = typeof userInput === "string" ? userInput : "";
     const trimmedInput = safeInput.trim();
 
-    const response = await client.chat.completions.create({
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error("OpenAI request timed out after 240s")),
+        240000
+      )
+    );
+
+    const gptPromise = client.chat.completions.create({
       model: "gpt-4.1",
       temperature: 0.7,
       messages: [
@@ -204,7 +228,9 @@ Do **not** summarize, condense, or add explanations.
           ? [
               {
                 role: "user",
-                content: `Here is the last written section. Continue directly from its final sentence, applying only grammatical and readability improvements:\n\n${safePrevious.slice(-8000)}`,
+                content: `Here is the last written section. Continue directly from its final sentence, applying only grammatical and readability improvements:\n\n${safePrevious.slice(
+                  -8000
+                )}`,
               },
             ]
           : []),
@@ -217,15 +243,10 @@ Do **not** summarize, condense, or add explanations.
         },
       ],
     });
-
+    const response = await Promise.race([gptPromise, timeoutPromise]);
     return response.choices[0]?.message?.content || "";
   } catch (error) {
     console.error("GPT educational book generation error:", error);
     throw error;
   }
 }
-
-
-
-
-

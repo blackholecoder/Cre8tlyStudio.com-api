@@ -26,6 +26,7 @@ export async function processPromptFlow(
   magnetId,
   userId,
   prompt,
+  title,
   theme,
   bgTheme,
   pages = 5,
@@ -40,6 +41,7 @@ export async function processPromptFlow(
   await updateLeadMagnetStatus(magnetId, userId, "pending");
 
   try {
+    
     const brandTone = await getUserBrandFile(userId);
 
     // ✅ Build prompt (no brandFile URL fallback)
@@ -277,6 +279,7 @@ console.log(htmlContent.substring(0, 1000)); // first 1k chars is enough
       magnetId,
       userId,
       prompt,
+      title,
       uploaded.Location,
       theme,
       htmlContent,

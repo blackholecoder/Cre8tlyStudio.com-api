@@ -255,7 +255,6 @@ export async function markBookOnboardingComplete(userId) {
       return { success: false, message: "User not found" };
     }
 
-    console.log(`✅ Onboarding marked complete for user ID: ${userId}`);
     return { success: true };
   } catch (err) {
     console.error("❌ Database error updating onboarding:", err);
