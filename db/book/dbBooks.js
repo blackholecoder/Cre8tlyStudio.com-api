@@ -54,7 +54,8 @@ export async function markBookComplete(id, pdfUrl) {
 export async function getBooksByUser(userId) {
   const db = await connect();
   const [rows] = await db.query(
-    `SELECT id, user_id, title AS book_name, slot_number, part_number, status, prompt, pdf_url, pages, created_at, created_at_prompt, author_name
+    `SELECT id, user_id, title AS book_name, slot_number, part_number, status, prompt, pdf_url, pages, created_at, created_at_prompt, author_name, is_draft,
+        last_saved_at
      FROM generated_books
      WHERE user_id = ? AND deleted_at IS NULL
      ORDER BY created_at DESC`,
@@ -280,3 +281,98 @@ export async function resetBookOnboarding(userId) {
     await db.end();
   }
 }
+
+export async function saveBookDraft({
+  userId,
+  bookId,
+  draftText,
+  book_name, // this is the BOOK TITLE, will map to `title` in DB
+  link,
+  author_name,
+  book_type,
+}) {
+  const db = await connect();
+
+  try {
+    if (bookId) {
+      // ✅ Update existing draft
+      await db.query(
+        `
+        UPDATE generated_books
+        SET
+          draft_text = ?,
+          title = COALESCE(?, title),
+          link = ?,
+          author_name = ?,
+          book_type = ?,
+          is_draft = 1,
+          last_saved_at = NOW()
+        WHERE id = ? AND user_id = ?
+        `,
+        [draftText, book_name, link, author_name, book_type, bookId, userId]
+      );
+
+      await db.end();
+      return { message: "Draft updated" };
+    } else {
+      // ✅ Create new draft
+      const [result] = await db.query(
+        `
+        INSERT INTO generated_books
+          (id, user_id, title, draft_text, link, author_name, book_type, is_draft, created_at, last_saved_at)
+        VALUES
+          (UUID(), ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
+        `,
+        [
+          userId,
+          book_name || "Untitled Book",
+          draftText || "",
+          link || "",
+          author_name || null,
+          book_type || "fiction",
+        ]
+      );
+
+      await db.end();
+      return { id: result.insertId, message: "Draft created" };
+    }
+  } catch (err) {
+    await db.end();
+    console.error("❌ Error in saveBookDraft:", err);
+    throw err;
+  }
+}
+
+
+// Get existing draft by ID
+export async function getBookDraft({ userId, bookId }) {
+  const db = await connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT
+        id,
+        title AS book_name,
+        draft_text,
+        link,
+        author_name,
+        book_type,
+        last_saved_at
+      FROM generated_books
+      WHERE id = ? AND user_id = ? AND is_draft = 1
+      `,
+      [bookId, userId]
+    );
+
+    await db.end();
+    return rows.length ? rows[0] : null;
+  } catch (err) {
+    await db.end();
+    console.error("❌ Error in getBookDraft:", err);
+    throw err;
+  }
+}
+
+
+

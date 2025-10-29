@@ -10,6 +10,8 @@ import {
   updateBookInfo,
   markBookOnboardingComplete,
   resetBookOnboarding,
+  saveBookDraft,
+  getBookDraft,
 } from "../../db/book/dbBooks.js";
 import { enforcePageLimit, processBookPrompt, validateBookPromptInput } from "../../db/book/dbCreateBookPrompt.js";
 
@@ -193,6 +195,46 @@ router.post("/onboarding/replay", authenticateToken, async (req, res) => {
   }
 });
 
+router.post("/draft", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { bookId, draftText, book_name, link, author_name, book_type } = req.body;
+    console.log("📩 DRAFT SAVE PAYLOAD:", { userId, bookId, author_name, book_type, book_name });
+    
+
+    const result = await saveBookDraft({
+      userId,
+      bookId,
+      draftText,
+      book_name,
+      link,
+      author_name,
+      book_type,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error saving draft:", err);
+    res.status(500).json({ message: "Server error while saving draft" });
+  }
+});
+
+router.get("/draft/:id", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const bookId = req.params.id;
+    const draft = await getBookDraft({ userId, bookId });
+
+    if (!draft) {
+      return res.status(404).json({ message: "Draft not found" });
+    }
+
+    res.json(draft);
+  } catch (err) {
+    console.error("Error fetching draft:", err);
+    res.status(500).json({ message: "Server error while fetching draft" });
+  }
+});
 
 
 

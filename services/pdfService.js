@@ -7,6 +7,29 @@ import { pdfThemes } from "./pdfThemes.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function getReadableTextColor(backgroundColor) {
+  try {
+    // If background is a gradient (like 'linear-gradient(...)'), return white by default
+    if (backgroundColor.startsWith("linear")) return "#ffffff";
+
+    // Extract hex and remove possible '0x' or '#' prefix
+    const hex = backgroundColor.replace("#", "").trim();
+    if (hex.length !== 6) return "#ffffff"; // fallback
+
+    // Convert hex to RGB
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // Calculate luminance (perceived brightness)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    // Return white for dark colors, black for light colors
+    return luminance < 0.5 ? "#ffffff" : "#000000";
+  } catch {
+    return "#ffffff";
+  }
+}
 
 
 
@@ -22,7 +45,6 @@ export async function generatePDF({
   coverImage,
   cta,
 }) {
-
 
 
   const browser = await puppeteer.launch({
@@ -103,7 +125,10 @@ const css = cssTemplate
   .replace(/{{fontFormat}}/g, fontFormat)
   .replace(/{{fontBase64}}/g, fontBase64)
   .replace(/{{fallback}}/g, selectedTheme.fallback)
-  .replace(/{{textColor}}/g, ["royal","dark","graphite"].includes(bgTheme) ? "#ffffff" : "#111111")
+  .replace(/{{textColor}}/g, getReadableTextColor(
+    pdfThemes[bgTheme]?.background ||
+    (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
+  ))
   .replace(/{{background}}/g,
     pdfThemes[bgTheme]?.background ||
     (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
@@ -112,21 +137,19 @@ const css = cssTemplate
   .replace(/{{h1Size}}/g, theme === "classic" ? "22pt" : "18pt")
   .replace(/{{h2Size}}/g, theme === "classic" ? "18pt" : "13pt")
   .replace(/{{pSize}}/g, theme === "classic" ? "16pt" : "14pt")
-  .replace(/{{headingColor}}/g,
-    ["royal","dark","graphite"].includes(bgTheme)
-      ? "#ffffff"
-      : selectedTheme.primaryColor || "#111111"
-  )
-  .replace(/{{ctaBg}}/g,
-    ["royal","dark","graphite"].includes(bgTheme)
-      ? "#ffffff"
-      : selectedTheme.ctaBg
-  )
-  .replace(/{{ctaText}}/g,
-    ["royal","dark","graphite"].includes(bgTheme)
-      ? "#000000"
-      : selectedTheme.ctaText
-  );
+  .replace(/{{headingColor}}/g, getReadableTextColor(
+  pdfThemes[bgTheme]?.background ||
+  (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
+))
+  .replace(/{{ctaBg}}/g, getReadableTextColor(
+  pdfThemes[bgTheme]?.background ||
+  (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
+) === "#ffffff" ? "#00E07A" : "#222222")
+  .replace(/{{ctaText}}/g, getReadableTextColor(
+  pdfThemes[bgTheme]?.ctaBg ||
+  pdfThemes[bgTheme]?.background ||
+  (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
+))
   const html = `
 <html>
   <head>
@@ -155,13 +178,19 @@ const css = cssTemplate
                  .replace(/\n/g, "<br>")
              : "";
 
-           const isDarkBg = ["royal", "dark", "graphite"].includes(bgTheme);
-           const textColor = isDarkBg ? "#ffffff" : "#111111";
-           const ctaBg = pdfThemes[bgTheme]?.ctaBg || "#00E07A";
-           const ctaText = pdfThemes[bgTheme]?.ctaText || "#000000";
            const bgColor =
-             pdfThemes[bgTheme]?.background ||
-             (bgTheme?.startsWith("#") ? bgTheme : "#ffffff");
+  pdfThemes[bgTheme]?.background ||
+  (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff");
+
+const textColor = getReadableTextColor(bgColor);
+
+// Pick a CTA background that contrasts slightly against the page color
+// (fallback to bright green if background is dark)
+const ctaBg = getReadableTextColor(bgColor) === "#ffffff" ? "#00E07A" : "#111111";
+
+// The CTA button text color should be the opposite of the button background
+const ctaText = getReadableTextColor(ctaBg);
+
 
            return `
         <!-- Force break after content but avoid an empty page -->
@@ -205,7 +234,7 @@ const css = cssTemplate
                       border-radius:30px;
                       text-decoration:none;
                       box-shadow:none;
-                      border:2px solid ${isDarkBg ? "#fff" : "#000"};
+                      border:2px solid ${getReadableTextColor(bgColor) === "#ffffff" ? "#fff" : "#000"};
                     ">
                       Visit ${new URL(link).hostname.replace(/^www\\./, "")}
                     </a>
@@ -216,7 +245,7 @@ const css = cssTemplate
               margin-top:28px;
               font-style:italic;
               font-size:15px;
-              color:${isDarkBg ? "#d1d5db" : "#666"};
+              color:${getReadableTextColor(bgColor) === "#ffffff" ? "#d1d5db" : "#666"};
             ">
             </p>
           </div>
@@ -263,6 +292,5 @@ const css = cssTemplate
       console.error("⚠️ Failed to delete temp cover:", err);
     }
   }
-
   return path.resolve(outputDir, `${id}.pdf`);
 }

@@ -37,11 +37,13 @@ export async function processPromptFlow(
   contentType
 ) {
 
+
+  
+
   const safePages = Math.min(50, Math.max(1, pages));
   await updateLeadMagnetStatus(magnetId, userId, "pending");
 
   try {
-    
     const brandTone = await getUserBrandFile(userId);
 
     // ✅ Build prompt (no brandFile URL fallback)
@@ -100,7 +102,6 @@ ${brandTone.slice(0, 4000)}
       /<!--PAGEBREAK-->/g,
       '<div class="page-break"></div>'
     );
-
     // 🖼️ Cover handling
     let tempCoverPath = null;
     if (coverImage) {
@@ -170,7 +171,6 @@ if (tempCoverPath && fs.existsSync(tempCoverPath)) {
 } else {
   console.log("⚠️ No local cover image file found at:", tempCoverPath);
 }
-
     // 📄 Generate PDF
     const localPath = await generatePDF({
       id: magnetId,
@@ -271,9 +271,6 @@ let htmlContent = `
 </html>
 `;
 
-console.log("🧩 HTML being saved to DB (truncated):");
-console.log(htmlContent.substring(0, 1000)); // first 1k chars is enough
-
 
     await saveLeadMagnetPdf(
       magnetId,
@@ -289,7 +286,6 @@ console.log(htmlContent.substring(0, 1000)); // first 1k chars is enough
       coverImage,
       cta
     );
-
     return { pdf_url: uploaded.Location, status: "completed" };
   } catch (err) {
     await updateLeadMagnetStatus(magnetId, userId, "failed");
