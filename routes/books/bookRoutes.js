@@ -12,6 +12,7 @@ import {
   resetBookOnboarding,
   saveBookDraft,
   getBookDraft,
+  saveBookPartDraft,
 } from "../../db/book/dbBooks.js";
 import { enforcePageLimit, processBookPrompt, validateBookPromptInput } from "../../db/book/dbCreateBookPrompt.js";
 
@@ -97,6 +98,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
 
     // ✅ Step 1: Validate user input
     const validationError = validateBookPromptInput(bookId, prompt);
+    console.log("API HIT BOOOKS 2")
     if (validationError) {
       return res.status(400).json({ message: validationError });
     }
@@ -106,7 +108,6 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     if (limitCheck?.error) {
       return res.status(limitCheck.status).json({ message: limitCheck.error });
     }
-
     // ✅ Step 3: Update book info (clean helper, no SQL in route)
     try {
       await updateBookInfo(
@@ -120,7 +121,6 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       console.error("⚠️ Book info update failed:", err.message);
       // non-fatal — we continue generation
     }
-
 
     // ✅ Step 3: Process and generate the new book part
     const generated = await processBookPrompt({
@@ -199,7 +199,6 @@ router.post("/draft", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const { bookId, draftText, book_name, link, author_name, book_type } = req.body;
-    console.log("📩 DRAFT SAVE PAYLOAD:", { userId, bookId, author_name, book_type, book_name });
     
 
     const result = await saveBookDraft({
@@ -233,6 +232,21 @@ router.get("/draft/:id", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("Error fetching draft:", err);
     res.status(500).json({ message: "Server error while fetching draft" });
+  }
+});
+
+
+router.post("/:bookId/part/:partNumber/draft", authenticateToken, async (req, res) => {
+  const { bookId, partNumber } = req.params;
+  const { draftText, title } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const result = await saveBookPartDraft({ userId, bookId, partNumber, draftText, title });
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Error saving part draft:", err);
+    res.status(500).json({ message: "Failed to save part draft" });
   }
 });
 

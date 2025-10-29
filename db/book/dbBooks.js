@@ -53,17 +53,44 @@ export async function markBookComplete(id, pdfUrl) {
 // ✅ Get all books for a user
 export async function getBooksByUser(userId) {
   const db = await connect();
+
   const [rows] = await db.query(
-    `SELECT id, user_id, title AS book_name, slot_number, part_number, status, prompt, pdf_url, pages, created_at, created_at_prompt, author_name, is_draft,
-        last_saved_at
-     FROM generated_books
-     WHERE user_id = ? AND deleted_at IS NULL
-     ORDER BY created_at DESC`,
+    `
+    SELECT 
+      g.id,
+      g.user_id,
+      g.title AS book_name,
+      g.slot_number,
+      g.part_number,
+      g.status,
+      g.prompt,
+      g.pdf_url,
+      g.pages,
+      g.created_at,
+      g.created_at_prompt,
+      g.author_name,
+      g.is_draft,
+      g.last_saved_at,
+      -- ✅ NEW: tell us if Part 1 already exists
+      EXISTS (
+        SELECT 1 
+        FROM book_parts p
+        WHERE p.book_id = g.id 
+          AND p.user_id = g.user_id 
+          AND p.part_number = 1
+      ) AS has_part_1
+    FROM generated_books g
+    WHERE g.user_id = ? 
+      AND g.deleted_at IS NULL
+    ORDER BY g.created_at DESC
+    `,
     [userId]
   );
+
   await db.end();
   return rows;
 }
+
 
 // ✅ Get all books (admin)
 export async function getAllBooks() {
@@ -286,56 +313,58 @@ export async function saveBookDraft({
   userId,
   bookId,
   draftText,
-  book_name, // this is the BOOK TITLE, will map to `title` in DB
+  book_name, // This maps to `title` in DB
   link,
   author_name,
   book_type,
 }) {
   const db = await connect();
 
+  // ✅ Check if part already exists in book_parts
+const [existingPart] = await db.query(
+  `SELECT id FROM book_parts WHERE book_id = ? AND user_id = ? AND part_number = ?`,
+  [bookId, userId, partNumber || 1]
+);
+
+if (existingPart.length > 0) {
+  return res
+    .status(400)
+    .json({ message: `Part ${partNumber} already submitted,  cannot save draft.` });
+}
+
   try {
-    if (bookId) {
-      // ✅ Update existing draft
-      await db.query(
-        `
-        UPDATE generated_books
-        SET
-          draft_text = ?,
-          title = COALESCE(?, title),
-          link = ?,
-          author_name = ?,
-          book_type = ?,
-          is_draft = 1,
-          last_saved_at = NOW()
-        WHERE id = ? AND user_id = ?
-        `,
-        [draftText, book_name, link, author_name, book_type, bookId, userId]
-      );
-
+    // 🧩 Safety check — user must have a valid bookId
+    if (!bookId) {
       await db.end();
-      return { message: "Draft updated" };
-    } else {
-      // ✅ Create new draft
-      const [result] = await db.query(
-        `
-        INSERT INTO generated_books
-          (id, user_id, title, draft_text, link, author_name, book_type, is_draft, created_at, last_saved_at)
-        VALUES
-          (UUID(), ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
-        `,
-        [
-          userId,
-          book_name || "Untitled Book",
-          draftText || "",
-          link || "",
-          author_name || null,
-          book_type || "fiction",
-        ]
-      );
-
-      await db.end();
-      return { id: result.insertId, message: "Draft created" };
+      throw new Error("Missing bookId — each user must have a pre-created book row before saving a draft.");
     }
+
+    // 🟢 Always update existing row
+    const [result] = await db.query(
+      `
+      UPDATE generated_books
+      SET
+        draft_text = ?,
+        title = COALESCE(?, title),
+        link = ?,
+        author_name = ?,
+        book_type = ?,
+        is_draft = 1,
+        last_saved_at = NOW()
+      WHERE id = ? AND user_id = ?
+      `,
+      [draftText, book_name, link, author_name, book_type, bookId, userId]
+    );
+
+    await db.end();
+
+    // 🔎 If no rows updated, flag a mismatch (shouldn’t happen normally)
+    if (result.affectedRows === 0) {
+      console.warn(`⚠️ No book found for user ${userId} with id ${bookId}`);
+      return { message: "No matching book found" };
+    }
+
+    return { id: bookId, message: "Draft updated" };
   } catch (err) {
     await db.end();
     console.error("❌ Error in saveBookDraft:", err);
@@ -373,6 +402,41 @@ export async function getBookDraft({ userId, bookId }) {
     throw err;
   }
 }
+
+
+export async function saveBookPartDraft({ userId, bookId, partNumber, draftText, title }) {
+  const db = await connect();
+
+  try {
+    const [existing] = await db.query(
+      `SELECT id FROM book_parts WHERE book_id = ? AND user_id = ? AND part_number = ?`,
+      [bookId, userId, partNumber]
+    );
+
+    if (existing.length) {
+      await db.query(
+        `UPDATE book_parts
+         SET draft_text = ?, title = COALESCE(?, title), updated_at = NOW()
+         WHERE book_id = ? AND user_id = ? AND part_number = ?`,
+        [draftText, title, bookId, userId, partNumber]
+      );
+    } else {
+      await db.query(
+        `INSERT INTO book_parts (book_id, user_id, part_number, title, draft_text, created_at)
+         VALUES (?, ?, ?, ?, ?, NOW())`,
+        [bookId, userId, partNumber, title, draftText]
+      );
+    }
+
+    await db.end();
+    return { message: "Part draft saved" };
+  } catch (err) {
+    await db.end();
+    console.error("❌ saveBookPartDraft error:", err);
+    throw err;
+  }
+}
+
 
 
 
