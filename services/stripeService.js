@@ -38,7 +38,6 @@ export async function createCheckout({ userId, priceId, productType }) {
     finalPriceId = PROMPT_MEMORY_PRICE_ID;
     mode = "subscription";
     break;
-    case "lead_magnets":
     case "basic":
     default:
       finalPriceId = priceId || BASIC_PRICE_ID;

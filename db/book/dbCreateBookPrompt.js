@@ -11,132 +11,6 @@ import {
 } from "./getLastBookPartText.js";
 import { getBookTypeById, saveBookPdf } from "./dbBooks.js";
 
-// export async function createBookPrompt({
-//   prompt,
-//   pages = 10, // default smaller chunks for gradual writing
-//   link,
-//   coverImage,
-//   title,
-//   authorName,
-//   partNumber = 1,
-//   bookId = null,
-//   userId = null, // required for context
-// }) {
-//   console.log(`✍️ Running Book GPT Engine (Part ${partNumber})...`);
-//   const db = await connect();
-
-//   if (!prompt || typeof prompt !== "string") {
-//     throw new Error("Prompt text is required to create a book section");
-//   }
-
-//   // ✅ Generate a unique or reuse existing Book ID
-//   const thisBookId = bookId || uuidv4();
-
-//   try {
-//     // ✅ 1. Fetch previous text (continuity for next part)
-//     let previousText = null;
-//     if (userId && bookId && partNumber > 1) {
-//       previousText = await getLastBookPartText(bookId, userId);
-//       if (previousText) {
-//         console.log("📖 Found previous part text for continuity");
-//       }
-//     }
-
-//     // ✅ 2. Ask GPT to expand or continue story gradually
-//     const gptOutput = await askBookGPT(prompt, previousText, partNumber);
-//     if (!gptOutput || typeof gptOutput !== "string") {
-//       throw new Error("GPT did not return valid text for the book section");
-//     }
-
-//     // ✅ 3. Temporary cover handling
-//     let tempCoverPath = null;
-//     if (coverImage && coverImage.startsWith("data:image")) {
-//       const tmpDir = path.resolve("uploads/tmp");
-//       if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-
-//       const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
-//       const extension = coverImage.substring(
-//         coverImage.indexOf("/") + 1,
-//         coverImage.indexOf(";")
-//       );
-
-//       tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
-//       fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
-//     }
-
-//     // ✅ 4. Parse chapters (so table of contents works cleanly)
-//     const chapters = [];
-//     const regex = /<h[12][^>]*>(.*?)<\/h[12]>([\s\S]*?)(?=<h[12]|$)/gi;
-//     let match;
-//     while ((match = regex.exec(gptOutput)) !== null) {
-//       const chapterTitle = match[1]?.replace(/<\/?[^>]+(>|$)/g, "").trim();
-//       const chapterContent = match[2]?.trim() || "";
-//       if (chapterTitle && chapterContent) {
-//         chapters.push({ title: chapterTitle, content: chapterContent });
-//       }
-//     }
-
-//     // ✅ 5. Use fallback title if AI didn’t define one
-//     const finalTitle =
-//       title?.trim() ||
-//       (chapters[0]?.title ? chapters[0].title : `Book Part ${partNumber}`);
-
-//     const finalAuthor = authorName?.trim() || "Anonymous";
-
-//     // ✅ 6. Generate the PDF
-//     const { localPdfPath, pageCount } = await generateBookPDF({
-//       id: `${thisBookId}-part${partNumber}`,
-//       title: finalTitle,
-//       author: finalAuthor,
-//       chapters,
-//       coverImage: tempCoverPath,
-//       link,
-//     });
-
-//     console.log("📄 PDF Generated, Page Count:", pageCount);
-
-//     // ✅ 7. Upload to DigitalOcean
-//     const fileName = `books/${thisBookId}_part${partNumber}-${Date.now()}.pdf`;
-//     const uploaded = await uploadFileToSpaces(
-//       localPdfPath,
-//       fileName,
-//       "application/pdf"
-//     );
-
-//     // ✅ 8. Cleanup local temp files
-//     if (tempCoverPath && fs.existsSync(tempCoverPath))
-//       fs.unlinkSync(tempCoverPath);
-//     if (fs.existsSync(localPdfPath)) fs.unlinkSync(localPdfPath);
-
-//     // ✅ 9. Save generated text for continuity
-//     await saveBookPartText({
-//       userId,
-//       bookId: thisBookId,
-//       partNumber,
-//       text: gptOutput,
-//     });
-
-
-//     console.log(
-//       `📚 Book Part ${partNumber} uploaded successfully: ${uploaded.Location}`
-//     );
-
-//     // ✅ 10. Return metadata
-//     return {
-//       title: finalTitle,
-//       author: finalAuthor,
-//       fileUrl: uploaded.Location,
-//       partNumber,
-//       bookId: thisBookId,
-//       gptOutput,
-//       actualPages: pageCount || pages,
-//     };
-//   } catch (err) {
-//     console.error("❌ Error creating book part:", err);
-//     throw err;
-//   }
-// }
-
 export async function createBookPrompt({
   prompt,
   pages = 10,
@@ -330,10 +204,10 @@ export async function processBookPrompt({
   pages,
   link,
   coverImage,
-  title,
+  title, // ✅ chapter title
   authorName,
   partNumber,
-  bookName,
+  bookName, // ✅ book title
   bookType,
 }) {
   const db = await connect();
@@ -347,7 +221,7 @@ export async function processBookPrompt({
     pages,
     link,
     coverImage,
-    title,
+    title, // chapter title
     authorName,
     partNumber,
     bookType,
@@ -367,7 +241,7 @@ export async function processBookPrompt({
     prompt,
     generated.fileUrl,
     partNumber,
-    title, // ✅ add title
+    title, // ← this is the chapter title
     generated.gptOutput,
     generated.actualPages
   );

@@ -151,16 +151,16 @@ export async function saveBookPdf(
   prompt,
   pdfUrl,
   partNumber = 1,
-  title = null,
+  chapterTitle = null,
   gptOutput = null,
-  pageCount = 0 
+  pageCount = 0
 ) {
   try {
-    const safeTitle = title?.trim() || "Untitled";
+    const safeTitle = chapterTitle?.trim() || "Untitled Chapter";
     const safeOutput =
       gptOutput?.trim() || prompt?.trim() || "No content available";
 
-    // ✅ 1. Insert or update this part
+    // ✅ 1. Insert or update this part (chapter)
     await db.query(
       `INSERT INTO book_parts 
         (book_id, user_id, part_number, title, gpt_output, file_url, pages)
@@ -174,7 +174,7 @@ export async function saveBookPdf(
       [bookId, userId, partNumber, safeTitle, safeOutput, pdfUrl, pageCount]
     );
 
-    // ✅ 2. Sum total pages for this book
+    // ✅ 2. Sum total pages
     const [rows] = await db.query(
       `SELECT COALESCE(SUM(pages), 0) AS totalPages
        FROM book_parts
@@ -183,36 +183,36 @@ export async function saveBookPdf(
     );
     let totalPages = rows[0].totalPages || 0;
 
-    // ✅ 3. Cap at 750 max pages per slot
+    // ✅ 3. Cap at 750 max
     if (totalPages > 750) totalPages = 750;
 
-    // ✅ 4. Determine status
+    // ✅ 4. Status update
     const newStatus = totalPages >= 750 ? "completed" : "in_progress";
 
-    // ✅ 5. Update parent record
-    // ✅ 5. Update parent record (preserves original book title unless user edits it)
+    // ✅ 5. Update parent record (without overwriting title)
     await db.query(
       `UPDATE generated_books 
-SET 
-  status = ?,
-  pages = ?,
-  prompt = ?,
-  pdf_url = ?,
-  part_number = ?,
-  created_at_prompt = NOW(),
-  updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND user_id = ?`,
+       SET 
+         status = ?,
+         pages = ?,
+         prompt = ?,
+         pdf_url = ?,
+         part_number = ?,
+         created_at_prompt = NOW(),
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND user_id = ?`,
       [newStatus, totalPages, prompt, pdfUrl, partNumber, bookId, userId]
     );
 
     console.log(
-      `📘 Saved book part ${partNumber}, total ${totalPages} pages (${newStatus})`
+      `📘 Saved book part ${partNumber} ("${safeTitle}"), total ${totalPages} pages (${newStatus})`
     );
   } catch (err) {
     console.error("❌ Error saving book part:", err);
     throw err;
   }
 }
+
 
 export async function getBookParts(bookId, userId) {
   const db = await connect();
@@ -231,7 +231,7 @@ export async function getBookParts(bookId, userId) {
   }
 }
 
-export async function updateBookInfo(bookId, userId, title, authorName, bookType) {
+export async function updateBookInfo(bookId, userId, bookName, authorName, bookType) {
   const db = await connect();
 
   try {
@@ -240,9 +240,9 @@ export async function updateBookInfo(bookId, userId, title, authorName, bookType
          SET title = ?, author_name = ?, book_type = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND user_id = ?`,
       [
-        title?.trim() || "Untitled Book",
+        bookName?.trim() || "Untitled Book",
         authorName?.trim() || null,
-        bookType || "fiction", // ✅ add bookType argument
+        bookType || "fiction",
         bookId,
         userId,
       ]
@@ -254,6 +254,7 @@ export async function updateBookInfo(bookId, userId, title, authorName, bookType
     await db.end();
   }
 }
+
 
 export async function getBookTypeById(bookId, userId) {
   const db = await connect();
@@ -313,26 +314,28 @@ export async function saveBookDraft({
   userId,
   bookId,
   draftText,
-  book_name, // This maps to `title` in DB
+  book_name, // maps to title
   link,
   author_name,
   book_type,
+  partNumber = null,
 }) {
   const db = await connect();
 
-  // ✅ Check if part already exists in book_parts
-const [existingPart] = await db.query(
-  `SELECT id FROM book_parts WHERE book_id = ? AND user_id = ? AND part_number = ?`,
-  [bookId, userId, partNumber || 1]
-);
-
-if (existingPart.length > 0) {
-  return res
-    .status(400)
-    .json({ message: `Part ${partNumber} already submitted,  cannot save draft.` });
-}
-
   try {
+    // ✅ Optional check: if you care about part duplication
+    if (partNumber) {
+      const [existingPart] = await db.query(
+        `SELECT id FROM book_parts WHERE book_id = ? AND user_id = ? AND part_number = ?`,
+        [bookId, userId, partNumber]
+      );
+
+      if (existingPart.length > 0) {
+        await db.end();
+        return { error: true, message: `Part ${partNumber} already submitted, cannot save draft.` };
+      }
+    }
+
     // 🧩 Safety check — user must have a valid bookId
     if (!bookId) {
       await db.end();
@@ -358,13 +361,12 @@ if (existingPart.length > 0) {
 
     await db.end();
 
-    // 🔎 If no rows updated, flag a mismatch (shouldn’t happen normally)
     if (result.affectedRows === 0) {
       console.warn(`⚠️ No book found for user ${userId} with id ${bookId}`);
-      return { message: "No matching book found" };
+      return { error: true, message: "No matching book found" };
     }
 
-    return { id: bookId, message: "Draft updated" };
+    return { success: true, id: bookId, message: "Draft updated" };
   } catch (err) {
     await db.end();
     console.error("❌ Error in saveBookDraft:", err);

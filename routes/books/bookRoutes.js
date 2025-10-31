@@ -85,20 +85,33 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       bookId,
       prompt,
       pages = 10,
-      link,
+      link, 
       coverImage,
-      title,
+      title, // ✅ chapter title
       authorName,
-      bookName, 
+      bookName, // ✅ main book title
       partNumber = 1,
       bookType,
     } = req.body;
 
     const userId = req.user.id;
 
+    console.log("📥 /books/prompt incoming body:");
+    console.log({
+      bookId,
+      bookName,
+      title,
+      authorName,
+      bookType,
+      partNumber,
+      pages,
+      link,
+      coverImage: !!coverImage ? "[present]" : null,
+      userId,
+    });
+
     // ✅ Step 1: Validate user input
     const validationError = validateBookPromptInput(bookId, prompt);
-    console.log("API HIT BOOOKS 2")
     if (validationError) {
       return res.status(400).json({ message: validationError });
     }
@@ -113,7 +126,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       await updateBookInfo(
         bookId,
         userId,
-        title || bookName,
+        bookName,
         authorName,
         bookType
       );
@@ -158,7 +171,7 @@ router.get("/:bookId/parts", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Failed to load book parts" });
   }
 });
-
+           
 router.put("/update-info/:id", authenticateToken, async (req, res) => {
   try {
     const { title, authorName, bookType } = req.body; // ✅ match camelCase
@@ -199,7 +212,6 @@ router.post("/draft", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const { bookId, draftText, book_name, link, author_name, book_type } = req.body;
-    
 
     const result = await saveBookDraft({
       userId,
@@ -210,6 +222,10 @@ router.post("/draft", authenticateToken, async (req, res) => {
       author_name,
       book_type,
     });
+
+    if (result.error) {
+      return res.status(400).json({ message: result.message });
+    }
 
     res.json(result);
   } catch (err) {

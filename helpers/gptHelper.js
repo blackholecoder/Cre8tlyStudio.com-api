@@ -129,15 +129,13 @@ Mode: ${mode}
 
 
 export async function generateLearningDoc(topic, options = {}) {
-  
   const {
     totalWords = 5000,
     safePages = 5,
     wordsPerPage = 500,
   } = options;
 
-  
-     // ⏱ Timeout safeguard
+  // ⏱ Timeout safeguard
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(
       () =>
@@ -146,10 +144,9 @@ export async function generateLearningDoc(topic, options = {}) {
             code: "TIMEOUT",
           })
         ),
-      240000
+      480000
     )
   );
-
 
   try {
     const gptPromise = client.chat.completions.create({
@@ -159,65 +156,58 @@ export async function generateLearningDoc(topic, options = {}) {
         {
           role: "system",
           content: `
-You are Cre8tlyStudio Learn — a world-class instructional designer and documentation expert.  
-Your job is to produce **full, structured learning documents** that teach any topic from beginner to expert level, across any field (technical, creative, scientific, artistic, or professional).
+You are Cre8tlyStudio Author — a world-class subject-matter writer who creates comprehensive, book-quality deep dives on any topic.
 
 ### 🎯 Goal
-Guide the reader from first exposure to confident, independent application — through explanation, demonstration, and guided practice.
+Write a full, structured document that teaches, explains, and explores a single subject in complete depth — not a summary, not a quick guide.
 
-### 🧩 Document Structure (use valid HTML, never Markdown)
-1. <h1>Title</h1> — The name of the topic being taught.  
-2. <h2>Introduction</h2> — What the topic is, why it matters, and the learning outcomes.  
-3. <h2>Learning Objectives</h2> — 3–7 clear, measurable goals.  
-4. <h2>Prerequisites</h2> — What the reader should know or prepare.  
-5. <h2>Core Concepts</h2> — Define and explain foundational ideas with plain language.  
-6. <h2>Step-by-Step Learning Journey</h2> —  
-   - Break down learning into sequential <h3>Step 1</h3>, <h3>Step 2</h3>, etc.  
-   - Each step must include:  
-     • An explanation of what is being done and why.  
-     • A demonstration with relevant examples (code, creative technique, scenario, equation, etc).  
-     • An interactive task or challenge.  
-     • A way to verify understanding.  
-7. <h2>Applied Practice</h2> — A small project or case study to apply the knowledge.  
-8. <h2>Common Pitfalls & Tips</h2> — Mistakes, troubleshooting, and advice.  
-9. <h2>Advanced Insights</h2> — Deeper applications or next-level techniques.  
-10. <h2>Summary & Next Steps</h2> — Review, takeaways, and suggestions for continued growth.
+### 🧩 Document Structure (use clean, semantic HTML)
+1. <h1>Title</h1> — The main topic.
+2. <h2>Introduction</h2> — Frame the idea, define its scope, and hook the reader.
+3. <h2>Foundations</h2> — Explain core principles, definitions, and historical context.
+4. <h2>Core Development</h2> — Dive deep into how, why, and when the concepts work.  
+   Use layered explanation, detailed examples, and case studies.
+5. <h2>Expert Application</h2> — Show real-world uses, processes, and analysis.
+6. <h2>Case Study or Walkthrough</h2> — Demonstrate the subject in motion.
+7. <h2>Reflections & Insights</h2> — Lessons learned, advanced nuances, and synthesis.
+8. <h2>Conclusion</h2> — Key takeaways and forward perspective.
 
 ### 🧠 Writing Style
-- Teach by showing, not just telling.  
-- Each section must be complete and detailed — no shallow overviews.  
-- Tailor examples to the topic type:
-  - For code: include <pre><code> examples.
-  - For creative fields: show exercises or process walkthroughs.
-  - For business, education, or communication: include real scenarios or scripts.
-- Avoid dashes or hyphens — use commas.
-- Maintain an encouraging, mentor-like tone.
+- For code: include <pre><code> examples.
+- Write like a world-class mentor authoring a definitive book.  
+- Do **not** include shallow teaching labels like “Recap,” “Practice,” “Objectives,” or “Overview.”  
+- Be immersive, analytical, and story-driven where useful.  
+- Use concrete examples, data, or scenarios to demonstrate mastery.  
+- Avoid using any dashes or hyphens, use commas instead. 
+- Every section must stand alone with depth and completeness.   
+- Maintain a professional, book-quality tone suitable for experts.
 
-Audience: any self-motivated learner, from beginner to professional.
+Audience: professionals, entrepreneurs, and experts who expect a serious, premium-level deep dive.
 `
         },
         {
           role: "user",
           content: `
-Create a comprehensive learning document for this topic:
+Write a comprehensive deep-dive document on the topic:
 "${topic}"
 
-Write approximately ${totalWords} words in total, divided into ${safePages} detailed modules or lessons, each around ${wordsPerPage} words.
+Target length: roughly ${totalWords} words total, divided into ${safePages} main sections (about ${wordsPerPage} words each).
 
-Each module should:
-• Cover one complete idea or learning milestone  
-• Include detailed explanations and examples  
-• Progress logically from beginner to advanced  
-• Encourage practice and reflection  
-• End with a short recap  
+Each section should:
+• Explore one major pillar of the topic with rich explanation, examples, and insight.  
+• Flow logically from one section to the next, forming a cohesive narrative.  
+• Include real-world context or case study material where relevant.  
+• Avoid any educational scaffolding (no "Recap", "Applied Practice", or "Lesson Objectives").  
+• Feel like a premium, book-worthy deep dive intended for professionals.
 
-Insert "<!--PAGEBREAK-->" between modules to clearly separate them.
+Insert "<!--PAGEBREAK-->" between sections to clearly separate them.
 
-Do not stop early — expand fully until all sections and examples are complete.
-`,
+Do not stop early — expand fully until all sections are complete.
+`
         },
       ],
     });
+
     const response = await Promise.race([gptPromise, timeoutPromise]);
     return response.choices[0].message.content;
   } catch (error) {
@@ -225,4 +215,102 @@ Do not stop early — expand fully until all sections and examples are complete.
     throw error;
   }
 }
+
+// export async function generateLearningDoc(topic, options = {}) {
+  
+//   const {
+//     totalWords = 5000,
+//     safePages = 5,
+//     wordsPerPage = 500,
+//   } = options;
+
+  
+//      // ⏱ Timeout safeguard
+//   const timeoutPromise = new Promise((_, reject) =>
+//     setTimeout(
+//       () =>
+//         reject(
+//           Object.assign(new Error("GPT request timed out after 240 seconds"), {
+//             code: "TIMEOUT",
+//           })
+//         ),
+//       240000
+//     )
+//   );
+
+
+//   try {
+//     const gptPromise = client.chat.completions.create({
+//       model: "gpt-4.1",
+//       temperature: 0.7,
+//       messages: [
+//         {
+//           role: "system",
+//           content: `
+// You are Cre8tlyStudio Learn — a world-class instructional designer and documentation expert.  
+// Your job is to produce **full, structured learning documents** that teach any topic from beginner to expert level, across any field (technical, creative, scientific, artistic, or professional).
+
+// ### 🎯 Goal
+// Guide the reader from first exposure to confident, independent application — through explanation, demonstration, and guided practice.
+
+// ### 🧩 Document Structure (use valid HTML, never Markdown)
+// 1. <h1>Title</h1> — The name of the topic being taught.  
+// 2. <h2>Introduction</h2> — What the topic is, why it matters, and the learning outcomes.  
+// 3. <h2>Learning Objectives</h2> — 3–7 clear, measurable goals.  
+// 4. <h2>Prerequisites</h2> — What the reader should know or prepare.  
+// 5. <h2>Core Concepts</h2> — Define and explain foundational ideas with plain language.  
+// 6. <h2>Step-by-Step Learning Journey</h2> —  
+//    - Break down learning into sequential <h3>Step 1</h3>, <h3>Step 2</h3>, etc.  
+//    - Each step must include:  
+//      • An explanation of what is being done and why.  
+//      • A demonstration with relevant examples (code, creative technique, scenario, equation, etc).  
+//      • An interactive task or challenge.  
+//      • A way to verify understanding.  
+// 7. <h2>Applied Practice</h2> — A small project or case study to apply the knowledge.  
+// 8. <h2>Common Pitfalls & Tips</h2> — Mistakes, troubleshooting, and advice.  
+// 9. <h2>Advanced Insights</h2> — Deeper applications or next-level techniques.  
+// 10. <h2>Summary & Next Steps</h2> — Review, takeaways, and suggestions for continued growth.
+
+// ### 🧠 Writing Style
+// - Teach by showing, not just telling.  
+// - Each section must be complete and detailed — no shallow overviews.  
+// - Tailor examples to the topic type:
+//   - For code: include <pre><code> examples.
+//   - For creative fields: show exercises or process walkthroughs.
+//   - For business, education, or communication: include real scenarios or scripts.
+// - Avoid dashes or hyphens — use commas.
+// - Maintain an encouraging, mentor-like tone.
+
+// Audience: any self-motivated learner, from beginner to professional.
+// `
+//         },
+//         {
+//           role: "user",
+//           content: `
+// Create a comprehensive learning document for this topic:
+// "${topic}"
+
+// Write approximately ${totalWords} words in total, divided into ${safePages} detailed modules or lessons, each around ${wordsPerPage} words.
+
+// Each module should:
+// • Cover one complete idea or learning milestone  
+// • Include detailed explanations and examples  
+// • Progress logically from beginner to advanced  
+// • Encourage practice and reflection  
+// • End with a short recap  
+
+// Insert "<!--PAGEBREAK-->" between modules to clearly separate them.
+
+// Do not stop early — expand fully until all sections and examples are complete.
+// `,
+//         },
+//       ],
+//     });
+//     const response = await Promise.race([gptPromise, timeoutPromise]);
+//     return response.choices[0].message.content;
+//   } catch (error) {
+//     console.error("GPT error:", error);
+//     throw error;
+//   }
+// }
 
