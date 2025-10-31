@@ -21,6 +21,7 @@ import bookRoutes from "./routes/books/bookRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import unsplashRoutes from "./routes/unsplashRoutes.js";
 import editorRoutes from "./routes/editor/editorRoutes.js";
+import settingsRoutes from "./routes/settings/settingsRoutes.js";
 import bodyParser from "body-parser";
 // Checkout for Ebooks
 import ebookCheckoutRoutes from "./routes/ebookCheckout/ebookCheckoutRoutes.js";
@@ -104,6 +105,7 @@ app.use("/api/support", supportRoutes);
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/uploads", tempCoverRoutes);
 app.use("/api/edit", editorRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // Admin
 app.use("/api/admin/users", usersRoutes);
