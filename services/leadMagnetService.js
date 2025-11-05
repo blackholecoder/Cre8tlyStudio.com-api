@@ -193,7 +193,7 @@ if (tempCoverPath && fs.existsSync(tempCoverPath)) {
     );
 
    // ✅ Detect dark themes for correct text color
-const isDarkBg = ["royal", "dark", "graphite", "purple", "navy", "lavender"].includes(bgTheme);
+const isDarkBg = ["royal", "dark", "graphite", "purple", "navy", "lavender", "carbon"].includes(bgTheme);
 
 // ✅ Pick proper colors dynamically
 const resolvedTheme = {
@@ -236,6 +236,7 @@ let htmlContent = `
     <style>${css}</style>
   </head>
   <body>
+  
     ${coverImgTag || ""}
     <div class="page">
       <div class="page-inner">

@@ -37,6 +37,10 @@ export function authenticateToken(req, res, next) {
 
   try {
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+
+      
+
+
       if (err) {
         if (err.name === "TokenExpiredError") {
           res.setHeader("X-Auth-Status", "expired");

@@ -14,11 +14,32 @@ router.post("/:id/editor/start", authenticateToken, async (req, res) => {
   }
 });
 
+// router.put("/:id/editor/commit", authenticateToken, async (req, res) => {
+//   try {
+//     const result = await commitLeadMagnetEdit(req.user.id, req.params.id, req.body);
+//     res.json(result);
+//   } catch (err) {
+//     res.status(400).json({ error: err.message });
+//   }
+// });
+
 router.put("/:id/editor/commit", authenticateToken, async (req, res) => {
   try {
-    const result = await commitLeadMagnetEdit(req.user.id, req.params.id, req.body);
+    const { token, updatedHtml } = req.body;
+    const file = req.files?.file; // handled by express-fileupload globally
+
+
+
+
+    const result = await commitLeadMagnetEdit(req.user.id, req.params.id, {
+      token,
+      updatedHtml,
+      file,
+    });
+
     res.json(result);
   } catch (err) {
+    console.error("❌ Commit failed:", err);
     res.status(400).json({ error: err.message });
   }
 });

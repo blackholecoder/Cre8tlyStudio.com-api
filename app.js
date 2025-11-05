@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
+import fileUpload from "express-fileupload";
 import { fileURLToPath } from "url";
 dotenv.config();
 
@@ -21,7 +22,7 @@ import bookRoutes from "./routes/books/bookRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import unsplashRoutes from "./routes/unsplashRoutes.js";
 import editorRoutes from "./routes/editor/editorRoutes.js";
-import settingsRoutes from "./routes/settings/settingsRoutes.js";
+
 import bodyParser from "body-parser";
 // Checkout for Ebooks
 import ebookCheckoutRoutes from "./routes/ebookCheckout/ebookCheckoutRoutes.js";
@@ -35,6 +36,7 @@ import messagesRoutes from "./routes/admin/messagesRoutes.js";
 import addAdminRoutes from "./routes/admin/addAdminRoutes.js";
 import ebooksRoutes from "./routes/admin/ebookRoutes.js";
 import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
+import settingsRoutes from "./routes/admin/settingsRoutes.js";
 
 import cors from "cors";
 
@@ -49,6 +51,16 @@ app.use(
 
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json({limit: "500mb"})); // parse json 
+
+
+// ✅ Add this here
+app.use(
+  fileUpload({
+    useTempFiles: false,
+    createParentPath: true,
+    limits: { fileSize: 50 * 1024 * 1024 }, // optional 50MB cap
+  })
+);
 
 
 const corsOptions = {
@@ -82,18 +94,10 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 
-// check size of iput data from front end prompt tested and works
-// app.use((req, res, next) => {
-//   const len = parseInt(req.headers["content-length"] || "0", 10);
-//   console.log(
-//     `[REQ] ${req.method} ${req.originalUrl} — content-length: ${len} bytes`
-//   );
-//   next();
-// });
-
-
 
 app.use("/api/static", express.static(path.join(__dirname, "public")));
+
+
 
 
 app.use("/api", indexRoutes);
@@ -105,7 +109,7 @@ app.use("/api/support", supportRoutes);
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/uploads", tempCoverRoutes);
 app.use("/api/edit", editorRoutes);
-app.use("/api/settings", settingsRoutes);
+
 
 // Admin
 app.use("/api/admin/users", usersRoutes);
@@ -120,6 +124,7 @@ app.use("/api/ebooks/checkout", ebookCheckoutRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/upload-data", uploadRoutes);
 app.use("/api/unsplash", unsplashRoutes);
+app.use("/api/admin/settings", settingsRoutes);
 
 
 

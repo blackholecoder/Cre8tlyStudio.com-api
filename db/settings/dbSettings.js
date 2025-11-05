@@ -6,3 +6,10 @@ export async function getMaintenanceStatus() {
   await db.end();
   return rows[0]?.site_maintenance === 1;
 }
+
+export async function setMaintenanceStatus(enabled) {
+  const db = await connect();
+  await db.query("UPDATE settings SET site_maintenance = ? LIMIT 1", [enabled ? 1 : 0]);
+  await db.end();
+  return enabled;
+}

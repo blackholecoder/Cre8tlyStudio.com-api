@@ -16,7 +16,7 @@ export async function startLeadMagnetEdit(userId, leadMagnetId) {
   const db = await connect();
   const [rows] = await db.query(
   `SELECT user_id, editable_html, edit_used,
-          theme, bg_theme, logo, link, cover_image, cta
+          theme, bg_theme, logo, link, cover_image, cta, pdf_url, original_pdf_url
      FROM lead_magnets
     WHERE id = ?`,
   [leadMagnetId]
@@ -46,22 +46,20 @@ export async function startLeadMagnetEdit(userId, leadMagnetId) {
     link: record.link,
     coverImage: record.cover_image,
     cta: record.cta,
+    pdf_url: record.pdf_url || null,
+    original_pdf_url: record.original_pdf_url || null,
   },
 }
 }
 
-export async function commitLeadMagnetEdit(userId, leadMagnetId, { token, updatedHtml }) {
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.id !== leadMagnetId || decoded.uid !== userId)
-      throw new Error("Unauthorized");
-  } catch {
-    throw new Error("Invalid or expired token");
-  }
-
+export async function commitLeadMagnetEdit(
+  userId,
+  leadMagnetId,
+  { updatedHtml, file }
+) {
   const db = await connect();
   const [rows] = await db.query(
-    "SELECT user_id, edit_used, theme, bg_theme, logo, link, cover_image, cta FROM lead_magnets WHERE id = ?",
+    "SELECT user_id, theme, bg_theme, logo, link, cover_image, cta FROM lead_magnets WHERE id = ?",
     [leadMagnetId]
   );
 
@@ -75,84 +73,89 @@ export async function commitLeadMagnetEdit(userId, leadMagnetId, { token, update
     await db.end();
     throw new Error("Unauthorized");
   }
-  if (record.edit_used) {
-    await db.end();
-    throw new Error("Edit already used");
-  }
 
-  // ✅ Sanitize HTML
-  const window = new JSDOM("").window;
-  const DOMPurify = createDOMPurify(window);
-  const safeHtml = DOMPurify.sanitize(updatedHtml || "");
+  let finalPdfPath;
+  let editableHtml = null;
 
-if (typeof safeHtml !== "string") {
-  safeHtml = String(safeHtml);
-}
+  // 🧩 Handle HTML updates
+  if (updatedHtml) {
+    const window = new JSDOM("").window;
+    const DOMPurify = createDOMPurify(window);
+    let safeHtml = DOMPurify.sanitize(updatedHtml || "");
+    if (typeof safeHtml !== "string") safeHtml = String(safeHtml);
 
-let finalCoverPath = record.cover_image;
+    const cleanHtml = safeHtml.replace(/<img[^>]+unsplash[^>]+>/gi, "");
 
-if (record.cover_image && record.cover_image.startsWith("http")) {
-  try {
-    const tmpDir = path.resolve(__dirname, "../uploads/tmp");
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    let finalCoverPath = record.cover_image;
+    if (record.cover_image?.startsWith("http")) {
+      const tmpDir = path.resolve(__dirname, "../uploads/tmp");
+      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-    const response = await axios.get(record.cover_image, {
-      responseType: "arraybuffer",
-      timeout: 10000,
+      const response = await axios.get(record.cover_image, {
+        responseType: "arraybuffer",
+        timeout: 10000,
+      });
+
+      const ext = path.extname(new URL(record.cover_image).pathname) || ".jpg";
+      finalCoverPath = path.join(tmpDir, `cover_edit_${Date.now()}${ext}`);
+      fs.writeFileSync(finalCoverPath, Buffer.from(response.data));
+    }
+
+    const localPath = await generatePDF({
+      id: leadMagnetId,
+      prompt: cleanHtml,
+      isHtml: true,
+      theme: record.theme,
+      bgTheme: record.bg_theme,
+      logo: record.logo,
+      link: record.link,
+      coverImage: finalCoverPath,
+      cta: record.cta,
     });
 
-    const ext = path.extname(new URL(record.cover_image).pathname) || ".jpg";
-    finalCoverPath = path.join(tmpDir, `cover_edit_${Date.now()}${ext}`);
-    fs.writeFileSync(finalCoverPath, Buffer.from(response.data));
-    console.log("🧩 Recreated local cover image:", finalCoverPath);
-  } catch (err) {
-    console.warn("⚠️ Failed to rebuild local cover:", err.message);
+    finalPdfPath = localPath;
+    editableHtml = safeHtml;
   }
-}
-let cleanHtml = safeHtml.replace(/<img[^>]+unsplash[^>]+>/gi, ""); 
 
-// If in the future you allow small images within text but still want to drop large cover-type ones, you could do:
-// Code belwo targets only “cover” or “unsplash”-type sources.
-// formattedAnswer = formattedAnswer.replace(/<img[^>]*(unsplash|cover|photo)[^>]*>/gi, "");
+  // 🧩 Handle direct PDF uploads (from Canvas)
+  else if (file) {
+    const uploadDir = path.resolve(__dirname, "../uploads/tmp");
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-console.log("🕵️ Image count in HTML:", (safeHtml.match(/<img/gi) || []).length);
-
-
-  // ✅ Generate new PDF with all visual fields intact
-  const localPath = await generatePDF({
-    id: leadMagnetId,
-    prompt: cleanHtml,
-    isHtml: true,
-    theme: record.theme,
-    bgTheme: record.bg_theme,
-    logo: record.logo,
-    link: record.link,
-    coverImage: finalCoverPath,
-    cta: record.cta,
-  });
+    const tmpPath = path.join(uploadDir, `canvas_${Date.now()}.pdf`);
+    await file.mv(tmpPath);
+    finalPdfPath = tmpPath;
+  } else {
+    await db.end();
+    throw new Error("No valid data provided (missing HTML or PDF).");
+  }
 
   // ✅ Upload to Spaces
   const fileName = `pdfs/${userId}-${leadMagnetId}-edit-${Date.now()}.pdf`;
-  const uploaded = await uploadFileToSpaces(localPath, fileName, "application/pdf");
+  const uploaded = await uploadFileToSpaces(
+    finalPdfPath,
+    fileName,
+    "application/pdf"
+  );
 
-  // ✅ Update DB — mark edit as USED and preserve the final HTML
+  // ✅ Update DB
   await db.query(
     `
     UPDATE lead_magnets
     SET 
       pdf_url = ?,
-      editable_html = ?,   -- store the sanitized HTML one last time
-      edit_used = 1,        -- mark as used
+      editable_html = IFNULL(?, editable_html),
+      edit_used = 1,
       edit_committed_at = NOW()
     WHERE id = ? AND user_id = ?
     `,
-    [uploaded.Location, safeHtml, leadMagnetId, userId]
+    [uploaded.Location, editableHtml, leadMagnetId, userId]
   );
 
   await db.end();
-
   return { pdf_url: uploaded.Location };
 }
+
 
 
 
