@@ -27,7 +27,8 @@ export async function processPromptFlow(
   userId,
   prompt,
   title,
-  theme,
+  font_name,
+  font_file,
   bgTheme,
   pages = 5,
   logo,
@@ -36,7 +37,6 @@ export async function processPromptFlow(
   cta,
   contentType
 ) {
-
 
   
 
@@ -175,7 +175,8 @@ if (tempCoverPath && fs.existsSync(tempCoverPath)) {
     const localPath = await generatePDF({
       id: magnetId,
       prompt: formattedAnswer,
-      theme,
+      font_name,
+      font_file,
       bgTheme,
       logo: finalLogoUrl,
       link,
@@ -279,7 +280,8 @@ let htmlContent = `
       prompt,
       title,
       uploaded.Location,
-      theme,
+      font_name,
+      font_file,
       htmlContent,
       bgTheme,
       finalLogoUrl,

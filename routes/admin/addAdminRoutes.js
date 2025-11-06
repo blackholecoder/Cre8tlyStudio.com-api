@@ -21,7 +21,7 @@ router.post("/create-user-with-slots", authenticateToken, requireAdmin, async (r
 
 router.post("/give-free-magnets", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { userId, count = 5 } = req.body;
+    const { userId, count = 1 } = req.body;
 
     if (!userId) return res.status(400).json({ message: "Missing userId" });
 

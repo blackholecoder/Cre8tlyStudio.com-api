@@ -14,6 +14,8 @@ export async function generateBookPDF({
   chapters = [],
   coverImage = null,
   link = null,
+  font_name = "AdobeArabic", 
+  font_file = "/fonts/AdobeArabic-Regular.ttf", 
 }) {
 
   const browser = await puppeteer.launch({
@@ -24,8 +26,24 @@ export async function generateBookPDF({
   const page = await browser.newPage();
   await page.evaluateHandle("document.fonts.ready");
 
-  const fontPath = path.resolve(__dirname, "../public/fonts/AdobeArabic-Regular.ttf");
-  const fontBase64 = fs.readFileSync(fontPath).toString("base64");
+  // ✅ Resolve dynamic font path
+  const fontPath = path.resolve(__dirname, `../public${font_file.startsWith('/') ? font_file : '/' + font_file}`);
+
+let finalFontPath = fontPath;
+
+if (!fs.existsSync(fontPath)) {
+  console.warn(`⚠️ Font not found at ${fontPath}, falling back to default.`);
+  finalFontPath = path.resolve(__dirname, "../public/fonts/AdobeArabic-Regular.ttf");
+}
+
+// ✅ Detect format and convert
+const fontFormat = finalFontPath.endsWith(".otf")
+  ? "opentype"
+  : finalFontPath.endsWith(".ttf")
+  ? "truetype"
+  : "woff2";
+
+const fontBase64 = fs.readFileSync(finalFontPath).toString("base64");
 
   let coverTag = "";
   if (coverImage && fs.existsSync(coverImage)) {
@@ -64,11 +82,11 @@ export async function generateBookPDF({
   <head>
     <style>
       @font-face {
-        font-family: 'AdobeArabic';
-        src: url('data:font/truetype;base64,${fontBase64}') format('truetype');
+        font-family: '${font_name}';
+        src: url('data:font/${fontFormat};base64,${fontBase64}') format('${fontFormat}');
       }
       body {
-        font-family: 'AdobeArabic', Georgia, serif;
+        font-family: '${font_name}', Georgia, serif;
         color: #222;
         margin: 0;
         padding: 0;

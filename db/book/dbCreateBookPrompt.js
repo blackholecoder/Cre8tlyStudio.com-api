@@ -22,6 +22,8 @@ export async function createBookPrompt({
   bookId = null,
   userId = null,
   bookType,
+  font_name = "Montserrat",           // ✅ new
+  font_file = "/fonts/Montserrat-Regular.ttf", // ✅ new
 }) {
   console.log(`✍️ Running Book GPT Engine (Part ${partNumber})...`);
   const db = await connect();
@@ -127,6 +129,8 @@ export async function createBookPrompt({
       chapters,
       coverImage: tempCoverPath,
       link,
+      font_name, // ✅ include font info
+      font_file, 
     });
 
     console.log("📄 PDF Generated, Page Count:", pageCount);
@@ -147,6 +151,13 @@ export async function createBookPrompt({
       text: gptOutput,
     });
 
+    await db.query(
+      `UPDATE generated_books 
+       SET font_name = ?, font_file = ?, updated_at = NOW() 
+       WHERE id = ? AND user_id = ?`,
+      [font_name, font_file, thisBookId, userId]
+    );
+
     console.log(`📚 Book Part ${partNumber} uploaded successfully: ${uploaded.Location}`);
 
     // ✅ 10. Return metadata
@@ -158,6 +169,8 @@ export async function createBookPrompt({
       bookId: thisBookId,
       gptOutput,
       actualPages: pageCount || pages,
+      font_name, 
+      font_file,
     };
   } catch (err) {
     console.error("❌ Error creating book part:", err);
@@ -209,6 +222,8 @@ export async function processBookPrompt({
   partNumber,
   bookName, // ✅ book title
   bookType,
+  font_name = "Montserrat", 
+  font_file = "/fonts/Montserrat-Regular.ttf", 
 }) {
   const db = await connect();
 
@@ -225,6 +240,8 @@ export async function processBookPrompt({
     authorName,
     partNumber,
     bookType,
+    font_name,
+    font_file,
   });
 
   const actualPages = generated.actualPages || pages;
@@ -246,6 +263,13 @@ export async function processBookPrompt({
     generated.actualPages
   );
 
+  await db.query(
+    `UPDATE generated_books 
+     SET font_name = ?, font_file = ?, updated_at = NOW()
+     WHERE id = ? AND user_id = ?`,
+    [font_name, font_file, bookId, userId]
+  );
+
   if (bookName) {
     await db.query(
       `UPDATE generated_books
@@ -255,7 +279,9 @@ export async function processBookPrompt({
     );
   }
 
-  console.log(`📊 Updating DB with actual ${generated.actualPages} pages (requested ${pages})`);
+  console.log(
+    `📊 Updating DB with ${generated.actualPages} pages (requested ${pages}), font: ${font_name}`
+  );
 
   await db.end();
   return generated;

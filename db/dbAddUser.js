@@ -63,7 +63,7 @@ export async function createUserAndGiveFreeSlots({
   }
 }
 
-export async function giveFreeLeadMagnets(userId, count = 5) {
+export async function giveFreeLeadMagnets(userId, count = 1) {
   const db = await connect();
 
   try {

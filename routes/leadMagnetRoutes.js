@@ -1,7 +1,16 @@
 import express from "express";
-import { createLeadMagnet, getLeadMagnetBySessionId, getLeadMagnetsByUser, getPromptMemory, markLeadMagnetComplete } from "../db/dbLeadMagnet.js";
+import {
+  createLeadMagnet,
+  getLeadMagnetBySessionId,
+  getLeadMagnetsByUser,
+  getPromptMemory,
+  markLeadMagnetComplete,
+} from "../db/dbLeadMagnet.js";
 import { processPromptFlow } from "../services/leadMagnetService.js";
-import { authenticateToken, requireAdmin } from "../middleware/authMiddleware.js";
+import {
+  authenticateToken,
+  requireAdmin,
+} from "../middleware/authMiddleware.js";
 import { askGPT } from "../helpers/gptHelper.js";
 import { getUserBrandFile } from "../db/dbUploads.js";
 
@@ -34,7 +43,6 @@ router.get("/all", authenticateToken, requireAdmin, async (req, res) => {
   res.json(rows);
 });
 
-
 // (Optional) Mark completed after PDF generation
 router.post("/:id/complete", async (req, res) => {
   try {
@@ -61,30 +69,60 @@ router.get("/:sessionId", async (req, res) => {
   }
 });
 
-
 router.post("/prompt", authenticateToken, async (req, res) => {
   // console.log("🟢 /prompt route hit with body keys:", Object.keys(req.body));
   try {
-    const { magnetId, prompt, title, theme, bgTheme, pages, logo, link, coverImage, cta, contentType } = req.body;  // 👈 include theme
+    const {
+      magnetId,
+      prompt,
+      title,
+      font_name,
+      font_file,
+      bgTheme,
+      pages,
+      logo,
+      link,
+      coverImage,
+      cta,
+      contentType,
+    } = req.body; // 👈 include theme
 
-    console.log({
-      title, 
-      pages, 
-      
-    });
+    // console.log({
+    //   title,
+    //   pages,
+    //   bgTheme,
+    //   coverImage,
+    // });
 
     if (!magnetId || !prompt) {
-      return res.status(400).json({ message: "magnetId and prompt are required" });
+      return res
+        .status(400)
+        .json({ message: "magnetId and prompt are required" });
     }
 
-      // 🔒 Prompt length validation (server-side safety)
+    // 🔒 Prompt length validation (server-side safety)
     if (prompt.length > 2_000_000) {
       return res.status(413).json({
-        message: "Your input is too long. Please shorten your prompt. Max size: 500mb",
+        message:
+          "Your input is too long. Please shorten your prompt. Max size: 500mb",
       });
     }
 
-    const updated = await processPromptFlow(magnetId, req.user.id, prompt, title, theme, bgTheme, pages, logo, link, coverImage, cta, contentType); 
+    const updated = await processPromptFlow(
+      magnetId,
+      req.user.id,
+      prompt,
+      title,
+      font_name,
+      font_file,
+      bgTheme,
+      pages,
+      logo,
+      link,
+      coverImage,
+      cta,
+      contentType
+    );
     res.json(updated);
   } catch (err) {
     // 🧠 Enhanced error logging
@@ -96,16 +134,26 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       console.error("Response status:", err.response.status);
     }
     if (err.request) {
-      console.error("Request error:", err.request.path || "(unknown request path)");
+      console.error(
+        "Request error:",
+        err.request.path || "(unknown request path)"
+      );
     }
 
     // ⚙️ Send more informative error feedback to frontend
     if (err.response?.status === 429) {
-      return res.status(429).json({ message: "OpenAI rate limit reached, please try again shortly." });
+      return res
+        .status(429)
+        .json({
+          message: "OpenAI rate limit reached, please try again shortly.",
+        });
     }
-    if (err.response?.data?.error?.message?.includes("context_length_exceeded")) {
+    if (
+      err.response?.data?.error?.message?.includes("context_length_exceeded")
+    ) {
       return res.status(400).json({
-        message: "Requested document is too long for one generation, please reduce the number of pages.",
+        message:
+          "Requested document is too long for one generation, please reduce the number of pages.",
       });
     }
 
@@ -118,7 +166,6 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     });
   }
 });
-
 
 router.post("/prompt-builder", authenticateToken, async (req, res) => {
   const { audience, pain, promise, offer, userId } = req.body;
@@ -150,9 +197,13 @@ Do not include preamble or commentary — only output the generated GPT prompt t
 `;
 
     if (brandTone && brandTone.trim()) {
-      console.log(`🗣️ Using brand tone for user ${userId} (${brandTone.length} chars)`);
+      console.log(
+        `🗣️ Using brand tone for user ${userId} (${brandTone.length} chars)`
+      );
     } else {
-      console.log(`🎨 No brand tone for user ${userId}, using default creative voice`);
+      console.log(
+        `🎨 No brand tone for user ${userId}, using default creative voice`
+      );
     }
 
     // ✅ Pass the tone text to askGPT so it can blend voice at the system level
@@ -169,8 +220,6 @@ Do not include preamble or commentary — only output the generated GPT prompt t
   }
 });
 
-
-
 router.get("/prompt-memory/:userId", authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -181,8 +230,5 @@ router.get("/prompt-memory/:userId", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Failed to load prompt memory" });
   }
 });
-
-
-
 
 export default router;

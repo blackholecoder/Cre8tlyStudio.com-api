@@ -31,13 +31,11 @@ function getReadableTextColor(backgroundColor) {
   }
 }
 
-
-
-
 export async function generatePDF({
   id,
   prompt,
-  theme = "modern",
+  font_name = "Montserrat", // ✅ new
+  font_file = "/fonts/Montserrat-Regular.ttf", // ✅ new
   bgTheme = "modern",
   isHtml = false,
   logo,
@@ -45,7 +43,6 @@ export async function generatePDF({
   coverImage,
   cta,
 }) {
-
 
   const browser = await puppeteer.launch({
     headless: "new",
@@ -59,12 +56,6 @@ export async function generatePDF({
 
   const page = await browser.newPage();
   await page.evaluateHandle("document.fonts.ready");
-
-  const selectedTheme = pdfThemes[theme] || pdfThemes.modern;
-
-  if (!selectedTheme.file) {
-    throw new Error(`Font file missing for theme: ${theme}`);
-  }
 
   let content;
   if (isHtml) {
@@ -87,17 +78,15 @@ export async function generatePDF({
     `<div class="page"><div class="page-inner">${lastSection}</div></div>`,
   ].join("");
 
-  const fontPath = path.resolve(
-    __dirname,
-    "../public/fonts",
-    selectedTheme.file
-  );
+  const fontPath = path.resolve(__dirname, `../public${font_file.startsWith('/') ? font_file : '/' + font_file}`);
+
+
 
   // 🔥 Read and embed font as Base64
   const fontBase64 = fs.readFileSync(fontPath).toString("base64");
-  const fontFormat = selectedTheme.file.endsWith(".otf")
+  const fontFormat = font_file.endsWith(".otf")
     ? "opentype"
-    : selectedTheme.file.endsWith(".ttf")
+    : font_file.endsWith(".ttf")
     ? "truetype"
     : "woff2";
 
@@ -116,44 +105,86 @@ export async function generatePDF({
   `;
   }
 
+
   const cssPath = path.resolve(__dirname, "../public/pdf-style.css");
-let cssTemplate = fs.readFileSync(cssPath, "utf8");
+  let cssTemplate = fs.readFileSync(cssPath, "utf8");
 
+  const css = cssTemplate
+    .replace(/{{font}}/g, font_name)
+    .replace(/{{fontFormat}}/g, fontFormat)
+    .replace(/{{fontBase64}}/g, fontBase64)
+    .replace(/{{fallback}}/g, "sans-serif")
+    .replace(
+      /{{textColor}}/g,
+      getReadableTextColor(
+        pdfThemes[bgTheme]?.background ||
+          (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
+            ? bgTheme
+            : "#ffffff")
+      )
+    )
+    .replace(
+      /{{background}}/g,
+      pdfThemes[bgTheme]?.background ||
+        (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
+          ? bgTheme
+          : "#ffffff")
+    )
+    // .replace(/{{fontSize}}/g, theme === "classic" ? "20pt" : "14pt")
+    // .replace(/{{h1Size}}/g, theme === "classic" ? "22pt" : "18pt")
+    // .replace(/{{h2Size}}/g, theme === "classic" ? "18pt" : "13pt")
+    // .replace(/{{pSize}}/g, theme === "classic" ? "16pt" : "14pt")
+    .replace(/{{fontSize}}/g, "14pt")
+    .replace(/{{h1Size}}/g, "18pt")
+    .replace(/{{h2Size}}/g, "16pt")
+    .replace(/{{pSize}}/g, "14pt")
+    .replace(
+      /{{headingColor}}/g,
+      getReadableTextColor(
+        pdfThemes[bgTheme]?.background ||
+          (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
+            ? bgTheme
+            : "#ffffff")
+      )
+    )
+    .replace(
+      /{{ctaBg}}/g,
+      getReadableTextColor(
+        pdfThemes[bgTheme]?.background ||
+          (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
+            ? bgTheme
+            : "#ffffff")
+      ) === "#ffffff"
+        ? "#00E07A"
+        : "#222222"
+    )
+    .replace(
+      /{{ctaText}}/g,
+      getReadableTextColor(
+        pdfThemes[bgTheme]?.ctaBg ||
+          pdfThemes[bgTheme]?.background ||
+          (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
+            ? bgTheme
+            : "#ffffff")
+      )
+    );
 
-const css = cssTemplate
-  .replace(/{{font}}/g, selectedTheme.font)
-  .replace(/{{fontFormat}}/g, fontFormat)
-  .replace(/{{fontBase64}}/g, fontBase64)
-  .replace(/{{fallback}}/g, selectedTheme.fallback)
-  .replace(/{{textColor}}/g, getReadableTextColor(
-    pdfThemes[bgTheme]?.background ||
-    (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
-  ))
-  .replace(/{{background}}/g,
-    pdfThemes[bgTheme]?.background ||
-    (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
-  )
-  .replace(/{{fontSize}}/g, theme === "classic" ? "20pt" : "14pt")
-  .replace(/{{h1Size}}/g, theme === "classic" ? "22pt" : "18pt")
-  .replace(/{{h2Size}}/g, theme === "classic" ? "18pt" : "13pt")
-  .replace(/{{pSize}}/g, theme === "classic" ? "16pt" : "14pt")
-  .replace(/{{headingColor}}/g, getReadableTextColor(
-  pdfThemes[bgTheme]?.background ||
-  (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
-))
-  .replace(/{{ctaBg}}/g, getReadableTextColor(
-  pdfThemes[bgTheme]?.background ||
-  (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
-) === "#ffffff" ? "#00E07A" : "#222222")
-  .replace(/{{ctaText}}/g, getReadableTextColor(
-  pdfThemes[bgTheme]?.ctaBg ||
-  pdfThemes[bgTheme]?.background ||
-  (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff")
-))
+  // ✅ Embed @font-face rule
+  const fontFace = `
+    @font-face {
+      font-family: '${font_name}';
+      src: url('data:font/${fontFormat};base64,${fontBase64}') format('${fontFormat}');
+      font-display: swap;
+    }
+    body {
+      font-family: '${font_name}', sans-serif;
+    }
+  `;
+
   const html = `
 <html>
   <head>
-    <style>${css}</style>
+    <style>${fontFace}${css}</style>
   </head>
   <body>
   <div class="page-bg"></div>
@@ -179,18 +210,22 @@ const css = cssTemplate
              : "";
 
            const bgColor =
-  pdfThemes[bgTheme]?.background ||
-  (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#") ? bgTheme : "#ffffff");
+             pdfThemes[bgTheme]?.background ||
+             (bgTheme?.startsWith("linear") || bgTheme?.startsWith("#")
+               ? bgTheme
+               : "#ffffff");
 
-const textColor = getReadableTextColor(bgColor);
+           const textColor = getReadableTextColor(bgColor);
 
-// Pick a CTA background that contrasts slightly against the page color
-// (fallback to bright green if background is dark)
-const ctaBg = getReadableTextColor(bgColor) === "#ffffff" ? "#00E07A" : "#111111";
+           // Pick a CTA background that contrasts slightly against the page color
+           // (fallback to bright green if background is dark)
+           const ctaBg =
+             getReadableTextColor(bgColor) === "#ffffff"
+               ? "#00E07A"
+               : "#111111";
 
-// The CTA button text color should be the opposite of the button background
-const ctaText = getReadableTextColor(ctaBg);
-
+           // The CTA button text color should be the opposite of the button background
+           const ctaText = getReadableTextColor(ctaBg);
 
            return `
         <!-- Force break after content but avoid an empty page -->
@@ -234,7 +269,11 @@ const ctaText = getReadableTextColor(ctaBg);
                       border-radius:30px;
                       text-decoration:none;
                       box-shadow:none;
-                      border:2px solid ${getReadableTextColor(bgColor) === "#ffffff" ? "#fff" : "#000"};
+                      border:2px solid ${
+                        getReadableTextColor(bgColor) === "#ffffff"
+                          ? "#fff"
+                          : "#000"
+                      };
                     ">
                       Visit ${new URL(link).hostname.replace(/^www\\./, "")}
                     </a>
@@ -245,7 +284,9 @@ const ctaText = getReadableTextColor(ctaBg);
               margin-top:28px;
               font-style:italic;
               font-size:15px;
-              color:${getReadableTextColor(bgColor) === "#ffffff" ? "#d1d5db" : "#666"};
+              color:${
+                getReadableTextColor(bgColor) === "#ffffff" ? "#d1d5db" : "#666"
+              };
             ">
             </p>
           </div>

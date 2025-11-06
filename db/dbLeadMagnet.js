@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 import { optimizeCoverImage } from "../utils/optimizeCoverImage.js";
 
-export async function createLeadMagnet(userId, prompt) {
+export async function createLeadMagnet(userId, prompt, font_name = "Montserrat", font_file = "/fonts/Montserrat-Regular.ttf") {
   const db = await connect();
   const id = uuidv4();
   const createdAt = new Date();
@@ -25,8 +25,8 @@ export async function createLeadMagnet(userId, prompt) {
 
   await db.query(
     `INSERT INTO lead_magnets 
-      (id, user_id, prompt, title, pdf_url, price, status, created_at, theme, slot_number)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, prompt, title, pdf_url, price, status, created_at, theme, slot_number, font_name, font_file)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       userId,
@@ -38,6 +38,8 @@ export async function createLeadMagnet(userId, prompt) {
       createdAt,
       "modern",
       slotCount + 1,
+      font_name,
+      font_file,
     ]
   );
 
@@ -66,12 +68,14 @@ export async function insertLeadMagnet({
   createdAt,
   stripeSessionId,
   slot_number,
+  font_name,   
+  font_file,
 }) {
   const db = await connect();
   await db.query(
     `INSERT INTO lead_magnets 
-      (id, user_id, prompt, title, pdf_url, price, status, created_at, stripe_session_id, slot_number)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, prompt, title, pdf_url, price, status, created_at, stripe_session_id, slot_number, font_name, font_file)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       userId,
@@ -83,6 +87,8 @@ export async function insertLeadMagnet({
       createdAt,
       stripeSessionId,
       slot_number,
+      font_name,
+      font_file,
     ]
   );
   await db.end();
@@ -196,7 +202,8 @@ export async function saveLeadMagnetPdf(
   prompt,
   title,
   pdfUrl,
-  theme,
+   font_name,
+  font_file,
   htmlContent,
   bgTheme,
   logo,
@@ -206,7 +213,6 @@ export async function saveLeadMagnetPdf(
 ) {
 
   const db = await connect();
-  const finalTheme = theme || "modern";
   const finalBgTheme = bgTheme || "modern";
 
   await db.query(
@@ -217,7 +223,8 @@ export async function saveLeadMagnetPdf(
       prompt = ?, 
       title = ?, 
       pdf_url = ?, 
-      theme = ?, 
+      font_name = ?, 
+      font_file = ?, 
       bg_theme = ?, 
       logo = ?, 
       link = ?, 
@@ -233,7 +240,8 @@ export async function saveLeadMagnetPdf(
       prompt,
       title,
       pdfUrl,
-      finalTheme,
+      font_name,
+      font_file,
       finalBgTheme,
       logo,
       link,

@@ -1,5 +1,8 @@
 import express from "express";
-import { authenticateToken, requireAdmin } from "../../middleware/authMiddleware.js";
+import {
+  authenticateToken,
+  requireAdmin,
+} from "../../middleware/authMiddleware.js";
 import {
   createBook,
   markBookComplete,
@@ -14,16 +17,25 @@ import {
   getBookDraft,
   saveBookPartDraft,
 } from "../../db/book/dbBooks.js";
-import { enforcePageLimit, processBookPrompt, validateBookPromptInput } from "../../db/book/dbCreateBookPrompt.js";
+import {
+  enforcePageLimit,
+  processBookPrompt,
+  validateBookPromptInput,
+} from "../../db/book/dbCreateBookPrompt.js";
 
 const router = express.Router();
 
 // ✅ Create empty book slot
 router.post("/", authenticateToken, async (req, res) => {
   try {
-    
     const { title, authorName, bookType } = req.body;
-    const result = await createBook(req.user.id, null, title, authorName, bookType);
+    const result = await createBook(
+      req.user.id,
+      null,
+      title,
+      authorName,
+      bookType
+    );
     res.status(201).json(result);
   } catch (err) {
     console.error("Book create error:", err);
@@ -85,30 +97,18 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       bookId,
       prompt,
       pages = 10,
-      link, 
+      link,
       coverImage,
       title, // ✅ chapter title
       authorName,
       bookName, // ✅ main book title
       partNumber = 1,
       bookType,
+      font_name = "Montserrat", // ✅ NEW
+      font_file = "/fonts/Montserrat-Regular.ttf", // ✅ NEW
     } = req.body;
 
     const userId = req.user.id;
-
-    console.log("📥 /books/prompt incoming body:");
-    console.log({
-      bookId,
-      bookName,
-      title,
-      authorName,
-      bookType,
-      partNumber,
-      pages,
-      link,
-      coverImage: !!coverImage ? "[present]" : null,
-      userId,
-    });
 
     // ✅ Step 1: Validate user input
     const validationError = validateBookPromptInput(bookId, prompt);
@@ -123,13 +123,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     }
     // ✅ Step 3: Update book info (clean helper, no SQL in route)
     try {
-      await updateBookInfo(
-        bookId,
-        userId,
-        bookName,
-        authorName,
-        bookType
-      );
+      await updateBookInfo(bookId, userId, bookName, authorName, bookType);
     } catch (err) {
       console.error("⚠️ Book info update failed:", err.message);
       // non-fatal — we continue generation
@@ -145,12 +139,12 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       coverImage,
       title,
       authorName,
-      bookName, 
+      bookName,
       partNumber,
       bookType,
+      font_name, // ✅ include in payload
+      font_file,
     });
-
-
 
     res.json(generated);
   } catch (err) {
@@ -171,13 +165,19 @@ router.get("/:bookId/parts", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Failed to load book parts" });
   }
 });
-           
+
 router.put("/update-info/:id", authenticateToken, async (req, res) => {
   try {
     const { title, authorName, bookType } = req.body; // ✅ match camelCase
     console.log("📘 API HIT BOOK TYPE:", bookType);
 
-    await updateBookInfo(req.params.id, req.user.id, title, authorName, bookType);
+    await updateBookInfo(
+      req.params.id,
+      req.user.id,
+      title,
+      authorName,
+      bookType
+    );
     res.json({ success: true });
   } catch (err) {
     console.error("Book info update failed:", err);
@@ -204,14 +204,25 @@ router.post("/onboarding/replay", authenticateToken, async (req, res) => {
     res.json({ success: true, message: "Onboarding reset successfully." });
   } catch (err) {
     console.error("🔥 Error resetting onboarding:", err);
-    res.status(500).json({ success: false, message: "Failed to reset onboarding." });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to reset onboarding." });
   }
 });
 
 router.post("/draft", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { bookId, draftText, book_name, link, author_name, book_type } = req.body;
+    const {
+      bookId,
+      draftText,
+      book_name,
+      link,
+      author_name,
+      book_type,
+      font_name, // ✅ NEW
+      font_file,
+    } = req.body;
 
     const result = await saveBookDraft({
       userId,
@@ -221,6 +232,8 @@ router.post("/draft", authenticateToken, async (req, res) => {
       link,
       author_name,
       book_type,
+      font_name, // ✅ NEW
+      font_file,
     });
 
     if (result.error) {
@@ -251,21 +264,28 @@ router.get("/draft/:id", authenticateToken, async (req, res) => {
   }
 });
 
+router.post(
+  "/:bookId/part/:partNumber/draft",
+  authenticateToken,
+  async (req, res) => {
+    const { bookId, partNumber } = req.params;
+    const { draftText, title } = req.body;
+    const userId = req.user.id;
 
-router.post("/:bookId/part/:partNumber/draft", authenticateToken, async (req, res) => {
-  const { bookId, partNumber } = req.params;
-  const { draftText, title } = req.body;
-  const userId = req.user.id;
-
-  try {
-    const result = await saveBookPartDraft({ userId, bookId, partNumber, draftText, title });
-    res.json(result);
-  } catch (err) {
-    console.error("❌ Error saving part draft:", err);
-    res.status(500).json({ message: "Failed to save part draft" });
+    try {
+      const result = await saveBookPartDraft({
+        userId,
+        bookId,
+        partNumber,
+        draftText,
+        title,
+      });
+      res.json(result);
+    } catch (err) {
+      console.error("❌ Error saving part draft:", err);
+      res.status(500).json({ message: "Failed to save part draft" });
+    }
   }
-});
-
-
+);
 
 export default router;

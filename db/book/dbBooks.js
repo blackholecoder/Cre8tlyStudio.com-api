@@ -71,6 +71,8 @@ export async function getBooksByUser(userId) {
       g.author_name,
       g.is_draft,
       g.last_saved_at,
+      g.font_name,    
+      g.font_file, 
       -- ✅ NEW: tell us if Part 1 already exists
       EXISTS (
         SELECT 1 
@@ -129,6 +131,8 @@ export async function getBookById(id) {
     title: book.title,
     authorName: book.author_name,
     bookType: book.book_type, // ✅ normalized
+    font_name: book.font_name, // ✅ added
+    font_file: book.font_file, // ✅ added
     ...book, // keep everything else
   };
 }
@@ -319,11 +323,13 @@ export async function saveBookDraft({
   author_name,
   book_type,
   partNumber = null,
+  font_name,
+  font_file,
 }) {
   const db = await connect();
 
   try {
-    // ✅ Optional check: if you care about part duplication
+    // ✅ Optional check: prevent duplicate parts
     if (partNumber) {
       const [existingPart] = await db.query(
         `SELECT id FROM book_parts WHERE book_id = ? AND user_id = ? AND part_number = ?`,
@@ -336,13 +342,12 @@ export async function saveBookDraft({
       }
     }
 
-    // 🧩 Safety check — user must have a valid bookId
     if (!bookId) {
       await db.end();
       throw new Error("Missing bookId — each user must have a pre-created book row before saving a draft.");
     }
 
-    // 🟢 Always update existing row
+    // ✅ Update book draft with font info
     const [result] = await db.query(
       `
       UPDATE generated_books
@@ -353,10 +358,22 @@ export async function saveBookDraft({
         author_name = ?,
         book_type = ?,
         is_draft = 1,
-        last_saved_at = NOW()
+        last_saved_at = NOW(),
+        font_name = ?,
+        font_file = ?
       WHERE id = ? AND user_id = ?
       `,
-      [draftText, book_name, link, author_name, book_type, bookId, userId]
+      [
+        draftText,
+        book_name,
+        link,
+        author_name,
+        book_type,
+        font_name,
+        font_file,
+        bookId,
+        userId,
+      ]
     );
 
     await db.end();
@@ -375,6 +392,7 @@ export async function saveBookDraft({
 }
 
 
+
 // Get existing draft by ID
 export async function getBookDraft({ userId, bookId }) {
   const db = await connect();
@@ -389,7 +407,9 @@ export async function getBookDraft({ userId, bookId }) {
         link,
         author_name,
         book_type,
-        last_saved_at
+        last_saved_at,
+        font_name,   
+        font_file
       FROM generated_books
       WHERE id = ? AND user_id = ? AND is_draft = 1
       `,
