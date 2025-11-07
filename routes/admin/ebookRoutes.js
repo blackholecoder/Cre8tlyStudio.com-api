@@ -1,11 +1,12 @@
 import express from "express";
 import { createEbook, deleteEbook, getEbooks, updateEbook } from "../../db/dbEbooks.js";
+import { requireAdmin } from "../../middleware/authMiddleware.js";
 
 
 const router = express.Router();
 
 // Get all ebooks (for public or admin dashboard)
-router.get("/", async (req, res) => {
+router.get("/", requireAdmin, async (req, res) => {
   try {
     const ebooks = await getEbooks();
     res.json(ebooks);
@@ -16,7 +17,7 @@ router.get("/", async (req, res) => {
 });
 
 // Create a new ebook (admin)
-router.post("/", async (req, res) => {
+router.post("/", requireAdmin, async (req, res) => {
   try {
     const { title, description, price, imageBase64, productType } = req.body;
     const result = await createEbook({ title, description, price, color, imageBase64, productType });
@@ -28,7 +29,7 @@ router.post("/", async (req, res) => {
 });
 
 // Delete an ebook (admin)
-router.delete("/", async (req, res) => {
+router.delete("/", requireAdmin, async (req, res) => {
   try {
     const { ebookId } = req.body;
     const result = await deleteEbook(ebookId);
@@ -39,7 +40,7 @@ router.delete("/", async (req, res) => {
   }
 });
 
-router.put("/", async (req, res) => {
+router.put("/", requireAdmin, async (req, res) => {
   try {
     const { id, title, description, price } = req.body;
     const result = await updateEbook({ id, title, description, price, color });

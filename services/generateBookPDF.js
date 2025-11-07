@@ -18,6 +18,9 @@ export async function generateBookPDF({
   font_file = "/fonts/AdobeArabic-Regular.ttf", 
 }) {
 
+  console.log("font_name", font_name);
+    console.log("font_file", font_file);
+
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -76,6 +79,9 @@ const fontBase64 = fs.readFileSync(finalFontPath).toString("base64");
         </p>
       </div>`
     : "";
+
+    console.log("font_name right before", font_name);
+    console.log("font_file right before", font_file);
 
   const html = `
   <html>

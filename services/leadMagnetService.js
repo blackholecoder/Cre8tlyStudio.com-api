@@ -103,34 +103,92 @@ ${brandTone.slice(0, 4000)}
       '<div class="page-break"></div>'
     );
     // 🖼️ Cover handling
-    let tempCoverPath = null;
-    if (coverImage) {
-      const tmpDir = path.resolve(__dirname, "../uploads/tmp");
-      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    // let tempCoverPath = null;
+    // if (coverImage) {
+    //   const tmpDir = path.resolve(__dirname, "../uploads/tmp");
+    //   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-      if (coverImage.startsWith("data:image")) {
-        const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
-        const extension = coverImage.substring(
-          coverImage.indexOf("/") + 1,
-          coverImage.indexOf(";")
-        );
-        tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
-        fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
-      } else if (coverImage.startsWith("http")) {
-        try {
-          const response = await axios.get(coverImage, {
-            responseType: "arraybuffer",
-            timeout: 10000,
-          });
-          const extension =
-            path.extname(new URL(coverImage).pathname) || ".jpg";
-          tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${extension}`);
-          fs.writeFileSync(tempCoverPath, Buffer.from(response.data));
-        } catch (err) {
-          console.warn("⚠️ Failed to fetch remote cover image:", err.message);
-        }
-      }
+    //   if (coverImage.startsWith("data:image")) {
+    //     const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
+    //     const extension = coverImage.substring(
+    //       coverImage.indexOf("/") + 1,
+    //       coverImage.indexOf(";")
+    //     );
+    //     tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
+    //     fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
+    //   } else if (coverImage.startsWith("http")) {
+    //     try {
+    //       const response = await axios.get(coverImage, {
+    //         responseType: "arraybuffer",
+    //         timeout: 10000,
+    //       });
+    //       const extension =
+    //         path.extname(new URL(coverImage).pathname) || ".jpg";
+    //       tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${extension}`);
+    //       fs.writeFileSync(tempCoverPath, Buffer.from(response.data));
+    //     } catch (err) {
+    //       console.warn("⚠️ Failed to fetch remote cover image:", err.message);
+    //     }
+    //   }
+    // }
+    // 🖼️ Cover handling + auto upload to Spaces
+// 🖼️ Cover handling + auto upload to Spaces (skip Unsplash)
+let tempCoverPath = null;
+let finalCoverUrl = coverImage; // default fallback (already a valid URL)
+
+if (coverImage) {
+  const tmpDir = path.resolve(__dirname, "../uploads/tmp");
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+
+  try {
+    // ✅ Skip uploading if the image is from Unsplash
+    if (coverImage.includes("unsplash.com")) {
+      console.log("🟢 Using Unsplash image directly:", coverImage);
+      finalCoverUrl = coverImage; // just keep the Unsplash URL
     }
+
+    // ✅ Handle base64 uploads
+    else if (coverImage.startsWith("data:image")) {
+      const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
+      const extension = coverImage.substring(
+        coverImage.indexOf("/") + 1,
+        coverImage.indexOf(";")
+      );
+      tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
+      fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
+    }
+
+    // ✅ Handle remote URLs (non-Unsplash)
+    else if (coverImage.startsWith("http")) {
+      const response = await axios.get(coverImage, {
+        responseType: "arraybuffer",
+        timeout: 10000,
+      });
+      const extension =
+        path.extname(new URL(coverImage).pathname) || ".jpg";
+      tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${extension}`);
+      fs.writeFileSync(tempCoverPath, Buffer.from(response.data));
+    }
+
+    // ✅ Upload to Spaces if we have a new local file
+    if (tempCoverPath && fs.existsSync(tempCoverPath)) {
+      const fileName = `covers/${userId}-${magnetId}-${Date.now()}${path.extname(tempCoverPath)}`;
+      const uploadedCover = await uploadFileToSpaces(
+        tempCoverPath,
+        fileName,
+        `image/${path.extname(tempCoverPath).replace(".", "")}`
+      );
+      finalCoverUrl = uploadedCover.Location;
+
+      // 🧹 Cleanup
+      await fs.promises.unlink(tempCoverPath).catch(() => {});
+    }
+  } catch (err) {
+    console.warn("⚠️ Failed to handle cover image:", err.message);
+  }
+}
+
+
 
 
     let finalLogoUrl = logo;
@@ -286,7 +344,7 @@ let htmlContent = `
       bgTheme,
       finalLogoUrl,
       link,
-      coverImage,
+      finalCoverUrl,
       cta
     );
     return { pdf_url: uploaded.Location, status: "completed" };

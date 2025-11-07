@@ -25,6 +25,10 @@ export async function createBookPrompt({
   font_name = "Montserrat",           // ✅ new
   font_file = "/fonts/Montserrat-Regular.ttf", // ✅ new
 }) {
+console.log("font_name", font_name);
+    console.log("font_file", font_file);
+
+
   console.log(`✍️ Running Book GPT Engine (Part ${partNumber})...`);
   const db = await connect();
 
@@ -225,6 +229,10 @@ export async function processBookPrompt({
   font_name = "Montserrat", 
   font_file = "/fonts/Montserrat-Regular.ttf", 
 }) {
+
+  console.log("font_name", font_name);
+    console.log("font_file", font_file);
+
   const db = await connect();
 
 

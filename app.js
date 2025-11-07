@@ -37,10 +37,13 @@ import addAdminRoutes from "./routes/admin/addAdminRoutes.js";
 import ebooksRoutes from "./routes/admin/ebookRoutes.js";
 import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 import settingsRoutes from "./routes/admin/settingsRoutes.js";
+import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
+
 
 import cors from "cors";
 
 const app = express();
+app.set("trust proxy", 1);
 const port = 3001;
 
 app.use(
@@ -109,6 +112,7 @@ app.use("/api/support", supportRoutes);
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/uploads", tempCoverRoutes);
 app.use("/api/edit", editorRoutes);
+app.use("/api/vip", leadVipRoutes);
 
 
 // Admin

@@ -108,6 +108,10 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       font_file = "/fonts/Montserrat-Regular.ttf", // ✅ NEW
     } = req.body;
 
+
+    console.log("font_name", font_name);
+    console.log("font_file", font_file);
+
     const userId = req.user.id;
 
     // ✅ Step 1: Validate user input

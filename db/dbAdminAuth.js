@@ -5,26 +5,28 @@ import jwt from "jsonwebtoken";
 export async function loginAdmin(email, password) {
   const db = await connect();
 
+  // ✅ Allow both admins and marketers to log in
   const [rows] = await db.query(
-    "SELECT id, name, email, password_hash, role, twofa_secret FROM users WHERE email = ? AND role = 'admin' LIMIT 1",
+    "SELECT id, name, email, password_hash, role, twofa_secret FROM users WHERE email = ? AND role IN ('admin', 'marketer') LIMIT 1",
     [email]
   );
 
   await db.end();
 
   if (rows.length === 0) {
-    throw new Error("Admin not found");
+    throw new Error("Access denied: not an admin or marketer");
   }
 
-  const admin = rows[0];
-  const valid = await bcrypt.compare(password, admin.password_hash);
+  const user = rows[0];
+
+  // ✅ Check password
+  const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) throw new Error("Incorrect password");
 
-  // ✅ Check if 2FA is enabled
-  if (admin.twofa_secret) {
-    // Issue a short-lived temporary token (used for 2FA verification)
+  // ✅ Handle optional 2FA (admin-only)
+  if (user.twofa_secret && user.role === "admin") {
     const twofaToken = jwt.sign(
-      { id: admin.id, email: admin.email, role: admin.role, stage: "2fa_pending" },
+      { id: user.id, email: user.email, role: user.role, stage: "2fa_pending" },
       process.env.JWT_SECRET,
       { expiresIn: "5m" }
     );
@@ -36,21 +38,21 @@ export async function loginAdmin(email, password) {
     };
   }
 
-  // ✅ Normal login if 2FA not enabled
+  // ✅ Generate full access token
   const accessToken = jwt.sign(
-  { id: admin.id, email: admin.email, role: admin.role },
-  process.env.JWT_SECRET,
-  { expiresIn: "2h" }
-);
+    { id: user.id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "2h" }
+  );
 
   return {
     message: "Login successful",
     accessToken,
-    admin: {
-      id: admin.id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
     },
   };
 }
