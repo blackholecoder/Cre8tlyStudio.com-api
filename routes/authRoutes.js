@@ -89,6 +89,9 @@ router.post("/login", async (req, res) => {
         profile_image: user.profile_image_url || null,
         brand_identity_file: user.brand_identity_file || null,
         cta: user.cta || null,
+        pro_status: user.pro_status,
+        billing_type: user.billing_type,
+        pro_expiration: user.pro_expiration,
       },
       accessToken,
       refreshToken,
@@ -155,6 +158,9 @@ router.get("/me", authenticateToken, async (req, res) => {
       brand_identity_file: user.brand_identity_file || null,
       cta: user.cta || null,
       created_at: user.created_at,
+      pro_status: user.pro_status,
+      billing_type: user.billing_type,
+      pro_expiration: user.pro_expiration,
     });
   } catch (err) {
     console.error("Error in /me:", err);

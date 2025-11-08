@@ -95,15 +95,22 @@ export async function generatePDF({
     : "";
 
   let coverImgTag = "";
-  if (coverImage && fs.existsSync(coverImage)) {
-    const base64Cover = fs.readFileSync(coverImage).toString("base64");
-    const ext = path.extname(coverImage).replace(".", "") || "png";
-    coverImgTag = `
+if (coverImage && fs.existsSync(coverImage)) {
+  const base64Cover = fs.readFileSync(coverImage).toString("base64");
+  const ext = path.extname(coverImage).replace(".", "") || "png";
+  coverImgTag = `
     <div class="cover-page">
       <img src="data:image/${ext};base64,${base64Cover}" alt="Cover Image" class="cover-img" />
     </div>
   `;
-  }
+} else if (coverImage && coverImage.startsWith("http")) {
+  coverImgTag = `
+    <div class="cover-page">
+      <img src="${coverImage}" alt="Cover Image" class="cover-img" />
+    </div>
+  `;
+}
+
 
 
   const cssPath = path.resolve(__dirname, "../public/pdf-style.css");

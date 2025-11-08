@@ -38,13 +38,17 @@ import ebooksRoutes from "./routes/admin/ebookRoutes.js";
 import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 import settingsRoutes from "./routes/admin/settingsRoutes.js";
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
+import landingPageRoutes from "./routes/landing/landingPageRoutes.js";
+
 
 
 import cors from "cors";
+import { detectSubdomain } from "./middleware/detectSubdomain.js";
 
 const app = express();
 app.set("trust proxy", 1);
 const port = 3001;
+
 
 app.use(
   "/api/webhook",
@@ -54,6 +58,7 @@ app.use(
 
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json({limit: "500mb"})); // parse json 
+app.use(detectSubdomain);
 
 
 // ✅ Add this here
@@ -66,32 +71,77 @@ app.use(
 );
 
 
+// const corsOptions = {
+//   origin: function (origin, callback) {
+//     const allowedOrigins = [
+//       "https://cre8tlystudio.com",
+//       "https://www.cre8tlystudio.com",
+//       "https://vip.cre8tlystudio.com",
+//       "https://admin.cre8tlystudio.com",
+//       "http://localhost:5173",
+//       "http://localhost:3000",
+//       "http://localhost:3001",
+//        "http://localhost:3002",
+//       "tauri://localhost",
+//       "https://cre8tlystudio.nyc3.digitaloceanspaces.com", 
+//       "https://cre8tlystudio.nyc3.cdn.digitaloceanspaces.com",
+//     ];
+//     if (!origin || allowedOrigins.includes(origin)) {
+//       callback(null, true);
+//     } else {
+//       console.log("Blocked by CORS:", origin);
+//       callback(new Error("Not allowed by CORS"));
+//     }
+//   },
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+// };
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       "https://cre8tlystudio.com",
       "https://www.cre8tlystudio.com",
+      "https://vip.cre8tlystudio.com",
       "https://admin.cre8tlystudio.com",
       "http://localhost:5173",
       "http://localhost:3000",
       "http://localhost:3001",
-       "http://localhost:3002",
+      "http://localhost:3002",
       "tauri://localhost",
-      "https://cre8tlystudio.nyc3.digitaloceanspaces.com", 
+      "https://cre8tlystudio.nyc3.digitaloceanspaces.com",
       "https://cre8tlystudio.nyc3.cdn.digitaloceanspaces.com",
     ];
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log("Blocked by CORS:", origin);
+
+    try {
+      // Allow requests with no origin (e.g., curl, mobile apps)
+      if (!origin) return callback(null, true);
+
+      const hostname = new URL(origin).hostname;
+
+      // ✅ Allow main site, admin, Spaces, and local dev explicitly
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // ✅ Allow all subdomains like https://username.cre8tlystudio.com
+      if (/^[a-z0-9-]+\.cre8tlystudio\.com$/i.test(hostname)) {
+        console.log("🟢 Allowed dynamic subdomain:", origin);
+        return callback(null, true);
+      }
+
+      // 🚫 Otherwise block
+      console.warn("❌ Blocked by CORS:", origin);
       callback(new Error("Not allowed by CORS"));
+    } catch (err) {
+      console.error("CORS validation error:", err.message);
+      callback(new Error("CORS origin check failed"));
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
-
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
@@ -113,6 +163,9 @@ app.use("/api/pdf", pdfRoutes);
 app.use("/api/uploads", tempCoverRoutes);
 app.use("/api/edit", editorRoutes);
 app.use("/api/vip", leadVipRoutes);
+
+app.use("/api/landing", landingPageRoutes);
+app.use("/", landingPageRoutes);
 
 
 // Admin

@@ -2,6 +2,39 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 
+// export async function createUser({ name, email, password }) {
+//   const db = await connect();
+//   const id = uuidv4();
+//   const hashedPassword = await bcrypt.hash(password, 12);
+
+//   try {
+//     await db.query(
+//       `INSERT INTO users 
+//        (id, name, email, password_hash, role, has_magnet, magnet_slots, has_completed_book_onboarding, has_memory, created_at)
+//        VALUES (?, ?, ?, ?, 'customer', 0, 0, 0, 0, NOW())`,
+//       [id, name, email, hashedPassword]
+//     );
+
+//     console.log(`✅ New user created: ${email}`);
+
+//     return {
+//       id,
+//       name,
+//       email,
+//       role: "customer",
+//       has_magnet: 0,
+//       magnet_slots: 0,
+//       has_completed_book_onboarding: 0,
+//       has_memory: 0,
+//       created_at: new Date(),
+//     };
+//   } catch (err) {
+//     console.error("❌ Error creating user:", err);
+//     throw err;
+//   } finally {
+//     await db.end();
+//   }
+// }
 export async function createUser({ name, email, password }) {
   const db = await connect();
   const id = uuidv4();
@@ -10,8 +43,25 @@ export async function createUser({ name, email, password }) {
   try {
     await db.query(
       `INSERT INTO users 
-       (id, name, email, password_hash, role, has_magnet, magnet_slots, has_completed_book_onboarding, has_memory, created_at)
-       VALUES (?, ?, ?, ?, 'customer', 0, 0, 0, 0, NOW())`,
+       (
+         id,
+         name,
+         email,
+         password_hash,
+         role,
+         has_magnet,
+         magnet_slots,
+         has_book,
+         book_slots,
+         has_memory,
+         has_completed_book_onboarding,
+         pro_covers,
+         pro_status,
+         billing_type,
+         pro_expiration,
+         created_at
+       )
+       VALUES (?, ?, ?, ?, 'customer', 0, 0, 0, 0, 0, 0, 0, 'inactive', NULL, NULL, NOW())`,
       [id, name, email, hashedPassword]
     );
 
@@ -24,8 +74,14 @@ export async function createUser({ name, email, password }) {
       role: "customer",
       has_magnet: 0,
       magnet_slots: 0,
-      has_completed_book_onboarding: 0,
+      has_book: 0,
+      book_slots: 0,
       has_memory: 0,
+      has_completed_book_onboarding: 0,
+      pro_covers: 0,
+      pro_status: "inactive",
+      billing_type: null,
+      pro_expiration: null,
       created_at: new Date(),
     };
   } catch (err) {
@@ -35,6 +91,7 @@ export async function createUser({ name, email, password }) {
     await db.end();
   }
 }
+
 
 export async function getUserByEmail(email) {
   const db = await connect();
@@ -55,7 +112,10 @@ export async function getUserByEmail(email) {
          brand_identity_file,
          has_completed_book_onboarding,
          has_memory,
-         cta
+         cta,
+         pro_status,
+         billing_type,
+         pro_expiration
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -111,6 +171,9 @@ export async function getUserById(id) {
          has_completed_book_onboarding,
          cta,
          created_at,
+         pro_status,
+         billing_type,
+         pro_expiration,
          twofa_secret IS NOT NULL AS twofa_enabled
        FROM users 
        WHERE id = ?`,

@@ -102,37 +102,7 @@ ${brandTone.slice(0, 4000)}
       /<!--PAGEBREAK-->/g,
       '<div class="page-break"></div>'
     );
-    // 🖼️ Cover handling
-    // let tempCoverPath = null;
-    // if (coverImage) {
-    //   const tmpDir = path.resolve(__dirname, "../uploads/tmp");
-    //   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-    //   if (coverImage.startsWith("data:image")) {
-    //     const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
-    //     const extension = coverImage.substring(
-    //       coverImage.indexOf("/") + 1,
-    //       coverImage.indexOf(";")
-    //     );
-    //     tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
-    //     fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
-    //   } else if (coverImage.startsWith("http")) {
-    //     try {
-    //       const response = await axios.get(coverImage, {
-    //         responseType: "arraybuffer",
-    //         timeout: 10000,
-    //       });
-    //       const extension =
-    //         path.extname(new URL(coverImage).pathname) || ".jpg";
-    //       tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${extension}`);
-    //       fs.writeFileSync(tempCoverPath, Buffer.from(response.data));
-    //     } catch (err) {
-    //       console.warn("⚠️ Failed to fetch remote cover image:", err.message);
-    //     }
-    //   }
-    // }
-    // 🖼️ Cover handling + auto upload to Spaces
-// 🖼️ Cover handling + auto upload to Spaces (skip Unsplash)
 let tempCoverPath = null;
 let finalCoverUrl = coverImage; // default fallback (already a valid URL)
 
@@ -238,7 +208,7 @@ if (tempCoverPath && fs.existsSync(tempCoverPath)) {
       bgTheme,
       logo: finalLogoUrl,
       link,
-      coverImage: tempCoverPath,
+      coverImage: finalCoverUrl,
       cta,
       isHtml: true,
     });
