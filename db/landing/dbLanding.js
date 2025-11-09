@@ -87,7 +87,7 @@ export async function getLandingPageByUserId(userId) {
 export async function updateLandingPage(id, fields) {
   const db = await connect();
   try {
-    const {
+    let {
       headline,
       description,
       font,
@@ -99,8 +99,15 @@ export async function updateLandingPage(id, fields) {
       font_color_h3,
       font_color_p,
       content_blocks,
-      pdf_url, 
+      pdf_url,
+      cover_image_url,
+      logo_url,
     } = fields;
+
+    // 🧹 Trim strings if they exist
+    headline = headline?.trim() || null;
+    description = description?.trim() || null;
+    username = username?.trim() || null;
 
     // ✅ Prevent duplicate usernames
     if (username) {
@@ -116,18 +123,15 @@ export async function updateLandingPage(id, fields) {
       }
     }
 
-    // ✅ Normalize content_blocks to a clean JSON string
+    // ✅ Normalize content_blocks to valid JSON
     let contentBlocksJSON;
-
     if (Array.isArray(content_blocks)) {
       contentBlocksJSON = JSON.stringify(content_blocks);
     } else if (typeof content_blocks === "string") {
       try {
-        const parsed = JSON.parse(content_blocks);
-        contentBlocksJSON = JSON.stringify(parsed);
-      } catch (err) {
-        console.warn("⚠️ Invalid JSON string, keeping previous data for ID:", id);
-        // Fetch old value to avoid wiping data
+        contentBlocksJSON = JSON.stringify(JSON.parse(content_blocks));
+      } catch {
+        console.warn(`⚠️ Invalid JSON for content_blocks, keeping old data for ID ${id}`);
         const [oldRows] = await db.query(
           "SELECT content_blocks FROM user_landing_pages WHERE id = ?",
           [id]
@@ -135,7 +139,6 @@ export async function updateLandingPage(id, fields) {
         contentBlocksJSON = oldRows[0]?.content_blocks || "[]";
       }
     } else {
-      console.warn("⚠️ Unknown format for content_blocks, skipping overwrite");
       const [oldRows] = await db.query(
         "SELECT content_blocks FROM user_landing_pages WHERE id = ?",
         [id]
@@ -143,24 +146,28 @@ export async function updateLandingPage(id, fields) {
       contentBlocksJSON = oldRows[0]?.content_blocks || "[]";
     }
 
-    // ✅ Perform safe update
+    // ✅ Execute safe update
     await db.query(
-      `UPDATE user_landing_pages 
-       SET 
-         headline = ?, 
-         description = ?, 
-         font = ?, 
-         font_file = ?, 
-         bg_theme = ?, 
-         username = ?,
-         font_color_h1 = ?,
-         font_color_h2 = ?,
-         font_color_h3 = ?,
-         font_color_p  = ?,
-         content_blocks = ?, 
-         pdf_url = ?,
-         updated_at = NOW()
-       WHERE id = ?`,
+      `
+      UPDATE user_landing_pages 
+      SET 
+        headline = ?, 
+        description = ?, 
+        font = ?, 
+        font_file = ?, 
+        bg_theme = ?, 
+        username = ?,
+        font_color_h1 = ?,
+        font_color_h2 = ?,
+        font_color_h3 = ?,
+        font_color_p  = ?,
+        content_blocks = ?, 
+        pdf_url = ?,
+        cover_image_url = ?,
+        logo_url = ?,
+        updated_at = NOW()
+      WHERE id = ?
+      `,
       [
         headline,
         description,
@@ -174,15 +181,24 @@ export async function updateLandingPage(id, fields) {
         font_color_p,
         contentBlocksJSON,
         pdf_url,
+        cover_image_url,
+        logo_url,
         id,
       ]
     );
 
     console.log("✅ Successfully updated landing page:", id);
-    return { success: true };
+
+    // Optional: return updated record
+    const [updated] = await db.query(
+      "SELECT * FROM user_landing_pages WHERE id = ? LIMIT 1",
+      [id]
+    );
+
+    return { success: true, landingPage: updated[0] || null };
   } catch (err) {
     console.error("❌ Error updating landing page:", err);
-    throw err;
+    return { success: false, message: "Server error" };
   } finally {
     await db.end();
   }
@@ -191,38 +207,43 @@ export async function updateLandingPage(id, fields) {
 export async function getOrCreateLandingPage(userId) {
   const db = await connect();
   try {
-    // 1️⃣ Check if landing page exists
+    // 1️⃣ Check if landing page already exists
     const [rows] = await db.query(
-      `SELECT 
-         lp.id,
-         lp.user_id,
-         lp.title,
-         lp.headline,
-         lp.description,
-         lp.theme_color,
-         lp.font,
-         lp.font_file,
-         lp.bg_theme,
-         lp.font_color_h1,
-         lp.font_color_h2,
-         lp.font_color_h3,
-         lp.font_color_p,
-         lp.content_blocks,
-         lp.pdf_url,              -- ✅ include this field
-         lp.username,
-         lp.updated_at,
-         u.pro_covers
-       FROM user_landing_pages lp 
-       JOIN users u ON lp.user_id = u.id 
-       WHERE lp.user_id = ? 
-       LIMIT 1`,
+      `
+      SELECT 
+        lp.id,
+        lp.user_id,
+        lp.username,
+        lp.title,
+        lp.headline,
+        lp.description,
+        lp.theme_color,
+        lp.font,
+        lp.font_file,
+        lp.bg_theme,
+        lp.font_color_h1,
+        lp.font_color_h2,
+        lp.font_color_h3,
+        lp.font_color_p,
+        lp.content_blocks,
+        lp.pdf_url,
+        lp.cover_image_url,
+        lp.logo_url,
+        lp.button_text,
+        lp.updated_at,
+        u.pro_covers
+      FROM user_landing_pages lp
+      JOIN users u ON lp.user_id = u.id
+      WHERE lp.user_id = ?
+      LIMIT 1
+      `,
       [userId]
     );
 
     if (rows[0]) {
       const page = rows[0];
 
-      // 🧩 Parse content_blocks safely
+      // 🧩 Safely parse content_blocks JSON
       if (page && typeof page.content_blocks === "string") {
         try {
           page.content_blocks = JSON.parse(page.content_blocks);
@@ -231,13 +252,13 @@ export async function getOrCreateLandingPage(userId) {
         }
       }
 
-      console.log("📦 Found existing landing page (with PDF URL)");
+      console.log("📦 Found existing landing page");
       return page;
     }
 
     console.log("⚙️ No landing page found, creating default one...");
 
-    // 2️⃣ Check user and PRO status
+    // 2️⃣ Check user and PRO plan status
     const [userRows] = await db.query(
       `SELECT id, name, pro_covers FROM users WHERE id = ? LIMIT 1`,
       [userId]
@@ -247,39 +268,78 @@ export async function getOrCreateLandingPage(userId) {
     if (user.pro_covers !== 1)
       return { error: "Access denied. PRO plan required.", status: 403 };
 
-    // 3️⃣ Create default page
+    // 3️⃣ Define new default page
     const defaultPage = {
       id: uuidv4(),
       user_id: userId,
+      username: null,
       title: "Your Custom Landing Page",
       headline: "Welcome to My Digital World",
       description: "This is your personal landing page — start customizing!",
       theme_color: "#E93CAC",
       font: "Montserrat",
+      font_file: "/fonts/Montserrat-Regular.ttf",
+      bg_theme: "linear-gradient(to bottom, #ffffff, #F285C3)",
       button_text: "Download Now",
-      pdf_url: null, // ✅ add placeholder
+      pdf_url: null,
+      cover_image_url: null,
+      logo_url: null,
+      font_color_h1: "#FFFFFF",
+      font_color_h2: "#FFFFFF",
+      font_color_h3: "#FFFFFF",
+      font_color_p: "#FFFFFF",
+      content_blocks: JSON.stringify([]),
+      collect_emails: 1,
+      email_list_name: "My Subscribers",
+      email_leads_count: 0,
+      email_notify: 1,
+      email_thank_you_msg: "Thank you for subscribing!",
+      auto_send_pdf: 1,
       created_at: new Date(),
     };
 
+    // 4️⃣ Insert it into DB
     await db.query(
-      `INSERT INTO user_landing_pages 
-       (id, user_id, title, headline, description, theme_color, font, button_text, pdf_url, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `
+      INSERT INTO user_landing_pages 
+      (id, user_id, username, title, headline, description, theme_color, font, font_file,
+       bg_theme, button_text, pdf_url, cover_image_url, logo_url,
+       font_color_h1, font_color_h2, font_color_h3, font_color_p,
+       content_blocks, collect_emails, email_list_name, email_leads_count,
+       email_notify, email_thank_you_msg, auto_send_pdf, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
       [
         defaultPage.id,
         defaultPage.user_id,
+        defaultPage.username,
         defaultPage.title,
         defaultPage.headline,
         defaultPage.description,
         defaultPage.theme_color,
         defaultPage.font,
+        defaultPage.font_file,
+        defaultPage.bg_theme,
         defaultPage.button_text,
-        defaultPage.pdf_url, // ✅ included here
+        defaultPage.pdf_url,
+        defaultPage.cover_image_url,
+        defaultPage.logo_url,
+        defaultPage.font_color_h1,
+        defaultPage.font_color_h2,
+        defaultPage.font_color_h3,
+        defaultPage.font_color_p,
+        defaultPage.content_blocks,
+        defaultPage.collect_emails,
+        defaultPage.email_list_name,
+        defaultPage.email_leads_count,
+        defaultPage.email_notify,
+        defaultPage.email_thank_you_msg,
+        defaultPage.auto_send_pdf,
         defaultPage.created_at,
       ]
     );
 
-    console.log("✅ Created new landing page:", defaultPage);
+    console.log("✅ Created new default landing page:", defaultPage);
     return defaultPage;
   } catch (err) {
     console.error("❌ Error in getOrCreateLandingPage:", err);
@@ -288,6 +348,7 @@ export async function getOrCreateLandingPage(userId) {
     await db.end();
   }
 }
+
 
 export async function checkUsernameAvailability(username) {
   const db = await connect();
@@ -304,3 +365,36 @@ export async function checkUsernameAvailability(username) {
     await db.end();
   }
 }
+
+export async function updateLandingLogo(landingId, logoUrl) {
+  const db = await connect();
+  try {
+    await db.query(
+      "UPDATE user_landing_pages SET logo_url = ? WHERE id = ?",
+      [logoUrl, landingId]
+    );
+    console.log(`✅ Logo updated for landing page ID: ${landingId}`);
+  } catch (err) {
+    console.error("❌ Error in updateLandingLogo helper:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
+}
+
+export async function getCoverImageByPdfUrl(pdfUrl) {
+  const db = await connect();
+  try {
+    const [rows] = await db.query(
+      "SELECT cover_image FROM lead_magnets WHERE pdf_url = ? LIMIT 1",
+      [pdfUrl]
+    );
+    return rows[0]?.cover_image || null;
+  } catch (err) {
+    console.error("❌ Error in getCoverImageByPdfUrl:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
+}
+

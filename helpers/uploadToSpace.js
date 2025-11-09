@@ -7,36 +7,54 @@ const s3 = new AWS.S3({
   endpoint: spacesEndpoint,
   accessKeyId: process.env.DO_SPACES_KEY,
   secretAccessKey: process.env.DO_SPACES_SECRET,
-  region: "us-east-1", // DigitalOcean ignores this but SDK expects it
+  region: "us-east-1",
 });
 
-export async function uploadFileToSpaces(localPath, fileName, contentType = "application/pdf") {
-  // 🧠 Ensure file exists
-  if (!fs.existsSync(localPath)) {
-    throw new Error(`File not found at path: ${localPath}`);
+/**
+ * Upload either a local file path or buffer directly to DigitalOcean Spaces.
+ * Automatically deletes temp files if applicable.
+ */
+export async function uploadFileToSpaces(
+  input,
+  fileName,
+  contentType = "application/octet-stream"
+) {
+  try {
+    let fileContent;
+
+    if (Buffer.isBuffer(input)) {
+      // logo, cover image, etc.
+      fileContent = input;
+    } else if (typeof input === "string" && fs.existsSync(input)) {
+      // path from disk (PDF, temporary export)
+      fileContent = fs.readFileSync(input);
+    } else {
+      throw new Error("Invalid file input — must be buffer or existing path");
+    }
+
+    const safeKey = fileName.startsWith("/") ? fileName.slice(1) : fileName;
+
+    const params = {
+      Bucket: "cre8tlystudio",
+      Key: safeKey,
+      Body: fileContent,
+      ACL: "public-read",
+      ContentType: contentType,
+    };
+
+    const result = await s3.upload(params).promise();
+
+    // if it's a temp file, remove it
+    if (typeof input === "string") {
+      await fs.promises.unlink(input).catch(() =>
+        console.warn("⚠️ Could not delete temp file:", input)
+      );
+    }
+
+    return result;
+  } catch (err) {
+    console.error("❌ uploadFileToSpaces failed:", err);
+    throw err;
   }
-
-  const fileContent = fs.readFileSync(localPath);
-
-  // ✅ Spaces expects no leading slash in Key
-  const safeKey = fileName.startsWith("/") ? fileName.slice(1) : fileName;
-
-  const params = {
-    Bucket: "cre8tlystudio", // Your exact Space name
-    Key: safeKey,
-    Body: fileContent,
-    ACL: "public-read", // makes the file publicly accessible
-    ContentType: contentType,
-  };
-
-
-  const result = await s3.upload(params).promise();
-
-  // 🧹 Delete local temp file after upload
-  await fs.promises.unlink(localPath).catch(() =>
-    console.warn("⚠️ Could not delete temp file:", localPath)
-  );
-
-
-  return result;
 }
+
