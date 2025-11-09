@@ -11,7 +11,7 @@ const BOOKS_PRICE_ID = process.env.STRIPE_PRICE_BOOKS;
 const ALL_IN_ONE_BUNDLE_PRICE_ID = process.env.STRIPE_CRE8TLY_ALL_IN_ONE_BUNDLE;
 const PROMPT_MEMORY_PRICE_ID = process.env.STRIPE_PROMPT_MEMORY_SUBSCRIPTION;
 
-export async function createCheckout({ userId, priceId, productType }) {
+export async function createCheckout({ userId, priceId, productType, billingCycle }) {
   // ✅ Fetch user email
   const db = await connect();
   const [rows] = await db.query("SELECT email FROM users WHERE id = ?", [userId]);
@@ -38,11 +38,22 @@ export async function createCheckout({ userId, priceId, productType }) {
     finalPriceId = PROMPT_MEMORY_PRICE_ID;
     mode = "subscription";
     break;
+    case "business_builder_pack":
+      mode = "subscription";
+      if (billingCycle === "annual") {
+        finalPriceId = process.env.STRIPE_BUSINESS_BUILDER_PACK_ANNUAL;
+      } else {
+        finalPriceId = process.env.STRIPE_BUSINESS_BUILDER_PACK_MONTHLY;
+      }
+      break;
     case "basic":
     default:
       finalPriceId = priceId || BASIC_PRICE_ID;
       break;
   }
+
+  console.log("🧾 Creating checkout for:", { productType, billingCycle });
+
 
   // ✅ Create checkout session
   const session = await stripe.checkout.sessions.create({
@@ -56,6 +67,7 @@ export async function createCheckout({ userId, priceId, productType }) {
       user_id: userId,
       email,
       product_type: productType || "basic",
+      billing_cycle: billingCycle || "annual", 
     },
   });
 

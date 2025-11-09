@@ -347,4 +347,65 @@ export async function deactivatePromptMemory(email) {
   }
 }
 
+export async function activateBusinessBuilder(email, billingCycle = "annual") {
+  const db = await connect();
+  try {
+    const [userRows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (!userRows.length) {
+      console.warn(`⚠️ No user found for email: ${email}`);
+      await db.end();
+      return;
+    }
 
+    const userId = userRows[0].id;
+
+    // ✅ 1-year lock period
+    const lockedUntil = new Date();
+    lockedUntil.setFullYear(lockedUntil.getFullYear() + 1);
+
+    // ✅ Update subscription details
+    await db.query(
+      `UPDATE users 
+       SET pro_status = 'active',
+           billing_type = ?,
+           plan = 'business_builder_pack',
+           status = 'active',
+           locked_until = ?,
+           pro_expiration = ?
+       WHERE id = ?`,
+      [billingCycle, lockedUntil, lockedUntil, userId]
+    );
+
+    console.log(`🏗️ Activated Business Builder Pack (${billingCycle}) for ${email}`);
+
+    // ✅ Grant 5 free lead magnets
+    await upgradeUserToMagnets(email);
+
+    console.log(`🎁 Granted 5 free lead magnet slots to ${email}`);
+
+    await db.end();
+    return true;
+  } catch (err) {
+    console.error("❌ activateBusinessBuilder failed:", err.message);
+    await db.end();
+    throw err;
+  }
+}
+
+export async function deactivateBusinessBuilder(email) {
+  const db = await connect();
+  try {
+    await db.query(
+      `UPDATE users 
+       SET pro_status = 'inactive',
+           status = 'cancelled'
+       WHERE email = ?`,
+      [email]
+    );
+    console.log(`🚫 Business Builder Pack deactivated for ${email}`);
+    await db.end();
+  } catch (err) {
+    console.error("❌ deactivateBusinessBuilder failed:", err.message);
+    await db.end();
+  }
+}

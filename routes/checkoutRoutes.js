@@ -7,8 +7,8 @@ const router = express.Router();
 
 router.post("/", async (req, res) => {
   try {
-    const { userId, priceId, productType } = req.body;
-    const url = await createCheckout({ userId, priceId, productType });
+    const { userId, priceId, productType, billingCycle } = req.body;
+    const url = await createCheckout({ userId, priceId, productType, billingCycle });
     res.json({ url });
   } catch (err) {
     console.error("Checkout failed:", err.message);

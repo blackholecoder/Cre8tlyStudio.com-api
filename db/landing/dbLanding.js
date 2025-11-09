@@ -398,3 +398,70 @@ export async function getCoverImageByPdfUrl(pdfUrl) {
   }
 }
 
+export async function getUserLeads(userId, page = 1, limit = 20) {
+  const db = await connect();
+  const offset = (page - 1) * limit;
+
+  // ✅ Main paginated query
+  const [rows] = await db.query(
+    `
+    SELECT 
+      lpl.id,
+      lpl.email,
+      lpl.created_at,
+      ulp.id AS landing_page_id,
+      ulp.title AS landing_title,
+      ulp.pdf_url,
+      ulp.cover_image_url,
+      lm.title AS title
+    FROM landing_page_leads AS lpl
+    INNER JOIN user_landing_pages AS ulp 
+      ON ulp.id = lpl.landing_page_id
+    LEFT JOIN lead_magnets AS lm 
+      ON lm.id = SUBSTRING_INDEX(
+                  SUBSTRING_INDEX(
+                    REPLACE(SUBSTRING_INDEX(ulp.pdf_url, '/', -1), '.pdf', ''),
+                    '-edit',
+                    1
+                  ),
+                  '-',
+                  -5
+                )
+    WHERE ulp.user_id = ?
+    ORDER BY lpl.created_at DESC
+    LIMIT ? OFFSET ?
+    `,
+    [userId, limit, offset]
+  );
+
+  // ✅ Get total count for pagination metadata
+  const [[{ total }]] = await db.query(
+    `
+    SELECT COUNT(*) AS total
+    FROM landing_page_leads AS lpl
+    INNER JOIN user_landing_pages AS ulp 
+      ON ulp.id = lpl.landing_page_id
+    WHERE ulp.user_id = ?
+    `,
+    [userId]
+  );
+
+
+  return {
+    leads: rows,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+
+
+
+
+
+
+
+
+

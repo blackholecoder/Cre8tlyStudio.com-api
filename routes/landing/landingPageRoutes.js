@@ -5,6 +5,7 @@ import {
   getLandingPageById,
   getLandingPageByUser,
   getOrCreateLandingPage,
+  getUserLeads,
   saveLandingPageLead,
   updateLandingLogo,
   updateLandingPage,
@@ -681,7 +682,6 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
   }
 });
 
-
 router.get("/check-username/:username", authenticateToken, async (req, res) => {
   try {
     const { username } = req.params;
@@ -761,5 +761,19 @@ router.get("/lead-magnets/cover", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+router.get("/leads", authenticateToken, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const data = await getUserLeads(req.user.id, page, limit);
+    res.json({ success: true, ...data });
+  } catch (err) {
+    console.error("Error fetching leads:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
 
 export default router;

@@ -1,7 +1,16 @@
 import express from "express";
 import Stripe from "stripe";
 import { handleCheckoutCompleted } from "../services/leadMagnetService.js";
-import { activatePromptMemory, deactivatePromptMemory, upgradeUserToBooks, upgradeUserToBundle, upgradeUserToMagnets, upgradeUserToProCovers } from "../db/dbUser.js";
+import {
+  activatePromptMemory,
+  deactivatePromptMemory,
+  upgradeUserToBooks,
+  upgradeUserToBundle,
+  upgradeUserToMagnets,
+  upgradeUserToProCovers,
+  activateBusinessBuilder,
+  deactivateBusinessBuilder,
+} from "../db/dbUser.js"; // ✅ make sure these two new helpers are exported there
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -24,10 +33,12 @@ router.post("/", async (req, res) => {
   try {
     const eventType = event.type;
 
+    // 🧾 CHECKOUT COMPLETE
     if (eventType === "checkout.session.completed") {
       const session = event.data.object;
       const email = session.metadata?.email;
       const product = session.metadata?.product_type;
+      const billingCycle = session.metadata?.billing_cycle;
 
       if (!email || !product) {
         console.warn("⚠️ Missing metadata on Stripe session");
@@ -38,31 +49,40 @@ router.post("/", async (req, res) => {
 
       switch (product) {
         case "pro":
-          console.log(`✨ Detected Pro Covers upgrade for: ${email}`);
+          console.log(`✨ Pro Covers upgrade for: ${email}`);
           await upgradeUserToProCovers(email);
           handledUpgrade = true;
           break;
 
         case "author":
-          console.log(`📚 Detected Book Dashboard upgrade for: ${email}`);
+          console.log(`📚 Author’s Assistant upgrade for: ${email}`);
           await upgradeUserToBooks(email);
           handledUpgrade = true;
           break;
 
         case "bundle":
-          console.log(`🎁 Detected All-In-One Bundle purchase for: ${email}`);
+          console.log(`🎁 All-In-One Bundle purchase for: ${email}`);
           await upgradeUserToBundle(email);
           handledUpgrade = true;
           break;
 
         case "prompt_memory":
-          console.log(`🧠 Detected Prompt Memory subscription for: ${email}`);
+          console.log(`🧠 Prompt Memory subscription for: ${email}`);
           await activatePromptMemory(email);
           handledUpgrade = true;
           break;
+
         case "basic":
-          console.log(`🧠 Detected Basic Purchase for: ${email}`);
+          console.log(`📄 Basic Creator plan for: ${email}`);
           await upgradeUserToMagnets(email);
+          handledUpgrade = true;
+          break;
+
+        case "business_builder_pack":
+          console.log(
+            `🏗️ Business Builder Pack (${billingCycle}) for: ${email}`
+          );
+          await activateBusinessBuilder(email, billingCycle);
           handledUpgrade = true;
           break;
 
@@ -71,6 +91,7 @@ router.post("/", async (req, res) => {
           break;
       }
 
+      // optional expansion
       const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
         expand: ["line_items"],
       });
@@ -80,29 +101,53 @@ router.post("/", async (req, res) => {
         console.log(`✅ Finished processing ${product} upgrade for ${email}`);
     }
 
-    // 💳 Handle recurring subscription changes
+    // 💳 SUBSCRIPTION PAYMENT SUCCEEDED
     if (eventType === "invoice.payment_succeeded") {
       const invoice = event.data.object;
       const email = invoice.customer_email;
-      if (email) {
+      const productType =
+        invoice.lines?.data?.[0]?.price?.product ||
+        invoice.metadata?.product_type;
+
+      if (email && productType) {
         try {
-          await activatePromptMemory(email);
-          console.log(`✅ Subscription payment succeeded for ${email}`);
+          if (productType.includes("business_builder_pack")) {
+            await activateBusinessBuilder(email);
+            console.log(`✅ Business Builder payment succeeded for ${email}`);
+          } else if (productType.includes("prompt_memory")) {
+            await activatePromptMemory(email);
+            console.log(`✅ Prompt Memory payment succeeded for ${email}`);
+          }
         } catch (err) {
-          console.error(`❌ Failed to activate after invoice success: ${err.message}`);
+          console.error(
+            `❌ Failed to activate after invoice success: ${err.message}`
+          );
         }
       }
     }
 
-    if (eventType === "invoice.payment_failed" || eventType === "customer.subscription.deleted") {
+    // 🚫 SUBSCRIPTION PAYMENT FAILED OR CANCELED
+    if (
+      eventType === "invoice.payment_failed" ||
+      eventType === "customer.subscription.deleted"
+    ) {
       const data = event.data.object;
       const email = data.customer_email || data.metadata?.email;
-      if (email) {
+      const productType =
+        data.lines?.data?.[0]?.price?.product || data.metadata?.product_type;
+
+      if (email && productType) {
         try {
-          await deactivatePromptMemory(email);
+          if (productType.includes("business_builder_pack")) {
+            await deactivateBusinessBuilder(email);
+          } else if (productType.includes("prompt_memory")) {
+            await deactivatePromptMemory(email);
+          }
           console.log(`🚫 Subscription canceled or payment failed for ${email}`);
         } catch (err) {
-          console.error(`❌ Failed to deactivate after payment failure: ${err.message}`);
+          console.error(
+            `❌ Failed to deactivate after payment failure: ${err.message}`
+          );
         }
       }
     }
@@ -113,6 +158,5 @@ router.post("/", async (req, res) => {
     res.sendStatus(500);
   }
 });
-
 
 export default router;
