@@ -87,12 +87,8 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       contentType,
     } = req.body; // 👈 include theme
 
-    // console.log({
-    //   title,
-    //   pages,
-    //   bgTheme,
-    //   coverImage,
-    // });
+
+  
 
     if (!magnetId || !prompt) {
       return res

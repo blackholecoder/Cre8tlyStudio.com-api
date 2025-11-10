@@ -102,6 +102,7 @@ export async function updateLandingPage(id, fields) {
       pdf_url,
       cover_image_url,
       logo_url,
+      show_download_button,
     } = fields;
 
     // 🧹 Trim strings if they exist
@@ -165,6 +166,7 @@ export async function updateLandingPage(id, fields) {
         pdf_url = ?,
         cover_image_url = ?,
         logo_url = ?,
+        show_download_button = ?,
         updated_at = NOW()
       WHERE id = ?
       `,
@@ -183,6 +185,7 @@ export async function updateLandingPage(id, fields) {
         pdf_url,
         cover_image_url,
         logo_url,
+        show_download_button,
         id,
       ]
     );
@@ -446,6 +449,16 @@ export async function getUserLeads(userId, page = 1, limit = 20) {
     [userId]
   );
 
+  console.log(
+  "Fetched rows:",
+  rows.map(r => ({
+    id: r.id,
+    pdf_url: r.pdf_url,
+    landing_page_id: r.landing_page_id,
+    landing_title: r.landing_title
+  }))
+);
+
 
   return {
     leads: rows,
@@ -455,6 +468,8 @@ export async function getUserLeads(userId, page = 1, limit = 20) {
     totalPages: Math.ceil(total / limit),
   };
 }
+
+
 
 
 

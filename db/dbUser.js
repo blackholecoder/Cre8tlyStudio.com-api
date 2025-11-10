@@ -2,39 +2,7 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 
-// export async function createUser({ name, email, password }) {
-//   const db = await connect();
-//   const id = uuidv4();
-//   const hashedPassword = await bcrypt.hash(password, 12);
 
-//   try {
-//     await db.query(
-//       `INSERT INTO users 
-//        (id, name, email, password_hash, role, has_magnet, magnet_slots, has_completed_book_onboarding, has_memory, created_at)
-//        VALUES (?, ?, ?, ?, 'customer', 0, 0, 0, 0, NOW())`,
-//       [id, name, email, hashedPassword]
-//     );
-
-//     console.log(`✅ New user created: ${email}`);
-
-//     return {
-//       id,
-//       name,
-//       email,
-//       role: "customer",
-//       has_magnet: 0,
-//       magnet_slots: 0,
-//       has_completed_book_onboarding: 0,
-//       has_memory: 0,
-//       created_at: new Date(),
-//     };
-//   } catch (err) {
-//     console.error("❌ Error creating user:", err);
-//     throw err;
-//   } finally {
-//     await db.end();
-//   }
-// }
 export async function createUser({ name, email, password }) {
   const db = await connect();
   const id = uuidv4();

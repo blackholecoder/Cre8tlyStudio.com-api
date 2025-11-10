@@ -16,6 +16,16 @@ router.get("/", requireAdmin, async (req, res) => {
   }
 });
 
+router.get("/public", async (req, res) => {
+  try {
+    const ebooks = await getEbooks({ publicOnly: true });
+    res.json(ebooks);
+  } catch (err) {
+    console.error("Public ebooks fetch failed:", err.message);
+    res.status(400).json({ error: "Failed to load ebooks" });
+  }
+});
+
 // Create a new ebook (admin)
 router.post("/", requireAdmin, async (req, res) => {
   try {

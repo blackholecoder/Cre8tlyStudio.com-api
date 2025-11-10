@@ -149,12 +149,12 @@ router.get("/", async (req, res) => {
   ">${block.text}</p>`;
 
             case "button":
-  return `
+              return `
     <div style="text-align:center; margin:40px 0 60px;">
       <a 
         href="${block.url || "#"}" 
         class="btn"
-        ${block.new_tab ? 'target="_blank" rel="noopener noreferrer"' : ''}
+        ${block.new_tab ? 'target="_blank" rel="noopener noreferrer"' : ""}
         style="display:inline-block;"
       >
         ${block.text || "Click Here"}
@@ -162,6 +162,62 @@ router.get("/", async (req, res) => {
     </div>
   `;
 
+            case "video":
+              const videoPadding = block.padding || 20;
+              const videoUrl = block.url || "";
+              const caption = block.caption || "";
+              const autoplay = block.autoplay ? "autoplay" : "";
+              const loop = block.loop ? "loop" : "";
+              const muted = block.muted ? "muted" : "";
+
+              if (!videoUrl) return "";
+
+              // Determine embed type
+              let embedHTML = "";
+              if (
+                videoUrl.includes("youtube.com") ||
+                videoUrl.includes("youtu.be")
+              ) {
+                embedHTML = `<iframe 
+        src="${videoUrl.replace("watch?v=", "embed/")}" 
+        title="YouTube video" 
+        style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
+        allow="autoplay; fullscreen"
+        allowfullscreen
+      ></iframe>`;
+              } else if (videoUrl.includes("vimeo.com")) {
+                embedHTML = `<iframe 
+        src="${videoUrl.replace("vimeo.com", "player.vimeo.com/video")}" 
+        title="Vimeo video" 
+        style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
+        allow="autoplay; fullscreen"
+        allowfullscreen
+      ></iframe>`;
+              } else {
+                embedHTML = `<video 
+        src="${videoUrl}" 
+        ${autoplay} ${loop} ${muted} 
+        controls 
+        style="width:100%;max-width:800px;display:block;margin:0 auto;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
+      ></video>`;
+              }
+
+              return `
+    <div style="
+      text-align:center;
+      padding-bottom:${videoPadding}px;
+      margin-top:30px;
+    ">
+      ${embedHTML}
+      ${
+        caption
+          ? `<p style="margin-top:12px;font-size:0.95rem;color:${
+              landingPage.font_color_p || "#DDD"
+            };font-style:italic;">${caption}</p>`
+          : ""
+      }
+    </div>
+  `;
 
             default:
               return "";
@@ -440,16 +496,18 @@ button {
       "<h1>Welcome to My Page</h1><p>Start customizing your content.</p>"
     }
 
-    <form id="leadForm">
-  <input type="hidden" name="landingPageId" value="${landingPage.id}" />
-  <input type="email" name="email" placeholder="Email address" required />
-  <button type="submit">Download Now</button>
-</form>
+    ${landingPage.show_download_button ? `
+  <form id="leadForm">
+    <input type="hidden" name="landingPageId" value="${landingPage.id}" />
+    <input type="email" name="email" placeholder="Email address" required />
+    <button type="submit">Download Now</button>
+  </form>
 
-<p id="thankyou" 
-   style="display:none;color:white;margin-top:30px;font-size:1.1rem;text-align:center;">
-  🎁 Check your inbox for the download link!
-</p>
+  <p id="thankyou" 
+     style="display:none;color:white;margin-top:30px;font-size:1.1rem;text-align:center;">
+    🎁 Check your inbox for the download link!
+  </p>
+` : ""}
 
 
 <script>
@@ -640,7 +698,9 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
                 html: `
                   <div style="font-family:Arial,Helvetica,sans-serif; background:#fff; padding:20px; border-radius:10px; border:1px solid #eee; max-width:600px;">
                     <h2 style="color:#e74c3c;">🚨 Suspicious URL Blocked</h2>
-                    <p><strong>User ID:</strong> ${req.user?.id || "Unknown"}</p>
+                    <p><strong>User ID:</strong> ${
+                      req.user?.id || "Unknown"
+                    }</p>
                     <p><strong>Landing Page ID:</strong> ${id}</p>
                     <p><strong>URL Attempted:</strong> ${block.url}</p>
                     <p style="color:#555;">
@@ -652,7 +712,10 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
                   </div>
                 `,
               });
-              console.log("📧 Security alert email sent for unsafe URL:", block.url);
+              console.log(
+                "📧 Security alert email sent for unsafe URL:",
+                block.url
+              );
             } catch (mailErr) {
               console.error("❌ Failed to send security email:", mailErr);
             }
@@ -773,7 +836,6 @@ router.get("/leads", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
 
 
 export default router;
