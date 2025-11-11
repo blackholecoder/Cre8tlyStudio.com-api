@@ -124,13 +124,15 @@ export async function updateLandingPage(id, fields) {
       }
     }
 
-    // ✅ Normalize content_blocks to valid JSON
-    let contentBlocksJSON;
+    // ✅ Normalize and validate content_blocks
+    let parsedBlocks = [];
+    let contentBlocksJSON = "[]";
+
     if (Array.isArray(content_blocks)) {
-      contentBlocksJSON = JSON.stringify(content_blocks);
+      parsedBlocks = content_blocks;
     } else if (typeof content_blocks === "string") {
       try {
-        contentBlocksJSON = JSON.stringify(JSON.parse(content_blocks));
+        parsedBlocks = JSON.parse(content_blocks);
       } catch {
         console.warn(`⚠️ Invalid JSON for content_blocks, keeping old data for ID ${id}`);
         const [oldRows] = await db.query(
@@ -147,6 +149,33 @@ export async function updateLandingPage(id, fields) {
       contentBlocksJSON = oldRows[0]?.content_blocks || "[]";
     }
 
+    // ✅ Calendly URL validator
+    const isValidCalendlyUrl = (url) =>
+      /^https:\/\/calendly\.com\/[a-zA-Z0-9_-]+(\/[a-zA-Z0-9_-]+)?$/.test(url);
+
+    // ✅ Verify any Calendly blocks
+    if (Array.isArray(parsedBlocks)) {
+      for (const block of parsedBlocks) {
+        if (block.type === "calendly") {
+          if (!block.calendly_url || !isValidCalendlyUrl(block.calendly_url)) {
+            console.warn(
+              `⚠️ Invalid Calendly URL in landing ${id}: ${block.calendly_url}`
+            );
+            return {
+              success: false,
+              message:
+                "Invalid Calendly URL. It must start with https://calendly.com/",
+            };
+          }
+        }
+      }
+      parsedBlocks = parsedBlocks.map((b) => ({
+  ...b,
+  collapsed: b.collapsed ?? true, // ensure this field exists
+}));
+      contentBlocksJSON = JSON.stringify(parsedBlocks);
+    }
+
     // ✅ Execute safe update
     await db.query(
       `
@@ -161,7 +190,7 @@ export async function updateLandingPage(id, fields) {
         font_color_h1 = ?,
         font_color_h2 = ?,
         font_color_h3 = ?,
-        font_color_p  = ?,
+        font_color_p = ?,
         content_blocks = ?, 
         pdf_url = ?,
         cover_image_url = ?,
@@ -192,7 +221,7 @@ export async function updateLandingPage(id, fields) {
 
     console.log("✅ Successfully updated landing page:", id);
 
-    // Optional: return updated record
+    // ✅ Return updated record
     const [updated] = await db.query(
       "SELECT * FROM user_landing_pages WHERE id = ? LIMIT 1",
       [id]
@@ -201,11 +230,12 @@ export async function updateLandingPage(id, fields) {
     return { success: true, landingPage: updated[0] || null };
   } catch (err) {
     console.error("❌ Error updating landing page:", err);
-    return { success: false, message: "Server error" };
+    return { success: false, message: err.message || "Server error" };
   } finally {
     await db.end();
   }
 }
+
 
 export async function getOrCreateLandingPage(userId) {
   const db = await connect();

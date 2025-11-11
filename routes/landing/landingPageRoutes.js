@@ -14,6 +14,7 @@ import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { isSafeUrl } from "../../utils/isSafeUrl.js";
+import { blendColors } from "../../utils/blendColors.js";
 const router = express.Router();
 
 // Capture root requests for each subdomain
@@ -23,6 +24,10 @@ router.get("/", async (req, res) => {
 
   try {
     const landingPage = await getLandingPageByUser(subdomain);
+
+    const mainOverlayColor = blendColors(
+      landingPage.bg_theme.includes("#") ? landingPage.bg_theme : "#1e0033" // fallback if using gradient
+    );
 
     // --- 1️⃣ Default “coming soon” fallback
     if (!landingPage) {
@@ -44,9 +49,14 @@ router.get("/", async (req, res) => {
       ? landingPage.content_blocks
       : [];
 
+    const hasBanner = blocks.some((b) => b.type === "offer_banner");
+
     // --- 4️⃣ Build HTML from parsed blocks
     try {
-      contentHTML = blocks
+      // 🧹 Remove offer_banner from normal rendering so it only appears at the top
+      const filteredBlocks = blocks.filter((b) => b.type !== "offer_banner");
+
+      contentHTML = filteredBlocks
         .map((block) => {
           const padding = block.padding || 20;
 
@@ -179,45 +189,250 @@ router.get("/", async (req, res) => {
                 videoUrl.includes("youtu.be")
               ) {
                 embedHTML = `<iframe 
-        src="${videoUrl.replace("watch?v=", "embed/")}" 
-        title="YouTube video" 
-        style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
-        allow="autoplay; fullscreen"
-        allowfullscreen
-      ></iframe>`;
+      src="${videoUrl.replace("watch?v=", "embed/")}" 
+      title="YouTube video" 
+      style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
+      allow="autoplay; fullscreen"
+      allowfullscreen
+    ></iframe>`;
               } else if (videoUrl.includes("vimeo.com")) {
                 embedHTML = `<iframe 
-        src="${videoUrl.replace("vimeo.com", "player.vimeo.com/video")}" 
-        title="Vimeo video" 
-        style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
-        allow="autoplay; fullscreen"
-        allowfullscreen
-      ></iframe>`;
+      src="${videoUrl.replace("vimeo.com", "player.vimeo.com/video")}" 
+      title="Vimeo video" 
+      style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
+      allow="autoplay; fullscreen"
+      allowfullscreen
+    ></iframe>`;
               } else {
                 embedHTML = `<video 
-        src="${videoUrl}" 
-        ${autoplay} ${loop} ${muted} 
-        controls 
-        style="width:100%;max-width:800px;display:block;margin:0 auto;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
-      ></video>`;
+      src="${videoUrl}" 
+      ${autoplay} ${loop} ${muted} 
+      controls 
+      style="width:100%;max-width:800px;display:block;margin:0 auto;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.35);" 
+    ></video>`;
               }
 
               return `
     <div style="
       text-align:center;
       padding-bottom:${videoPadding}px;
-      margin-top:30px;
+      margin-top:40px;
     ">
-      ${embedHTML}
       ${
         caption
-          ? `<p style="margin-top:12px;font-size:0.95rem;color:${
-              landingPage.font_color_p || "#DDD"
-            };font-style:italic;">${caption}</p>`
+          ? `<p style="
+                margin-bottom:16px;
+                font-size:1.1rem;
+                color:${landingPage.font_color_h1 || "#FFFFFF"};
+                font-weight:700;
+                text-transform:uppercase;
+                text-align:center;
+                letter-spacing:0.5px;
+              ">${caption}</p>`
           : ""
       }
+      ${embedHTML}
     </div>
   `;
+
+            case "divider":
+
+            case "spacer":
+              const dividerHeight = block.height || 40;
+              const dividerStyle = block.style || "line";
+              const dividerColor = block.color || "rgba(255,255,255,0.2)";
+              const dividerWidth = block.width || "60%";
+
+              if (dividerStyle === "space") {
+                return `<div style="height:${dividerHeight}px;"></div>`;
+              }
+
+              return `
+    <hr style="
+      border: none;
+      border-top: 1px solid ${dividerColor};
+      width: ${dividerWidth};
+      margin: ${dividerHeight / 2}px auto;
+      opacity: 0.6;
+    " />
+  `;
+
+            case "offer_banner":
+              const bannerBg = block.use_gradient
+                ? `linear-gradient(${block.gradient_direction || "90deg"}, ${
+                    block.gradient_start || "#F285C3"
+                  }, ${block.gradient_end || "#7bed9f"})`
+                : block.bg_color || "#F285C3";
+
+              const buttonBg = bannerBg;
+
+              return `
+    <div style="
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      background:${bannerBg};
+      color:${block.text_color || "#fff"};
+      text-align:center;
+      padding:${block.padding || 40}px 20px;
+      font-weight:600;
+      font-size:1.2rem;
+      line-height:1.5;
+
+      /* ✅ FINAL VERSION THAT WILL SHOW ROUNDED TOP CORNERS */
+position: relative;
+top: -60px;                         /* rise into main’s top curve */
+margin: 0 -30px -20px;              /* align to edges */
+border-radius: 24px 24px 0 0;       /* top corners rounded */
+overflow: hidden;                   /* clip the gradient inside */
+-webkit-mask-image: -webkit-radial-gradient(white, black); /* Safari fix */
+background-clip: padding-box;
+-webkit-background-clip: padding-box; /* Safari fix */
+isolation: isolate;                 /* ensures z-index and clipping work */
+z-index: 5;
+box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+
+      z-index: 2;
+    ">
+      <div style="max-width:800px;margin:0 auto;">
+        <p style="
+          font-size:1.5rem;
+          font-weight:700;
+          margin:0 0 22px;
+          text-align:center;
+          color:${block.text_color || "#fff"};
+        ">
+          ${block.text || "🔥 Limited Time Offer! Get your free eBook today!"}
+        </p>
+
+        ${
+          block.link_text && block.link_url
+            ? `<a href="${block.link_url}" target="_blank" rel="noopener noreferrer"
+                style="
+                  display:inline-block;
+                  background:${buttonBg};
+                  color:#fff;
+                  padding:14px 32px;
+                  border-radius:10px;
+                  font-weight:700;
+                  font-size:1rem;
+                  text-decoration:none;
+                  box-shadow:0 4px 15px rgba(0,0,0,0.3);
+                  transition:transform 0.25s ease;
+                "
+                onmouseover="this.style.transform='scale(1.05)'"
+                onmouseout="this.style.transform='scale(1)'"
+              >
+                ${block.link_text}
+              </a>`
+            : ""
+        }
+      </div>
+    </div>
+  `;
+
+            case "calendly":
+              if (!block.calendly_url) return "";
+
+              const calendlyHeight = block.height || 700;
+              const title = block.title || "Book a Call";
+              const titleColor = block.title_color || "#FFFFFF"; // default white
+
+              return `
+    <div style="
+      text-align:center;
+      padding-bottom:${padding || 40}px;
+      margin-top:40px;
+    ">
+      <p style="
+        margin-bottom:16px;
+        font-size:1.5rem;
+        font-weight:700;
+        color:${titleColor};
+        text-align:center;
+        text-transform:none;
+      ">
+        ${title}
+      </p>
+      <iframe
+        src="${block.calendly_url}"
+        title="Calendly Booking"
+        style="
+          width:100%;
+          max-width:400px;
+          height:${calendlyHeight}px;
+          border:none;
+          border-radius:12px;
+          box-shadow:0 4px 20px rgba(0,0,0,0.35);
+        "
+        loading="lazy"
+      ></iframe>
+    </div>
+  `;
+
+            case "social_links": {
+              const align = block.alignment || "center";
+              const iconStyle = block.icon_style || "color";
+              const iconColor = block.icon_color || "#ffffff";
+              const links = block.links || {};
+
+              const iconSet = {
+                instagram:
+                  "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/instagram.svg",
+                threads:
+                  "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/threads.svg",
+                twitter:
+                  "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/x.svg",
+                youtube:
+                  "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/youtube.svg",
+                linkedin:
+                  "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/linkedin.svg",
+                facebook:
+                  "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/facebook.svg",
+                tiktok:
+                  "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg",
+              };
+
+              const renderedIcons = Object.entries(links)
+                .filter(([platform, url]) => url && iconSet[platform])
+                .map(
+                  ([platform, url]) => `
+        <a href="${url}" target="_blank" rel="noopener noreferrer"
+          style="
+            display:inline-block;
+            width:24px;
+            height:24px;
+            margin:0 10px;
+            transition:transform 0.2s ease, opacity 0.2s ease;
+            text-decoration:none;
+          "
+          onmouseover="this.style.transform='scale(1.1)';this.style.opacity='0.9';"
+          onmouseout="this.style.transform='scale(1)';this.style.opacity='1';"
+        >
+          <div
+            style="
+              width:100%;
+              height:100%;
+              -webkit-mask:url(${iconSet[platform]}) no-repeat center / contain;
+              mask:url(${iconSet[platform]}) no-repeat center / contain;
+              background-color:${iconStyle === "mono" ? "#ffffff" : iconColor};
+              transition:transform 0.2s ease;
+            "
+          ></div>
+        </a>`
+                )
+                .join("");
+
+              return `
+    <div style="
+      text-align:${align};
+      padding:40px 0 60px;
+    ">
+      ${renderedIcons}
+    </div>
+  `;
+            }
 
             default:
               return "";
@@ -234,6 +449,104 @@ router.get("/", async (req, res) => {
       coverImageUrl = await getCoverImageByPdfUrl(landingPage.pdf_url);
     }
     landingPage.cover_image_url = coverImageUrl;
+
+    // ✅ Move offer_banner above cover image automatically
+    let bannerHTML = "";
+    if (blocks.some((b) => b.type === "offer_banner")) {
+      // extract only the banner parts
+      bannerHTML = blocks
+        .filter((b) => b.type === "offer_banner")
+        .map((b) => {
+          // reuse your existing switch logic
+          const bannerBg = b.match_main_bg
+            ? mainOverlayColor // 👈 matches the content div overlay color
+            : b.use_gradient
+            ? `linear-gradient(${b.gradient_direction || "90deg"}, ${
+                b.gradient_start || "#F285C3"
+              }, ${b.gradient_end || "#7bed9f"})`
+            : b.bg_color || "#F285C3";
+
+          const buttonBg = bannerBg;
+          return `
+        <div style="
+          display:flex;
+          flex-direction:column;
+          justify-content:center;
+          align-items:center;
+          background:${bannerBg};
+          color:${b.text_color || "#fff"};
+          text-align:center;
+          padding:${b.padding || 50}px 20px;
+          font-weight:600;
+          font-size:1.2rem;
+          line-height:1.5;
+          margin:0 -30px 40px;
+          border-radius: 24px 24px 0 0;
+          box-shadow:0 6px 24px rgba(0,0,0,0.3);
+        ">
+          <div style="max-width:800px;margin:0 auto;">
+            <p style="
+              font-size:1.5rem;
+              font-weight:700;
+              margin:0 0 22px;
+              text-align:center;
+              color:${b.text_color || "#fff"};
+            ">
+              ${b.text || "🔥 Limited Time Offer! Get your free eBook today!"}
+            </p>
+            ${
+              b.link_text && b.link_url
+                ? `<a href="${b.link_url}" target="_blank" rel="noopener noreferrer"
+                    style="
+                      display:inline-block;
+                      background:${buttonBg};
+                      color:#fff;
+                      padding:14px 32px;
+                      border-radius:10px;
+                      font-weight:700;
+                      font-size:1rem;
+                      text-decoration:none;
+                      box-shadow:0 4px 15px rgba(0,0,0,0.3);
+                      transition:transform 0.25s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)'"
+                    onmouseout="this.style.transform='scale(1)'"
+                  >
+                    ${b.link_text}
+                  </a>`
+                : ""
+            }
+          </div>
+        </div>
+      `;
+        })
+        .join("");
+    }
+
+    function isDarkColor(hex) {
+      if (!hex || !hex.startsWith("#")) return true; // default dark
+      const h = hex.replace("#", "");
+      const bigint = parseInt(
+        h.length === 3
+          ? h
+              .split("")
+              .map((x) => x + x)
+              .join("")
+          : h,
+        16
+      );
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      return brightness < 128; // true if dark
+    }
+
+    const visualColor = landingPage.bg_theme?.includes("#")
+      ? landingPage.bg_theme
+      : mainOverlayColor; // use overlay for gradients
+
+    const footerTextColor = isDarkColor(visualColor) ? "#ffffff" : "#000000";
 
     // --- 4️⃣ Render HTML with your new blocks injected
     res.send(`
@@ -311,13 +624,17 @@ header .cover {
   main {
     max-width: 850px;
     margin: 60px auto;
-    padding: 60px 30px 100px;
+    padding: 0px 30px 100px;
     text-align: center;
-    background: rgba(255,255,255,0.04);
+    background: ${mainOverlayColor};
     backdrop-filter: blur(6px);
     border-radius: 24px;
     box-shadow: 0 4px 25px rgba(0,0,0,0.15);
   }
+
+  main {
+  overflow: visible; /* ✅ allows banner to rise above padding visually */
+}
 
  h1, h2, h3 {
   max-width: 700px;
@@ -435,6 +752,30 @@ p {
   font-style: normal; /* optional */
 }
 
+main {
+  position: relative;
+  min-height: 100vh;
+}
+
+main p.powered {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  text-align: center;
+}
+
+.cover-wrapper {
+  padding-top: 50px;   /* 👈 Adjust this value until it looks right */
+}
+
+div[style*="linear-gradient"] {
+  border-radius: inherit;
+  overflow: hidden;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+}
+
   /* Responsive */
   @media (max-width: 768px) {
     main {
@@ -456,6 +797,10 @@ p {
     h2 { font-size: 1.5rem; }
     p  { font-size: 1rem; }
     input[type="email"], button { width: 100%; margin: 6px 0; }
+
+    .cover-wrapper {
+    padding-top: 30px;   /* smaller gap on mobile */
+  }
   }
 @media (max-width: 600px) {
   form {
@@ -469,6 +814,7 @@ button {
   box-sizing: border-box;  /* ✅ NEW - prevents off-screen padding overflow */
 }
 }
+
 
 </style>
 
@@ -484,19 +830,27 @@ button {
 
   
 </header>
+
   <main>
-  ${
-    landingPage.cover_image_url
-      ? `<img src="${landingPage.cover_image_url}" alt="Cover" class="cover-image" />`
-      : ""
-  }
+  ${bannerHTML}
+${
+  landingPage.cover_image_url
+    ? `
+      <div class="cover-wrapper">
+        <img src="${landingPage.cover_image_url}" alt="Cover" class="cover-image" />
+      </div>
+    `
+    : ""
+}
 
     ${
       contentHTML ||
       "<h1>Welcome to My Page</h1><p>Start customizing your content.</p>"
     }
 
-    ${landingPage.show_download_button ? `
+    ${
+      landingPage.show_download_button
+        ? `
   <form id="leadForm">
     <input type="hidden" name="landingPageId" value="${landingPage.id}" />
     <input type="email" name="email" placeholder="Email address" required />
@@ -507,7 +861,9 @@ button {
      style="display:none;color:white;margin-top:30px;font-size:1.1rem;text-align:center;">
     🎁 Check your inbox for the download link!
   </p>
-` : ""}
+`
+        : ""
+    }
 
 
 <script>
@@ -548,8 +904,58 @@ document.getElementById("leadForm").addEventListener("submit", async (e) => {
           ? `<footer><em>${landingPage.email_thank_you_msg}</em></footer>`
           : ""
       }
+     <p class="powered" style="color:${footerTextColor}">
+  Powered by 
+  <a 
+    href="https://cre8tlystudio.com" 
+    target="_blank" 
+    rel="noopener noreferrer"
+    style="color:${footerTextColor};text-decoration:none;font-weight:bold;"
+  >
+    Cre8tly Studio
+  </a>
+</p>
+
     </footer>
   </main>
+  <footer style="
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:25px 50px;
+  font-size:0.85rem;
+  background:rgba(0,0,0,0.3);
+  backdrop-filter:blur(6px);
+  color:${footerTextColor};
+  border-top:1px solid rgba(255,255,255,0.05);
+">
+  <span style="flex:1;text-align:left;opacity:0.7;">
+    © ${new Date().getFullYear()} Alure Digital. All rights reserved
+  </span>
+
+  <div style="text-align:right;opacity:0.8;">
+    <a href="https://cre8tlystudio.com/terms" target="_blank" rel="noopener noreferrer"
+       style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
+      Terms
+    </a> |
+    <a href="https://cre8tlystudio.com/privacy-policy" target="_blank" rel="noopener noreferrer"
+       style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
+      Privacy
+    </a> |
+    <a href="https://cre8tlystudio.com/cookies-policy" target="_blank" rel="noopener noreferrer"
+       style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
+      Cookies
+    </a> |
+    <a href="https://cre8tlystudio.com/refund-policy" target="_blank" rel="noopener noreferrer"
+       style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
+      Refunds
+    </a>
+  </div>
+</footer>
+
+
 </body>
 
       </html>
@@ -836,6 +1242,5 @@ router.get("/leads", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
 
 export default router;
