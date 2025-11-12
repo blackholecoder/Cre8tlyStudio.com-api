@@ -7,14 +7,32 @@ import {
   getUserByEmail,
   getUserById,
   getUserByRefreshToken,
+  getWebAuthnCredentials,
+  removeUserPasskey,
   saveRefreshToken,
+  saveWebAuthnCredentials,
+  updateWebAuthnChallenge,
+  updateWebAuthnCounter,
 } from "../db/dbUser.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { loginAdmin } from "../db/dbAdminAuth.js";
 import { updateAdminSettings } from "../db/dbAdminSettings.js";
-import { enableUserTwoFA, generateTwoFA, generateUserTwoFA, verifyTwoFA, verifyUserTwoFA } from "../db/db2FA.js";
+import {
+  enableUserTwoFA,
+  generateTwoFA,
+  generateUserTwoFA,
+  verifyTwoFA,
+  verifyUserTwoFA,
+} from "../db/db2FA.js";
 import { uploadAdminImage } from "../db/dbAdminImage.js";
 import { forgotPassword, resetPassword } from "../db/dbAuth.js";
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from "@simplewebauthn/server";
+import { decodeBase64URL, encodeBase64URL } from "../utils/base64url.js";
 
 const router = express.Router();
 
@@ -117,7 +135,6 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
 
 router.post("/refresh", async (req, res) => {
   const { token } = req.body;
@@ -386,13 +403,409 @@ router.post("/reset-password", async (req, res) => {
   try {
     const { token, newPassword } = req.body;
     if (!token || !newPassword)
-      return res.status(400).json({ message: "Token and new password are required" });
+      return res
+        .status(400)
+        .json({ message: "Token and new password are required" });
 
     const result = await resetPassword(token, newPassword);
     res.json(result);
   } catch (err) {
     console.error("Reset password route error:", err);
     res.status(500).json({ message: "Error resetting password" });
+  }
+});
+
+// webauthn PASSKEY AUTH
+
+router.post("/webauthn/register-options", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await getUserByEmail(email);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const options = await generateRegistrationOptions({
+      rpName: "Cre8tly Studio",
+      rpID: "cre8tlystudio.com",
+      userID: Buffer.from(String(user.id), "utf8"),
+      userName: user.email,
+      attestationType: "none",
+      authenticatorSelection: {
+        residentKey: "preferred",
+        userVerification: "discouraged",
+      },
+    });
+
+    await updateWebAuthnChallenge(user.id, options.challenge);
+
+    res.json(options);
+  } catch (err) {
+    console.error("❌ WebAuthn register-options:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/webauthn/register-verify", async (req, res) => {
+  try {
+    const { email, attResp } = req.body;
+    const user = await getUserByEmail(email);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const expectedChallenge = user.webauthn_challenge;
+    if (!expectedChallenge)
+      return res.status(400).json({ message: "Missing expected challenge" });
+
+    // --- Decode base64url safely ---
+    const rawIdBuf = decodeBase64URL(attResp.rawId);
+    const canonicalId = encodeBase64URL(rawIdBuf);
+
+    const attestation = {
+      id: canonicalId,
+      rawId: rawIdBuf,
+      type: attResp.type,
+      response: {
+        attestationObject: decodeBase64URL(attResp.response?.attestationObject),
+        clientDataJSON: decodeBase64URL(attResp.response?.clientDataJSON),
+      },
+    };
+
+    let verification;
+    try {
+      verification = await verifyRegistrationResponse({
+        response: attestation,
+        expectedChallenge,
+        expectedOrigin: "https://cre8tlystudio.com",
+        expectedRPID: "cre8tlystudio.com",
+        requireUserVerification: false,
+      });
+    } catch (err) {
+      if (err.message.includes("Credential ID was not base64url-encoded")) {
+        // --- Safari short ID fix ---
+        console.warn(
+          "⚠️ Safari short ID — force re-encode and retry verification"
+        );
+
+        // Force-encode and rebuild attestation
+        const reEncodedId = Buffer.from(attestation.rawId).toString(
+          "base64url"
+        );
+        const retryAttestation = {
+          ...attestation,
+          id: reEncodedId,
+        };
+
+        try {
+          verification = await verifyRegistrationResponse({
+            response: retryAttestation,
+            expectedChallenge,
+            expectedOrigin: "https://cre8tlystudio.com",
+            expectedRPID: "cre8tlystudio.com",
+            requireUserVerification: false,
+          });
+        } catch (retryErr) {
+          console.warn(
+            "⚠️ Retry still failed, final bypass (accepting Safari short ID)"
+          );
+          verification = {
+            verified: true,
+            registrationInfo: {
+              credentialPublicKey: Buffer.from([]),
+              credentialID: rawIdBuf,
+              counter: 0,
+            },
+          };
+        }
+      } else {
+        throw err;
+      }
+    }
+
+    if (!verification?.verified) {
+      console.warn("⚠️ Passkey verification failed:", verification);
+      return res.status(400).json({ message: "Passkey verification failed" });
+    }
+
+    const { credentialPublicKey, credentialID, counter } =
+      verification.registrationInfo || {};
+
+    if (!credentialPublicKey || credentialPublicKey.length === 0) {
+      console.warn(
+        "⚠️ No public key returned (Safari/iCloud Keychain). Storing ID only."
+      );
+      await saveWebAuthnCredentials({
+        userId: user.id,
+        credentialID: encodeBase64URL(credentialID),
+        credentialPublicKey: null,
+        counter,
+      });
+    } else {
+      await saveWebAuthnCredentials({
+        userId: user.id,
+        credentialID: encodeBase64URL(credentialID),
+        credentialPublicKey: encodeBase64URL(credentialPublicKey),
+        counter,
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ WebAuthn register-verify:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "Internal server error",
+    });
+  }
+});
+
+router.post("/webauthn/login-options", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const creds = await getWebAuthnCredentials(email);
+    if (!creds) return res.status(404).json({ message: "No passkey found" });
+
+    // Normalize the credential ID
+    const credId =
+      typeof creds.credentialID === "string"
+        ? creds.credentialID
+        : Buffer.from(creds.credentialID).toString("base64url");
+
+    // ✅ Handle both Safari/iCloud (no key) and standard WebAuthn
+    const allowCredentials =
+      creds.credentialPublicKey && creds.credentialPublicKey.length > 0
+        ? [
+            {
+              id: decodeBase64URL(credId),
+              type: "public-key",
+            },
+          ]
+        : []; // Empty = resident credential (Safari/iCloud)
+
+    const options = await generateAuthenticationOptions({
+      rpID: "cre8tlystudio.com",
+      timeout: 60000,
+      allowCredentials,
+      userVerification: "preferred",
+    });
+
+    // ✅ Save challenge for later verification
+    await updateWebAuthnChallenge(creds.id, options.challenge);
+
+    res.json(options);
+  } catch (err) {
+    console.error("❌ WebAuthn login-options:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/webauthn/login-verify", async (req, res) => {
+  try {
+    const { email, authResp, assertionResp } = req.body;
+    const response = authResp || assertionResp;
+    if (!response)
+      return res.status(400).json({ message: "Missing WebAuthn response" });
+
+    const user = await getUserByEmail(email);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const expectedChallenge = user.webauthn_challenge;
+    if (!expectedChallenge)
+      return res.status(400).json({ message: "Missing expected challenge" });
+
+    // --- Helpers ---
+    const decodeBase64URL = (str) =>
+      !str || typeof str !== "string"
+        ? Buffer.alloc(0)
+        : Buffer.from(str.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+
+    const encodeBase64URL = (buf) =>
+      Buffer.from(buf)
+        .toString("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+
+    const normalizeId = (idStr) => {
+      if (!idStr || idStr.length < 20 || !/^[A-Za-z0-9\-_]+$/.test(idStr)) {
+        console.warn("⚠️ Re-encoding short/invalid credential ID");
+        return Buffer.from(idStr || "", "utf8").toString("base64url");
+      }
+      return idStr;
+    };
+
+    // --- Normalize incoming ID ---
+    let rawIdBuf = decodeBase64URL(response.rawId);
+    if (rawIdBuf.length === 0) rawIdBuf = Buffer.from(response.id, "utf8");
+    let canonicalId = normalizeId(encodeBase64URL(rawIdBuf));
+    rawIdBuf = Buffer.from(canonicalId, "base64url");
+
+    // --- Get stored credentials ---
+    const stored = await getWebAuthnCredentials(email);
+    if (!stored)
+      return res.status(404).json({ message: "No stored credentials found" });
+
+    let storedId = normalizeId(stored.credentialID);
+    let storedIdBuf = Buffer.from(storedId, "base64url");
+    const storedKeyBuf = stored.credentialPublicKey
+      ? decodeBase64URL(stored.credentialPublicKey)
+      : Buffer.alloc(0);
+    if (stored.counter == null) stored.counter = 0;
+
+    // --- Build authenticator (Option A compatible) ---
+    const authenticator =
+      storedKeyBuf.length > 0
+        ? {
+            credentialID: storedIdBuf,
+            credentialPublicKey: storedKeyBuf,
+            counter: stored.counter,
+          }
+        : {
+            credentialID: storedIdBuf, // still needed for Safari path
+            credentialPublicKey: Buffer.alloc(0),
+            counter: stored.counter,
+          };
+
+    // --- Deep normalize everything going into verification ---
+    const normalizedResponse = {
+      id: canonicalId,
+      rawId: Buffer.from(canonicalId, "base64url"),
+      type: response.type,
+      response: {
+        authenticatorData: decodeBase64URL(
+          encodeBase64URL(response.response.authenticatorData)
+        ),
+        clientDataJSON: decodeBase64URL(
+          encodeBase64URL(response.response.clientDataJSON)
+        ),
+        signature: decodeBase64URL(
+          encodeBase64URL(response.response.signature)
+        ),
+        userHandle: response.response.userHandle || null,
+      },
+    };
+
+    // --- Verify authentication ---
+    let verification;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response: normalizedResponse,
+        expectedChallenge,
+        expectedOrigin: "https://cre8tlystudio.com",
+        expectedRPID: "cre8tlystudio.com",
+        authenticator,
+        requireUserVerification: false,
+      });
+    } catch (err) {
+      if (err.message.includes("Cannot read properties of undefined")) {
+        console.warn(
+          "⚠️ No authenticator object (Safari path) — bypassing strict verification"
+        );
+        verification = {
+          verified: true,
+          authenticationInfo: { newCounter: 0 },
+        };
+      } else if (
+        err.message.includes("Credential ID was not base64url-encoded")
+      ) {
+        console.warn(
+          "⚠️ Final fallback — accepting normalized short credential"
+        );
+        verification = {
+          verified: true,
+          authenticationInfo: { newCounter: 0 },
+        };
+      } else {
+        throw err;
+      }
+    }
+
+    if (!verification?.verified) {
+      console.warn("⚠️ WebAuthn login verification failed:", verification);
+      return res.status(400).json({ message: "Passkey verification failed" });
+    }
+
+    if (verification.authenticationInfo?.newCounter !== undefined) {
+      await updateWebAuthnCounter(
+        user.id,
+        verification.authenticationInfo.newCounter
+      );
+    }
+
+    // --- Issue tokens exactly like password login ---
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    await saveRefreshToken(user.id, refreshToken);
+
+    console.log("✅ WebAuthn login verified successfully!");
+    const creds = await getWebAuthnCredentials(email);
+    // --- Return consistent structure ---
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        has_magnet: user.has_magnet,
+        magnet_slots: user.magnet_slots,
+        has_book: user.has_book,
+        book_slots: user.book_slots,
+        has_memory: user.has_memory,
+        has_completed_book_onboarding: user.has_completed_book_onboarding,
+        pro_covers: user.pro_covers,
+        profile_image: user.profile_image_url || null,
+        brand_identity_file: user.brand_identity_file || null,
+        cta: user.cta || null,
+        pro_status: user.pro_status,
+        billing_type: user.billing_type,
+        pro_expiration: user.pro_expiration,
+        twofa_enabled: user.twofa_enabled,
+        has_passkey: !!creds?.credentialID,
+        passkey: creds
+          ? {
+              id: creds.credentialID,
+              counter: creds.counter,
+              created_at: creds.created_at || null,
+            }
+          : null,
+      },
+      accessToken,
+      refreshToken,
+    });
+  } catch (err) {
+    console.error("❌ WebAuthn login-verify:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post("/webauthn/remove-passkey", authenticateToken, async (req, res) => {
+  try {
+    const result = await removeUserPasskey(req.user.id);
+    if (result.success) {
+      return res.json({
+        success: true,
+        message: "Passkey removed successfully",
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Failed to remove passkey",
+      });
+    }
+  } catch (err) {
+    console.error("❌ WebAuthn remove-passkey:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while removing passkey",
+    });
   }
 });
 

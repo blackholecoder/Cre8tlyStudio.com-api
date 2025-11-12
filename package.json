@@ -19,6 +19,7 @@
     "nodemon": "^2.0.21"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.2.2",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",

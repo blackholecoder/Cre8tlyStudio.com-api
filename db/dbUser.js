@@ -113,7 +113,10 @@ export async function getUserByEmail(email) {
          has_free_magnet,
          is_free_user,
          free_trial_expires_at,
-         twofa_enabled
+         twofa_enabled,
+         webauthn_challenge,          
+         webauthn_id,                 
+         webauthn_public_key
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -460,6 +463,118 @@ export async function deactivateBusinessBuilder(email) {
     await db.end();
   } catch (err) {
     console.error("❌ deactivateBusinessBuilder failed:", err.message);
+    await db.end();
+  }
+}
+
+// PASSKEYS FUNCTIONS
+
+export async function updateWebAuthnChallenge(userId, challenge) {
+  const db = await connect();
+  try {
+    await db.query(
+      "UPDATE users SET webauthn_challenge = ? WHERE id = ?",
+      [challenge, userId]
+    );
+  } catch (err) {
+    console.error("❌ Error in updateWebAuthnChallenge:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
+}
+
+// 🔹 Store the user’s credential public key and related data
+export async function saveWebAuthnCredentials({
+  userId,
+  credentialID,
+  credentialPublicKey,
+  counter,
+}) {
+  const db = await connect();
+  try {
+    await db.query(
+      `UPDATE users SET 
+        webauthn_id = ?, 
+        webauthn_public_key = ?, 
+        webauthn_counter = ? 
+       WHERE id = ?`,
+      [credentialID, credentialPublicKey, counter, userId]
+    );
+
+    // ✅ Mark user as having a passkey
+    await db.query("UPDATE users SET has_passkey = 1 WHERE id = ?", [userId]);
+
+  } catch (err) {
+    console.error("❌ Error in saveWebAuthnCredentials:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
+}
+
+
+// 🔹 Retrieve a user's WebAuthn credential info by email
+export async function getWebAuthnCredentials(email) {
+  const db = await connect();
+  try {
+    const [rows] = await db.query(
+      `SELECT 
+         id AS id, 
+         webauthn_id AS credentialID, 
+         webauthn_public_key AS credentialPublicKey, 
+         COALESCE(webauthn_counter, 0) AS counter,
+         webauthn_challenge AS challenge
+       FROM users 
+       WHERE email = ? AND webauthn_id IS NOT NULL 
+       LIMIT 1`,
+      [email]
+    );
+    console.log("🧩 getWebAuthnCredentials result:", rows[0]);
+    return rows[0] || null;
+  } catch (err) {
+    console.error("❌ Error in getWebAuthnCredentials:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
+}
+
+
+
+// 🔹 Update WebAuthn counter after successful authentication
+export async function updateWebAuthnCounter(userId, newCounter) {
+  const db = await connect();
+  try {
+    await db.query(
+      "UPDATE users SET webauthn_counter = ? WHERE id = ?",
+      [newCounter, userId]
+    );
+  } catch (err) {
+    console.error("❌ Error in updateWebAuthnCounter:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
+}
+
+export async function removeUserPasskey(userId) {
+  const db = await connect();
+  try {
+    await db.query(
+      `UPDATE users 
+       SET webauthn_id = NULL, 
+           webauthn_public_key = NULL, 
+           webauthn_counter = 0, 
+           has_passkey = 0 
+       WHERE id = ?`,
+      [userId]
+    );
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Error in removeUserPasskey:", err);
+    throw err;
+  } finally {
     await db.end();
   }
 }
