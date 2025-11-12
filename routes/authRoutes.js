@@ -12,7 +12,7 @@ import {
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { loginAdmin } from "../db/dbAdminAuth.js";
 import { updateAdminSettings } from "../db/dbAdminSettings.js";
-import { generateTwoFA, verifyTwoFA } from "../db/db2FA.js";
+import { enableUserTwoFA, generateTwoFA, generateUserTwoFA, verifyTwoFA, verifyUserTwoFA } from "../db/db2FA.js";
 import { uploadAdminImage } from "../db/dbAdminImage.js";
 import { forgotPassword, resetPassword } from "../db/dbAuth.js";
 
@@ -41,24 +41,39 @@ router.post("/signup", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-
   try {
     const { email, password } = req.body;
 
     const user = await getUserByEmail(email);
-
     if (!user) {
       console.log("❌ No user found");
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
-
     if (!isMatch) {
       console.log("❌ Password mismatch");
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    // 🧩 Step 1: Check if 2FA is enabled for this account
+    if (user.twofa_enabled) {
+      // issue a short-lived temporary token (2 minutes)
+      const twofaToken = jwt.sign(
+        { id: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "2m" }
+      );
+
+      // don't log them in yet — prompt frontend for 2FA code
+      return res.json({
+        requires2FA: true,
+        twofaToken,
+        message: "Two-factor authentication required",
+      });
+    }
+
+    // 🧩 Step 2: If 2FA is not enabled, proceed as usual
     const accessToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
@@ -92,6 +107,7 @@ router.post("/login", async (req, res) => {
         pro_status: user.pro_status,
         billing_type: user.billing_type,
         pro_expiration: user.pro_expiration,
+        twofa_enabled: user.twofa_enabled,
       },
       accessToken,
       refreshToken,
@@ -101,6 +117,7 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 router.post("/refresh", async (req, res) => {
   const { token } = req.body;
@@ -170,13 +187,71 @@ router.get("/me", authenticateToken, async (req, res) => {
 
       // 🆓 Free trial fields
       has_free_magnet: user.has_free_magnet || 0,
+      is_free_user: user.is_free_user || 0,
       free_trial_expires_at: user.free_trial_expires_at || null,
       trialExpired,
       trial_days_remaining: user.trial_days_remaining || null,
+      twofa_enabled: user.twofa_enabled || 0,
     });
   } catch (err) {
     console.error("❌ Error in /me:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// For regular users
+router.post("/user/enable-2fa", authenticateToken, async (req, res) => {
+  try {
+    const result = await generateUserTwoFA(req.user.id);
+    res.json(result);
+  } catch (err) {
+    console.error("User 2FA enable error:", err);
+    res.status(500).json({ message: err.message || "Failed to enable 2FA" });
+  }
+});
+
+router.post("/user/verify-login-2fa", async (req, res) => {
+  try {
+    const { token, twofaToken } = req.body;
+    const jwtPayload = jwt.verify(twofaToken, process.env.JWT_SECRET);
+
+    // ✅ Verify user code
+    const result = await verifyUserTwoFA(jwtPayload.id, token);
+    if (!result.verified) throw new Error("Invalid 2FA code");
+
+    // ✅ Get user details
+    const user = await getUserById(jwtPayload.id);
+
+    // ✅ Generate tokens
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // ✅ Store refresh token
+    await saveRefreshToken(user.id, refreshToken);
+
+    // ✅ Mark 2FA as enabled (if not already)
+    await enableUserTwoFA(user.id);
+
+    // ✅ Send both tokens back for frontend AuthContext.saveAuth()
+    res.json({
+      success: true,
+      message: "2FA verified successfully",
+      user,
+      accessToken,
+      refreshToken,
+    });
+  } catch (err) {
+    console.error("2FA verify error:", err);
+    res.status(400).json({ success: false, message: err.message });
   }
 });
 

@@ -25,7 +25,7 @@ router.get("/", async (req, res) => {
   try {
     const landingPage = await getLandingPageByUser(subdomain);
 
-     // --- 1️⃣ Default “coming soon” fallback
+    // --- 1️⃣ Default “coming soon” fallback
     if (!landingPage) {
       return res.send("<h1>Coming soon</h1>");
     }
@@ -33,8 +33,6 @@ router.get("/", async (req, res) => {
     const mainOverlayColor = blendColors(
       landingPage.bg_theme.includes("#") ? landingPage.bg_theme : "#1e0033" // fallback if using gradient
     );
-
-   
 
     // --- 2️⃣ Extract core properties
 
@@ -433,6 +431,80 @@ box-shadow: 0 6px 24px rgba(0,0,0,0.3);
     ">
       ${renderedIcons}
     </div>
+  `;
+            }
+
+            case "countdown": {
+              const label = block.text || "Offer Ends In:";
+              const variant = block.style_variant || "minimal";
+              const targetDate = block.target_date || null;
+
+              if (!targetDate) return "";
+
+              // Determine accent color from bg_theme
+              const getAccentColor = () => {
+                const theme = landingPage.bg_theme || "";
+                if (theme.includes("emerald")) return "#10b981";
+                if (theme.includes("purple") || theme.includes("royal"))
+                  return "#8b5cf6";
+                if (theme.includes("pink") || theme.includes("rose"))
+                  return "#ec4899";
+                if (theme.includes("yellow") || theme.includes("amber"))
+                  return "#facc15";
+                if (theme.includes("blue")) return "#3b82f6";
+                if (theme.includes("red")) return "#ef4444";
+                return "#10b981";
+              };
+              const accent = getAccentColor();
+
+              // Minimal inline CSS for countdown
+              const styleMap = {
+                minimal: `
+      font-size:2rem;
+      font-family:monospace;
+      letter-spacing:2px;
+      color:${landingPage.font_color_h1 || "#fff"};
+    `,
+                boxed: `
+      display:inline-block;
+      background:rgba(0,0,0,0.3);
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:10px;
+      padding:16px 30px;
+      font-size:1.8rem;
+      font-family:monospace;
+      color:${landingPage.font_color_h1 || "#fff"};
+    `,
+                glow: `
+      font-size:2rem;
+      font-family:monospace;
+      letter-spacing:2px;
+      color:${accent};
+      text-shadow:0 0 12px ${accent};
+      animation:pulseGlow 2s infinite;
+    `,
+              };
+
+              return `
+  <div style="text-align:center;padding:50px 0;">
+    <p style="font-weight:700;font-size:1.3rem;color:${
+      landingPage.font_color_h1 || "#fff"
+    };margin-bottom:10px;">
+      ${label}
+    </p>
+    <div 
+      id="countdown-${block.id || Math.random().toString(36).substring(2, 8)}" 
+      style="${styleMap[variant] || styleMap.minimal}"
+      data-target="${targetDate}"
+    >
+      00:00:00:00
+    </div>
+    <div style="color:${
+      landingPage.font_color_p || "#ccc"
+    };font-size:0.9rem;margin-top:8px;letter-spacing:1px;">
+      DAYS&nbsp;&nbsp;|&nbsp;&nbsp;HRS&nbsp;&nbsp;|&nbsp;&nbsp;MIN&nbsp;&nbsp;|&nbsp;&nbsp;SEC
+    </div>
+  </div>
   `;
             }
 
@@ -867,6 +939,48 @@ ${
         : ""
     }
 
+    <script>
+function initCountdowns() {
+  const elements = document.querySelectorAll('[id^="countdown-"]');
+  elements.forEach(el => {
+    const targetDate = new Date(el.dataset.target);
+    if (!targetDate) return;
+
+    const update = () => {
+      const now = new Date();
+      const diff = targetDate - now;
+      if (diff <= 0) {
+  el.textContent = "00:00:00:00";
+  el.style.opacity = "0.5";
+  el.style.transition = "opacity 1.5s ease";
+  setTimeout(() => el.parentElement.style.display = "none", 2000);
+  return;
+}
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diff / (1000 * 60)) % 60);
+      const s = Math.floor((diff / 1000) % 60);
+      el.textContent = 
+        String(d).padStart(2,"0")+":"+
+        String(h).padStart(2,"0")+":"+
+        String(m).padStart(2,"0")+":"+
+        String(s).padStart(2,"0");
+    };
+    update();
+    setInterval(update, 1000);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initCountdowns);
+</script>
+<style>
+@keyframes pulseGlow {
+  0%, 100% { text-shadow: 0 0 8px rgba(255,255,255,0.4); }
+  50% { text-shadow: 0 0 16px rgba(255,255,255,0.9); }
+}
+</style>
+
+
 
 <script>
 document.getElementById("leadForm").addEventListener("submit", async (e) => {
@@ -970,8 +1084,6 @@ document.getElementById("leadForm").addEventListener("submit", async (e) => {
 
 router.post("/landing-leads", async (req, res) => {
   try {
-
-
     const { landingPageId, email } = req.body;
 
     if (!landingPageId || !email) {

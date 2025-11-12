@@ -178,7 +178,20 @@ router.post("/prompt-builder", authenticateToken, async (req, res) => {
   console.log("🎯 Received prompt-builder data:", req.body);
 
   try {
-    // ✅ This already returns TONE TEXT (from pdf/txt) or null
+    // 🧩 1️⃣ Fetch user to determine tier
+    const user = await getUserById(req.user.id);
+    const isFreeTier = user?.has_free_magnet === 1 && user?.magnet_slots === 1;
+
+    // 🧩 2️⃣ Enforce 5-page cap for free users
+    if (isFreeTier) {
+      console.log(`🔒 Free-tier user detected (${user.email}) — enforcing limits.`);
+    }
+
+    // 🧩 3️⃣ Optional: Modify system prompt to reflect page limits
+    const wordGoal = isFreeTier
+      ? "around 1,000 words (maximum 5 pages)"
+      : "up to 2,500 words (or more if needed)";
+
     const brandTone = await getUserBrandFile(userId);
 
     const systemPrompt = `
@@ -192,6 +205,12 @@ Pain: ${pain}
 Promise: ${promise}
 Offer: ${offer || "none provided"}
 
+Guidelines:
+- The output should produce ${wordGoal}.
+- Never exceed this limit even if the user requests more.
+- Keep structure tight, concise, and impactful.
+- Match brand tone exactly if provided.
+
 ${
   brandTone && brandTone.trim()
     ? `Brand Tone and Style (match this exactly):\n${brandTone.slice(0, 8000)}`
@@ -202,6 +221,7 @@ Your output must be one clean, complete prompt ready for another AI system to us
 Do not include preamble or commentary — only output the generated GPT prompt text.
 `;
 
+    // 🧠 Log tone usage for debugging
     if (brandTone && brandTone.trim()) {
       console.log(
         `🗣️ Using brand tone for user ${userId} (${brandTone.length} chars)`
@@ -212,19 +232,30 @@ Do not include preamble or commentary — only output the generated GPT prompt t
       );
     }
 
-    // ✅ Pass the tone text to askGPT so it can blend voice at the system level
+    // ✅ Generate the GPT prompt (tone applied automatically)
     const gptResponse = await askGPT(systemPrompt, {
       debug: true,
       brandTone: brandTone || null,
     });
 
     const cleanPrompt = gptResponse.replace(/<[^>]*>?/gm, "").trim();
+
+    // 🧩 4️⃣ Optionally enforce soft word length check server-side
+    if (isFreeTier && cleanPrompt.split(" ").length > 1000) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Free-tier users are limited to approximately 5 pages (about 1,000 words). Please upgrade to generate longer content.",
+      });
+    }
+
     res.json({ prompt: cleanPrompt });
   } catch (err) {
     console.error("❌ Error building smart prompt:", err);
     res.status(500).json({ message: "Failed to generate smart prompt." });
   }
 });
+
 
 router.get("/prompt-memory/:userId", authenticateToken, async (req, res) => {
   try {

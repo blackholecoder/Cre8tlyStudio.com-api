@@ -2,8 +2,6 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 
-
-
 export async function createUser({ name, email, password }) {
   const db = await connect();
   const id = uuidv4();
@@ -44,6 +42,7 @@ export async function createUser({ name, email, password }) {
          SET has_magnet = 1,
              magnet_slots = 1,
              has_free_magnet = 1,
+             is_free_user = 1,
              free_trial_expires_at = ?
        WHERE id = ?`,
       [expiresAt, id]
@@ -110,7 +109,11 @@ export async function getUserByEmail(email) {
          cta,
          pro_status,
          billing_type,
-         pro_expiration
+         pro_expiration,
+         has_free_magnet,
+         is_free_user,
+         free_trial_expires_at,
+         twofa_enabled
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -128,13 +131,19 @@ export async function getUserByEmail(email) {
 
 export async function saveRefreshToken(userId, refreshToken) {
   const db = await connect();
-  await db.query("UPDATE users SET refresh_token=? WHERE id=?", [refreshToken, userId]);
+  await db.query("UPDATE users SET refresh_token=? WHERE id=?", [
+    refreshToken,
+    userId,
+  ]);
   await db.end();
 }
 
 export async function getUserByRefreshToken(refreshToken) {
   const db = await connect();
-  const [rows] = await db.query("SELECT * FROM users WHERE refresh_token=? LIMIT 1", [refreshToken]);
+  const [rows] = await db.query(
+    "SELECT * FROM users WHERE refresh_token=? LIMIT 1",
+    [refreshToken]
+  );
   await db.end();
   return rows[0] || null;
 }
@@ -170,8 +179,9 @@ export async function getUserById(id) {
          billing_type,
          pro_expiration,
         has_free_magnet,
+        is_free_user,
         free_trial_expires_at,
-         twofa_secret IS NOT NULL AS twofa_enabled
+        twofa_enabled 
        FROM users 
        WHERE id = ?`,
       [id]
@@ -179,19 +189,19 @@ export async function getUserById(id) {
 
     const user = rows[0] || null;
 
-   // 🔹 Add a derived field for frontend convenience
-   if (user?.free_trial_expires_at) {
-     const now = new Date();
-     const expires = new Date(user.free_trial_expires_at);
-     user.trial_expired = now > expires;
-     user.trial_days_remaining = Math.max(
-       0,
-       Math.ceil((expires - now) / (1000 * 60 * 60 * 24))
-     );
-   } else {
-     user.trial_expired = false;
-     user.trial_days_remaining = null;
-   }
+    // 🔹 Add a derived field for frontend convenience
+    if (user?.free_trial_expires_at) {
+      const now = new Date();
+      const expires = new Date(user.free_trial_expires_at);
+      user.trial_expired = now > expires;
+      user.trial_days_remaining = Math.max(
+        0,
+        Math.ceil((expires - now) / (1000 * 60 * 60 * 24))
+      );
+    } else {
+      user.trial_expired = false;
+      user.trial_days_remaining = null;
+    }
 
     return user;
   } catch (err) {
@@ -202,13 +212,14 @@ export async function getUserById(id) {
   }
 }
 
-
 export async function upgradeUserToProCovers(email) {
   const db = await connect();
 
   try {
     // Double-check the user exists before updating
-    const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [
+      email,
+    ]);
     if (!rows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
       await db.end();
@@ -286,7 +297,9 @@ export async function upgradeUserToMagnets(email) {
       [newSlots, email]
     );
 
-    console.log(`🎯 Upgraded ${email}: +5 lead magnet slots (total: ${newSlots}) and removed free tier.`);
+    console.log(
+      `🎯 Upgraded ${email}: +5 lead magnet slots (total: ${newSlots}) and removed free tier.`
+    );
     await db.end();
     return true;
   } catch (err) {
@@ -338,11 +351,13 @@ export async function upgradeUserToBundle(email) {
   }
 }
 
-
 export async function activatePromptMemory(email) {
   try {
     const db = await connect();
-    const [result] = await db.query("UPDATE users SET has_memory = 1 WHERE email = ?", [email]);
+    const [result] = await db.query(
+      "UPDATE users SET has_memory = 1 WHERE email = ?",
+      [email]
+    );
     await db.end();
 
     if (result.affectedRows === 0) {
@@ -351,7 +366,10 @@ export async function activatePromptMemory(email) {
       console.log(`✅ Activated Prompt Memory for ${email}`);
     }
   } catch (err) {
-    console.error(`❌ Error activating Prompt Memory for ${email}:`, err.message);
+    console.error(
+      `❌ Error activating Prompt Memory for ${email}:`,
+      err.message
+    );
     throw err;
   }
 }
@@ -359,7 +377,10 @@ export async function activatePromptMemory(email) {
 export async function deactivatePromptMemory(email) {
   try {
     const db = await connect();
-    const [result] = await db.query("UPDATE users SET has_memory = 0 WHERE email = ?", [email]);
+    const [result] = await db.query(
+      "UPDATE users SET has_memory = 0 WHERE email = ?",
+      [email]
+    );
     await db.end();
 
     if (result.affectedRows === 0) {
@@ -368,7 +389,10 @@ export async function deactivatePromptMemory(email) {
       console.log(`❌ Deactivated Prompt Memory for ${email}`);
     }
   } catch (err) {
-    console.error(`❌ Error deactivating Prompt Memory for ${email}:`, err.message);
+    console.error(
+      `❌ Error deactivating Prompt Memory for ${email}:`,
+      err.message
+    );
     throw err;
   }
 }
@@ -376,7 +400,9 @@ export async function deactivatePromptMemory(email) {
 export async function activateBusinessBuilder(email, billingCycle = "annual") {
   const db = await connect();
   try {
-    const [userRows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    const [userRows] = await db.query("SELECT id FROM users WHERE email = ?", [
+      email,
+    ]);
     if (!userRows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
       await db.end();
@@ -402,7 +428,9 @@ export async function activateBusinessBuilder(email, billingCycle = "annual") {
       [billingCycle, lockedUntil, lockedUntil, userId]
     );
 
-    console.log(`🏗️ Activated Business Builder Pack (${billingCycle}) for ${email}`);
+    console.log(
+      `🏗️ Activated Business Builder Pack (${billingCycle}) for ${email}`
+    );
 
     // ✅ Grant 5 free lead magnets
     await upgradeUserToMagnets(email);
