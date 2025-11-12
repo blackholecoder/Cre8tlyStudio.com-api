@@ -13,6 +13,7 @@ import {
 } from "../middleware/authMiddleware.js";
 import { askGPT } from "../helpers/gptHelper.js";
 import { getUserBrandFile } from "../db/dbUploads.js";
+import { getUserById } from "../db/dbUser.js";
 
 const router = express.Router();
 
@@ -70,7 +71,6 @@ router.get("/:sessionId", async (req, res) => {
 });
 
 router.post("/prompt", authenticateToken, async (req, res) => {
-  // console.log("🟢 /prompt route hit with body keys:", Object.keys(req.body));
   try {
     const {
       magnetId,
@@ -79,24 +79,41 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       font_name,
       font_file,
       bgTheme,
-      pages,
+      pages = 5,
       logo,
       link,
       coverImage,
       cta,
       contentType,
-    } = req.body; // 👈 include theme
+    } = req.body;
 
+    // 🧩 1️⃣ Fetch user to determine tier
+    const user = await getUserById(req.user.id);
 
-  
+    // 🧩 2️⃣ Free-tier logic: has_free_magnet = 1 and magnet_slots = 1
+    const isFreeTier = user?.has_free_magnet === 1 && user?.magnet_slots === 1;
 
+    // 🧩 3️⃣ Enforce 5-page hard cap for free tier
+    let safePages = isFreeTier
+      ? Math.min(5, Math.max(1, pages))
+      : Math.min(50, Math.max(1, pages));
+
+    if (isFreeTier && pages > 5) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Free accounts are limited to 5 pages maximum (Header + Footer included). Please upgrade to unlock more pages.",
+      });
+    }
+
+    // 🧱 Required field checks
     if (!magnetId || !prompt) {
       return res
         .status(400)
         .json({ message: "magnetId and prompt are required" });
     }
 
-    // 🔒 Prompt length validation (server-side safety)
+    // 🔒 Prevent oversized prompt payloads
     if (prompt.length > 2_000_000) {
       return res.status(413).json({
         message:
@@ -104,6 +121,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       });
     }
 
+    // 🧠 Process prompt normally (page limit enforced above)
     const updated = await processPromptFlow(
       magnetId,
       req.user.id,
@@ -112,16 +130,16 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       font_name,
       font_file,
       bgTheme,
-      pages,
+      safePages,
       logo,
       link,
       coverImage,
       cta,
       contentType
     );
+
     res.json(updated);
   } catch (err) {
-    // 🧠 Enhanced error logging
     console.error("❌ ERROR in /prompt route:");
     console.error("Message:", err.message);
     if (err.stack) console.error("Stack trace:", err.stack);
@@ -129,21 +147,13 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       console.error("Response data:", err.response.data);
       console.error("Response status:", err.response.status);
     }
-    if (err.request) {
-      console.error(
-        "Request error:",
-        err.request.path || "(unknown request path)"
-      );
+
+    if (err.response?.status === 429) {
+      return res.status(429).json({
+        message: "OpenAI rate limit reached, please try again shortly.",
+      });
     }
 
-    // ⚙️ Send more informative error feedback to frontend
-    if (err.response?.status === 429) {
-      return res
-        .status(429)
-        .json({
-          message: "OpenAI rate limit reached, please try again shortly.",
-        });
-    }
     if (
       err.response?.data?.error?.message?.includes("context_length_exceeded")
     ) {
@@ -153,7 +163,6 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       });
     }
 
-    // 🚨 Default fallback
     res.status(500).json({
       message:
         err.response?.data?.error?.message ||
@@ -162,6 +171,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     });
   }
 });
+
 
 router.post("/prompt-builder", authenticateToken, async (req, res) => {
   const { audience, pain, promise, offer, userId } = req.body;

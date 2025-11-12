@@ -25,14 +25,16 @@ router.get("/", async (req, res) => {
   try {
     const landingPage = await getLandingPageByUser(subdomain);
 
+     // --- 1️⃣ Default “coming soon” fallback
+    if (!landingPage) {
+      return res.send("<h1>Coming soon</h1>");
+    }
+
     const mainOverlayColor = blendColors(
       landingPage.bg_theme.includes("#") ? landingPage.bg_theme : "#1e0033" // fallback if using gradient
     );
 
-    // --- 1️⃣ Default “coming soon” fallback
-    if (!landingPage) {
-      return res.send("<h1>Coming soon</h1>");
-    }
+   
 
     // --- 2️⃣ Extract core properties
 
@@ -968,6 +970,8 @@ document.getElementById("leadForm").addEventListener("submit", async (e) => {
 
 router.post("/landing-leads", async (req, res) => {
   try {
+
+
     const { landingPageId, email } = req.body;
 
     if (!landingPageId || !email) {

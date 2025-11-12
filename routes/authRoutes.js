@@ -141,7 +141,13 @@ router.get("/me", authenticateToken, async (req, res) => {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // return everything needed for header
+    // 🕒 Handle trial safely (prevent NaN if null)
+    let trialExpired = false;
+    if (user.free_trial_expires_at) {
+      trialExpired = new Date() > new Date(user.free_trial_expires_at);
+    }
+
+    // ✅ Return everything needed for dashboard/header
     res.json({
       id: user.id,
       name: user.name,
@@ -161,9 +167,15 @@ router.get("/me", authenticateToken, async (req, res) => {
       pro_status: user.pro_status,
       billing_type: user.billing_type,
       pro_expiration: user.pro_expiration,
+
+      // 🆓 Free trial fields
+      has_free_magnet: user.has_free_magnet || 0,
+      free_trial_expires_at: user.free_trial_expires_at || null,
+      trialExpired,
+      trial_days_remaining: user.trial_days_remaining || null,
     });
   } catch (err) {
-    console.error("Error in /me:", err);
+    console.error("❌ Error in /me:", err);
     res.status(500).json({ message: "Server error" });
   }
 });

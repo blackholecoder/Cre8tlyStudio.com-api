@@ -11,7 +11,7 @@ import {
   saveLeadMagnetPdf,
 } from "../db/dbLeadMagnet.js";
 import { generatePDF } from "./pdfService.js";
-import { updateUserRole } from "../db/dbUser.js";
+import { getUserById, updateUserRole } from "../db/dbUser.js";
 import { askGPT, generateLearningDoc } from "../helpers/gptHelper.js";
 import { sendEmail } from "../utils/email.js";
 import { uploadFileToSpaces } from "../helpers/uploadToSpace.js";
@@ -40,7 +40,14 @@ export async function processPromptFlow(
 
   
 
-  const safePages = Math.min(50, Math.max(1, pages));
+  const user = await getUserById(userId);
+  const isFreeTier = user?.has_free_magnet === 1 && user?.magnet_slots === 1;
+
+  // Clamp page count depending on tier
+  const safePages = isFreeTier
+    ? Math.min(5, Math.max(1, pages))
+    : Math.min(50, Math.max(1, pages));
+
   await updateLeadMagnetStatus(magnetId, userId, "pending");
 
   try {

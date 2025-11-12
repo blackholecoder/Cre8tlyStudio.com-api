@@ -3,12 +3,14 @@ import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 
 
+
 export async function createUser({ name, email, password }) {
   const db = await connect();
   const id = uuidv4();
   const hashedPassword = await bcrypt.hash(password, 12);
 
   try {
+    // 🔹 1. Create base user (standard insert)
     await db.query(
       `INSERT INTO users 
        (
@@ -33,15 +35,39 @@ export async function createUser({ name, email, password }) {
       [id, name, email, hashedPassword]
     );
 
-    console.log(`✅ New user created: ${email}`);
+    // 🔹 2. Initialize 7-day free trial
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
+    await db.query(
+      `UPDATE users
+         SET has_magnet = 1,
+             magnet_slots = 1,
+             has_free_magnet = 1,
+             free_trial_expires_at = ?
+       WHERE id = ?`,
+      [expiresAt, id]
+    );
+
+    // 🔹 3. Create default free lead magnet slot
+    const freeMagnetId = uuidv4();
+    await db.query(
+      `INSERT INTO lead_magnets
+         (id, user_id, prompt, title, pdf_url, theme, font_name, font_file, created_at)
+       VALUES (?, ?, '', 'Free Starter', '', 'modern', 'Montserrat', '/fonts/Montserrat-Regular.ttf', NOW())`,
+      [freeMagnetId, id]
+    );
+
+    console.log("🆓 Free trial slot created for:", email);
+
+    // 🔹 4. Return sanitized user object
     return {
       id,
       name,
       email,
       role: "customer",
-      has_magnet: 0,
-      magnet_slots: 0,
+      has_magnet: 1,
+      magnet_slots: 1,
       has_book: 0,
       book_slots: 0,
       has_memory: 0,
@@ -50,6 +76,8 @@ export async function createUser({ name, email, password }) {
       pro_status: "inactive",
       billing_type: null,
       pro_expiration: null,
+      has_free_magnet: 1,
+      free_trial_expires_at: expiresAt,
       created_at: new Date(),
     };
   } catch (err) {
@@ -59,7 +87,6 @@ export async function createUser({ name, email, password }) {
     await db.end();
   }
 }
-
 
 export async function getUserByEmail(email) {
   const db = await connect();
@@ -142,13 +169,31 @@ export async function getUserById(id) {
          pro_status,
          billing_type,
          pro_expiration,
+        has_free_magnet,
+        free_trial_expires_at,
          twofa_secret IS NOT NULL AS twofa_enabled
        FROM users 
        WHERE id = ?`,
       [id]
     );
 
-    return rows[0] || null;
+    const user = rows[0] || null;
+
+   // 🔹 Add a derived field for frontend convenience
+   if (user?.free_trial_expires_at) {
+     const now = new Date();
+     const expires = new Date(user.free_trial_expires_at);
+     user.trial_expired = now > expires;
+     user.trial_days_remaining = Math.max(
+       0,
+       Math.ceil((expires - now) / (1000 * 60 * 60 * 24))
+     );
+   } else {
+     user.trial_expired = false;
+     user.trial_days_remaining = null;
+   }
+
+    return user;
   } catch (err) {
     console.error("❌ Error in getUserById:", err);
     throw err;
@@ -156,6 +201,7 @@ export async function getUserById(id) {
     await db.end();
   }
 }
+
 
 export async function upgradeUserToProCovers(email) {
   const db = await connect();
@@ -220,6 +266,7 @@ export async function upgradeUserToMagnets(email) {
       "SELECT id, magnet_slots FROM users WHERE email = ?",
       [email]
     );
+
     if (!rows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
       await db.end();
@@ -230,11 +277,16 @@ export async function upgradeUserToMagnets(email) {
     const newSlots = (user.magnet_slots || 0) + 5;
 
     await db.query(
-      "UPDATE users SET has_magnet = 1, magnet_slots = ? WHERE email = ?",
+      `UPDATE users 
+         SET has_magnet = 1, 
+             magnet_slots = ?, 
+             has_free_magnet = 0,         -- 🚫 Remove free tier flag
+             free_trial_expires_at = NULL  -- 🧹 Clear trial expiration
+       WHERE email = ?`,
       [newSlots, email]
     );
 
-    console.log(`🎯 Added 5 lead magnet slots for ${email} (total: ${newSlots})`);
+    console.log(`🎯 Upgraded ${email}: +5 lead magnet slots (total: ${newSlots}) and removed free tier.`);
     await db.end();
     return true;
   } catch (err) {
@@ -263,15 +315,20 @@ export async function upgradeUserToBundle(email) {
 
     await db.query(
       `UPDATE users 
-       SET has_magnet = 1, 
-           pro_covers = 1, 
-           has_book = 1, 
-           book_slots = ? 
+         SET has_magnet = 1,
+             pro_covers = 1,
+             has_book = 1,
+             book_slots = ?,
+             has_free_magnet = 0,         -- 🚫 remove free tier
+             free_trial_expires_at = NULL  -- 🧹 clear trial expiration
        WHERE email = ?`,
       [newBookSlots, email]
     );
 
-    console.log(`🎁 Bundle activated for ${email}: 5 magnets, Pro Covers, 1 book slot`);
+    console.log(
+      `🎁 Bundle activated for ${email}: Pro Covers + Book Slot + Lead Magnets (free tier removed)`
+    );
+
     await db.end();
     return true;
   } catch (err) {
@@ -280,6 +337,7 @@ export async function upgradeUserToBundle(email) {
     throw err;
   }
 }
+
 
 export async function activatePromptMemory(email) {
   try {
