@@ -11,7 +11,14 @@ export async function askGPT(userIdea, options = {}) {
     wordsPerPage = 500,
     mode = "lead_magnet",
     brandTone = null,
+    isFreeTier = false,
   } = options;
+
+   if (isFreeTier) {
+    safePages = 2;
+    wordsPerPage = 500;
+    totalWords = 1000;
+  }
   
 
   if (!totalWords) totalWords = safePages * wordsPerPage;
@@ -110,7 +117,7 @@ Mode: ${mode}
     const gptPromise = client.chat.completions.create({
       model: "gpt-4.1-mini",
       temperature: 0.85,
-      max_completion_tokens: 2800,
+      max_completion_tokens: isFreeTier ? 1200 : 2800,
       messages,
     });
 

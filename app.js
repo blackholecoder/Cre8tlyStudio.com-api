@@ -39,6 +39,7 @@ import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 import settingsRoutes from "./routes/admin/settingsRoutes.js";
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
 import landingPageRoutes from "./routes/landing/landingPageRoutes.js";
+import landingAnalyticsRoutes from "./routes/analytics/landingAnalyticsRoutes.js";
 
 
 
@@ -126,7 +127,6 @@ const corsOptions = {
 
       // ✅ Allow all subdomains like https://username.cre8tlystudio.com
       if (/^[a-z0-9-]+\.cre8tlystudio\.com$/i.test(hostname)) {
-        console.log("🟢 Allowed dynamic subdomain:", origin);
         return callback(null, true);
       }
 
@@ -165,6 +165,7 @@ app.use("/api/edit", editorRoutes);
 app.use("/api/vip", leadVipRoutes);
 
 app.use("/api/landing", landingPageRoutes);
+app.use("/api/landing-analytics", landingAnalyticsRoutes);
 app.use("/", landingPageRoutes);
 
 

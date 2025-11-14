@@ -44,7 +44,6 @@ router.get("/all", authenticateToken, requireAdmin, async (req, res) => {
   res.json(rows);
 });
 
-// (Optional) Mark completed after PDF generation
 router.post("/:id/complete", async (req, res) => {
   try {
     const { id } = req.params;
@@ -172,7 +171,6 @@ router.post("/prompt", authenticateToken, async (req, res) => {
   }
 });
 
-
 router.post("/prompt-builder", authenticateToken, async (req, res) => {
   const { audience, pain, promise, offer, userId } = req.body;
   console.log("🎯 Received prompt-builder data:", req.body);
@@ -236,6 +234,7 @@ Do not include preamble or commentary — only output the generated GPT prompt t
     const gptResponse = await askGPT(systemPrompt, {
       debug: true,
       brandTone: brandTone || null,
+      isFreeTier,
     });
 
     const cleanPrompt = gptResponse.replace(/<[^>]*>?/gm, "").trim();
@@ -255,7 +254,6 @@ Do not include preamble or commentary — only output the generated GPT prompt t
     res.status(500).json({ message: "Failed to generate smart prompt." });
   }
 });
-
 
 router.get("/prompt-memory/:userId", authenticateToken, async (req, res) => {
   try {

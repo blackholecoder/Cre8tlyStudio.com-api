@@ -1071,6 +1071,50 @@ document.getElementById("leadForm").addEventListener("submit", async (e) => {
   </div>
 </footer>
 
+<script>
+async function trackEvent(eventType) {
+  try {
+    await fetch("https://cre8tlystudio.com/api/landing-analytics/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        landing_page_id: "${landingPage.id}",
+        event_type: eventType
+      }),
+    });
+  } catch (err) {
+    console.error("❌ Analytics error:", err);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  // ✅ Track initial page view
+  trackEvent("view");
+
+  // ✅ Track clicks on regular link buttons
+  document.querySelectorAll("a.btn").forEach(btn => {
+    btn.addEventListener("click", () => trackEvent("click"));
+  });
+
+  // ✅ Track PDF link clicks
+  document.querySelectorAll('a[href$=".pdf"]').forEach(link => {
+    link.addEventListener("click", () => trackEvent("download"));
+  });
+
+  // ✅ Track the "Download Now" button (form submit)
+  const leadForm = document.getElementById("leadForm");
+  if (leadForm) {
+    leadForm.addEventListener("submit", async () => {
+      // The user clicked the button → count this as a click + download
+      await trackEvent("click");
+      await trackEvent("download");
+    });
+  }
+});
+</script>
+
+
+
 
 </body>
 
@@ -1104,51 +1148,97 @@ router.post("/landing-leads", async (req, res) => {
     }
 
     // 3️⃣ Compose email HTML (clean and branded)
+    // const emailHtml = `
+    //   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #030303; padding: 40px 30px; border-radius: 12px; border: 1px solid #f1f1f1; max-width: 600px; margin: 0 auto;">
+    //   <div style="text-align: center; margin-bottom: 25px;">
+    //     <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" alt="Cre8tly Studio" style="width: 120px; height: auto; margin-bottom: 15px;" />
+    //     <h1 style="color: #670fe7; font-size: 26px; margin: 0;">Your Free Guide Awaits</h1>
+    //   </div>
+
+    //   <p style="color: #fff; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+    //     Thanks for connecting with <strong>${landingPage.username}</strong>! 🎉
+    //   </p>
+
+    //   <p style="color: #444; font-size: 15px; line-height: 1.6; margin-bottom: 25px;">
+    //     ${
+    //       landingPage.email_thank_you_msg ||
+    //       "Your download is ready below — enjoy this exclusive Cre8tly guide created just for you."
+    //     }
+    //   </p>
+
+    //   <div style="text-align: center; margin-top: 30px;">
+    //     <a href="${landingPage.pdf_url}" target="_blank"
+    //       style="background-color: #7bed9f; color: #000000; padding: 14px 34px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(242,133,195,0.4);">
+    //       Download Your PDF
+    //     </a>
+    //   </div>
+
+    //   <div style="margin-top: 35px; text-align: center;">
+    //     <p style="font-size: 14px; color: #666; line-height: 1.6; margin: 0;">
+    //       Ready to elevate your next project? Visit
+    //       <a href="https://cre8tlystudio.com" target="_blank" style="color: #7bed9f; text-decoration: none; font-weight: 600;">
+    //         Cre8tly Studio
+    //       </a>
+    //       for professional tools that help you design, write, and publish like a pro.
+    //     </p>
+    //   </div>
+
+    //   <hr style="border: none; border-top: 1px solid #f1f1f1; margin: 40px 0;" />
+
+    //   <p style="color: #999; font-size: 12px; text-align: center;">
+    //     © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital<br/>
+    //     You received this email because you downloaded a file through ${
+    //       landingPage.username
+    //     }'s Cre8tly page.
+    //   </p>
+    // </div>
+    // `;
     const emailHtml = `
-      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 40px 30px; border-radius: 12px; border: 1px solid #f1f1f1; max-width: 600px; margin: 0 auto;">
-      <div style="text-align: center; margin-bottom: 25px;">
-        <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" alt="Cre8tly Studio" style="width: 120px; height: auto; margin-bottom: 15px;" />
-        <h1 style="color: #F285C3; font-size: 26px; margin: 0;">Your Free Guide Awaits</h1>
-      </div>
+  <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 25px;">
+      <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" alt="Cre8tly Studio" style="width: 120px; height: auto; margin-bottom: 15px;" />
+      <h1 style="color: #7bed9f; font-size: 26px; margin: 0;">Your Free Guide Awaits</h1>
+    </div>
 
-      <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-        Thanks for connecting with <strong>${landingPage.username}</strong>! 🎉
-      </p>
+    <p style="color: #e5e5e5; font-size: 16px; line-height: 1.6; margin-bottom: 20px; text-align: center;">
+      Thanks for connecting with <strong style="color: #ffffff;">${landingPage.username}</strong>! 🎉
+    </p>
 
-      <p style="color: #444; font-size: 15px; line-height: 1.6; margin-bottom: 25px;">
-        ${
-          landingPage.email_thank_you_msg ||
-          "Your download is ready below — enjoy this exclusive Cre8tly guide created just for you."
-        }
-      </p>
+    <p style="color: #b3b3b3; font-size: 15px; line-height: 1.6; margin-bottom: 25px; text-align: center;">
+      ${
+        landingPage.email_thank_you_msg ||
+        "Your download is ready below — enjoy this exclusive Cre8tly guide created just for you."
+      }
+    </p>
 
-      <div style="text-align: center; margin-top: 30px;">
-        <a href="${landingPage.pdf_url}" target="_blank"
-          style="background-color: #F285C3; color: #ffffff; padding: 14px 34px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(242,133,195,0.4);">
-          Download Your PDF
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${landingPage.pdf_url}" target="_blank"
+        style="background: linear-gradient(90deg, #7bed9f, #670fe7); color: #000000; padding: 14px 34px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block; box-shadow: 0 4px 14px rgba(103, 15, 231, 0.4); letter-spacing: 0.3px;">
+        Download Your PDF
+      </a>
+    </div>
+
+    <div style="margin-top: 35px; text-align: center;">
+      <p style="font-size: 14px; color: #999; line-height: 1.6; margin: 0;">
+        Ready to elevate your next project? Visit
+        <a href="https://cre8tlystudio.com" target="_blank" style="color: #7bed9f; text-decoration: none; font-weight: 600;">
+          Cre8tly Studio
         </a>
-      </div>
-
-      <div style="margin-top: 35px; text-align: center;">
-        <p style="font-size: 14px; color: #666; line-height: 1.6; margin: 0;">
-          Ready to elevate your next project? Visit
-          <a href="https://cre8tlystudio.com" target="_blank" style="color: #F285C3; text-decoration: none; font-weight: 600;">
-            Cre8tly Studio
-          </a>
-          for professional tools that help you design, write, and publish like a pro.
-        </p>
-      </div>
-
-      <hr style="border: none; border-top: 1px solid #f1f1f1; margin: 40px 0;" />
-
-      <p style="color: #999; font-size: 12px; text-align: center;">
-        © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital<br/>
-        You received this email because you downloaded a file through ${
-          landingPage.username
-        }'s Cre8tly page.
+        for professional tools that help you design, write, and publish like a pro.
       </p>
     </div>
-    `;
+
+    <hr style="border: none; border-top: 1px solid #1f1f1f; margin: 40px 0;" />
+
+    <p style="color: #777; font-size: 12px; text-align: center;">
+      © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital<br/>
+      You received this email because you downloaded a file through <strong style="color: #ccc;">${
+        landingPage.username
+      }</strong>'s Cre8tly page.
+    </p>
+  </div>
+`;
+
 
     // 4️⃣ Send via Outlook
     await sendOutLookMail({
