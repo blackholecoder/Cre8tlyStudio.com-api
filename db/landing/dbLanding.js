@@ -51,7 +51,15 @@ export async function getLandingPageById(id) {
   try {
     const db = await connect();
     const [rows] = await db.query(
-      "SELECT * FROM user_landing_pages WHERE id = ? LIMIT 1",
+      `
+      SELECT 
+        lp.*, 
+        u.stripe_connect_account_id
+      FROM user_landing_pages lp
+      LEFT JOIN users u ON lp.user_id = u.id
+      WHERE lp.id = ?
+      LIMIT 1
+      `,
       [id]
     );
     return rows[0];
@@ -60,6 +68,7 @@ export async function getLandingPageById(id) {
     throw err;
   }
 }
+
 
 export async function getLandingPageByUserId(userId) {
   const db = await connect();
@@ -478,16 +487,6 @@ export async function getUserLeads(userId, page = 1, limit = 20) {
     `,
     [userId]
   );
-
-  console.log(
-  "Fetched rows:",
-  rows.map(r => ({
-    id: r.id,
-    pdf_url: r.pdf_url,
-    landing_page_id: r.landing_page_id,
-    landing_title: r.landing_title
-  }))
-);
 
 
   return {

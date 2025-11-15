@@ -5,13 +5,16 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ✅ Load from environment
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://cre8tlystudio.com";
-const BASIC_PRICE_ID = process.env.STRIPE_PRICE_BASIC;
-const PRO_COVERS_PRICE_ID = process.env.STRIPE_PRICE_PRO_COVERS;
 const BOOKS_PRICE_ID = process.env.STRIPE_PRICE_BOOKS;
-const ALL_IN_ONE_BUNDLE_PRICE_ID = process.env.STRIPE_CRE8TLY_ALL_IN_ONE_BUNDLE;
-const PROMPT_MEMORY_PRICE_ID = process.env.STRIPE_PROMPT_MEMORY_SUBSCRIPTION;
+const BUSINESS_BUILDER_MONTHLY = process.env.STRIPE_BUSINESS_BUILDER_PACK_MONTHLY;
+const BUSINESS_BUILDER_ANNUAL = process.env.STRIPE_BUSINESS_BUILDER_PACK_ANNUAL;
 
-export async function createCheckout({ userId, priceId, productType, billingCycle }) {
+export async function createCheckout({
+  userId,
+  productType,
+  billingCycle = "annual",
+  priceId, // keep this for flexibility
+}) {
   // ✅ Fetch user email
   const db = await connect();
   const [rows] = await db.query("SELECT email FROM users WHERE id = ?", [userId]);
@@ -20,40 +23,30 @@ export async function createCheckout({ userId, priceId, productType, billingCycl
   if (!rows.length) throw new Error("User not found");
   const email = rows[0].email;
 
-  // ✅ Choose price ID based on plan
-  let finalPriceId;
+  // ✅ Determine Stripe price & checkout mode
+  let finalPriceId = priceId; // allow manual override
   let mode = "payment";
 
-  switch (productType) {
-    case "author":
-      finalPriceId = BOOKS_PRICE_ID;
-      break;
-    case "bundle":
-      finalPriceId = ALL_IN_ONE_BUNDLE_PRICE_ID;
-      break;
-    case "pro":
-      finalPriceId = PRO_COVERS_PRICE_ID;
-      break;
-    case "prompt_memory":
-    finalPriceId = PROMPT_MEMORY_PRICE_ID;
-    mode = "subscription";
-    break;
-    case "business_builder_pack":
-      mode = "subscription";
-      if (billingCycle === "annual") {
-        finalPriceId = process.env.STRIPE_BUSINESS_BUILDER_PACK_ANNUAL;
-      } else {
-        finalPriceId = process.env.STRIPE_BUSINESS_BUILDER_PACK_MONTHLY;
-      }
-      break;
-    case "basic":
-    default:
-      finalPriceId = priceId || BASIC_PRICE_ID;
-      break;
+  if (!finalPriceId) {
+    switch (productType) {
+      case "author":
+        finalPriceId = BOOKS_PRICE_ID;
+        break;
+
+      case "business_builder_pack":
+        mode = "subscription";
+        finalPriceId =
+          billingCycle === "monthly"
+            ? BUSINESS_BUILDER_MONTHLY
+            : BUSINESS_BUILDER_ANNUAL;
+        break;
+
+      default:
+        throw new Error(`Unknown productType: ${productType}`);
+    }
   }
 
-  console.log("🧾 Creating checkout for:", { productType, billingCycle });
-
+  console.log("🧾 Creating checkout for:", { productType, billingCycle, email, finalPriceId });
 
   // ✅ Create checkout session
   const session = await stripe.checkout.sessions.create({
@@ -66,10 +59,12 @@ export async function createCheckout({ userId, priceId, productType, billingCycl
     metadata: {
       user_id: userId,
       email,
-      product_type: productType || "basic",
-      billing_cycle: billingCycle || "annual", 
+      product_type: productType,
+      billing_cycle: billingCycle,
     },
   });
 
   return session.url;
 }
+
+

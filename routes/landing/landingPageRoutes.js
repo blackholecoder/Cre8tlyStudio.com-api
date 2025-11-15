@@ -15,6 +15,7 @@ import { authenticateToken } from "../../middleware/authMiddleware.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { isSafeUrl } from "../../utils/isSafeUrl.js";
 import { blendColors } from "../../utils/blendColors.js";
+
 const router = express.Router();
 
 // Capture root requests for each subdomain
@@ -158,20 +159,6 @@ router.get("/", async (req, res) => {
     color:${landingPage.font_color_p || "#FFFFFF"};
   ">${block.text}</p>`;
 
-            case "button":
-              return `
-    <div style="text-align:center; margin:40px 0 60px;">
-      <a 
-        href="${block.url || "#"}" 
-        class="btn"
-        ${block.new_tab ? 'target="_blank" rel="noopener noreferrer"' : ""}
-        style="display:inline-block;"
-      >
-        ${block.text || "Click Here"}
-      </a>
-    </div>
-  `;
-
             case "video":
               const videoPadding = block.padding || 20;
               const videoUrl = block.url || "";
@@ -257,81 +244,68 @@ router.get("/", async (req, res) => {
     " />
   `;
 
-            case "offer_banner":
+            case "offer_banner": {
               const bannerBg = block.use_gradient
                 ? `linear-gradient(${block.gradient_direction || "90deg"}, ${
                     block.gradient_start || "#F285C3"
                   }, ${block.gradient_end || "#7bed9f"})`
                 : block.bg_color || "#F285C3";
 
-              const buttonBg = bannerBg;
+              const buttonText = block.button_text || "Claim Offer";
+              const offerType = block.offer_type || "free"; // "free" or "paid"
+
+              const buttonHTML =
+                offerType === "paid"
+                  ? `
+        <button 
+          class="btn"
+          style="background:${bannerBg};color:#fff;font-weight:700;padding:14px 36px;border-radius:10px;"
+          onclick="startStripeCheckout('${landingPage.id}', '${
+                      landingPage.user_id
+                    }', '${landingPage.pdf_url}', '${block.price || 1000}')"
+        >
+          ${buttonText}
+        </button>
+      `
+                  : `
+        <button 
+          class="btn"
+          style="background:${bannerBg};color:#fff;font-weight:700;padding:14px 36px;border-radius:10px;"
+          onclick="showEmailDownloadForm()"
+        >
+          ${buttonText}
+        </button>
+      `;
 
               return `
-    <div style="
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      align-items:center;
-      background:${bannerBg};
-      color:${block.text_color || "#fff"};
-      text-align:center;
-      padding:${block.padding || 40}px 20px;
-      font-weight:600;
-      font-size:1.2rem;
-      line-height:1.5;
-
-      /* ✅ FINAL VERSION THAT WILL SHOW ROUNDED TOP CORNERS */
-position: relative;
-top: -60px;                         /* rise into main’s top curve */
-margin: 0 -30px -20px;              /* align to edges */
-border-radius: 24px 24px 0 0;       /* top corners rounded */
-overflow: hidden;                   /* clip the gradient inside */
--webkit-mask-image: -webkit-radial-gradient(white, black); /* Safari fix */
-background-clip: padding-box;
--webkit-background-clip: padding-box; /* Safari fix */
-isolation: isolate;                 /* ensures z-index and clipping work */
-z-index: 5;
-box-shadow: 0 6px 24px rgba(0,0,0,0.3);
-
-      z-index: 2;
-    ">
-      <div style="max-width:800px;margin:0 auto;">
-        <p style="
-          font-size:1.5rem;
-          font-weight:700;
-          margin:0 0 22px;
-          text-align:center;
-          color:${block.text_color || "#fff"};
-        ">
-          ${block.text || "🔥 Limited Time Offer! Get your free eBook today!"}
-        </p>
-
-        ${
-          block.link_text && block.link_url
-            ? `<a href="${block.link_url}" target="_blank" rel="noopener noreferrer"
-                style="
-                  display:inline-block;
-                  background:${buttonBg};
-                  color:#fff;
-                  padding:14px 32px;
-                  border-radius:10px;
-                  font-weight:700;
-                  font-size:1rem;
-                  text-decoration:none;
-                  box-shadow:0 4px 15px rgba(0,0,0,0.3);
-                  transition:transform 0.25s ease;
-                "
-                onmouseover="this.style.transform='scale(1.05)'"
-                onmouseout="this.style.transform='scale(1)'"
-              >
-                ${block.link_text}
-              </a>`
-            : ""
-        }
-      </div>
+    <div style="background:${bannerBg};color:${
+                block.text_color || "#fff"
+              };padding:40px;text-align:center;border-radius:20px;">
+      <p style="font-size:1.5rem;font-weight:700;margin-bottom:20px;">
+        ${block.text || "🔥 Limited Time Offer!"}
+      </p>
+      ${buttonHTML}
     </div>
-  `;
 
+    <script>
+      async function startStripeCheckout(landingPageId, sellerId, pdfUrl, price_in_cents) {
+        try {
+          const res = await fetch('https://cre8tlystudio.com/api/seller-checkout/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ landingPageId, sellerId, pdfUrl, price_in_cents })
+          });
+          const data = await res.json();
+          if (data?.url) window.location.href = data.url;
+          else alert("Unable to start checkout. Please try again.");
+        } catch (err) {
+          console.error("Stripe Checkout Error:", err);
+          alert("Error connecting to Stripe. Please try again later.");
+        }
+      }
+    </script>
+  `;
+            }
             case "calendly":
               if (!block.calendly_url) return "";
 
@@ -433,7 +407,6 @@ box-shadow: 0 6px 24px rgba(0,0,0,0.3);
     </div>
   `;
             }
-
             case "countdown": {
               const label = block.text || "Offer Ends In:";
               const variant = block.style_variant || "minimal";
@@ -487,11 +460,17 @@ box-shadow: 0 6px 24px rgba(0,0,0,0.3);
 
               return `
   <div style="text-align:center;padding:50px 0;">
-    <p style="font-weight:700;font-size:1.3rem;color:${
-      landingPage.font_color_h1 || "#fff"
-    };margin-bottom:10px;">
-      ${label}
-    </p>
+    <p style="
+  font-weight:700;
+  font-size:1.3rem;
+  color:${landingPage.font_color_h1 || "#fff"};
+  margin-bottom:10px;
+  text-align:center;
+  display:block;
+  width:100%;
+">
+  ${label}
+</p>
     <div 
       id="countdown-${block.id || Math.random().toString(36).substring(2, 8)}" 
       style="${styleMap[variant] || styleMap.minimal}"
@@ -505,6 +484,89 @@ box-shadow: 0 6px 24px rgba(0,0,0,0.3);
       DAYS&nbsp;&nbsp;|&nbsp;&nbsp;HRS&nbsp;&nbsp;|&nbsp;&nbsp;MIN&nbsp;&nbsp;|&nbsp;&nbsp;SEC
     </div>
   </div>
+  `;
+            }
+            case "stripe_checkout": {
+              const price = block.price || 10;
+              const buttonText = block.button_text || "Buy & Download PDF";
+              const buttonColor = block.button_color || "#10b981";
+              const textColor = block.text_color || "#000";
+              const alignment = block.alignment || "center";
+              const pdfUrl = block.pdf_url || landingPage.pdf_url || "";
+
+              return `
+    <div style="
+      text-align:${alignment};
+      margin:60px auto;
+    ">
+      <button 
+        class="btn" 
+        onclick="startSellerCheckout('${landingPage.id}', '${
+                landingPage.user_id
+              }', '${pdfUrl}', ${Math.round(price * 100)})"
+        style="background:${buttonColor};color:${textColor};font-weight:700;padding:14px 36px;border-radius:8px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);"
+      >
+        ${buttonText}
+      </button>
+
+      <p style="
+        margin-top:12px;
+        color:#aaa;
+        font-size:0.9rem;
+        text-align:${alignment};
+      ">
+        $${price.toFixed(2)} USD
+      </p>
+    </div>
+  `;
+            }
+
+            case "referral_button": {
+              const buttonText = block.button_text || "Sign Up Now";
+              const buttonColor = block.button_color || "#10b981";
+              const textColor = block.text_color || "#000";
+              const alignment = block.alignment || "center";
+
+              // 🧠 Generate referral signup link dynamically
+              const referralUrl = `https://cre8tlystudio.com/signup?ref_employee=${landingPage.user_id}`;
+
+              return `
+    <div style="
+      text-align:${alignment};
+      margin:60px auto;
+    ">
+      <a 
+        href="${referralUrl}"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn"
+        style="
+          display:inline-block;
+          background:${buttonColor};
+          color:${textColor};
+          font-weight:700;
+          padding:14px 36px;
+          border-radius:8px;
+          text-decoration:none;
+          cursor:pointer;
+          box-shadow:0 4px 12px rgba(0,0,0,0.3);
+          transition:transform 0.2s ease, box-shadow 0.3s ease;
+        "
+        onmouseover="this.style.transform='scale(1.05)';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.4)';"
+        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.3)';"
+      >
+        ${buttonText}
+      </a>
+
+      <p style="
+        margin-top:12px;
+        color:#aaa;
+        font-size:0.9rem;
+        text-align:${alignment};
+      ">
+        🔗 New signups via this button are automatically credited to your account.
+      </p>
+    </div>
   `;
             }
 
@@ -796,8 +858,8 @@ p {
 }
 
   button {
-  background: #000;
-  color: #fff;
+  background: #7bed9f;
+  color: #000;
   padding: 12px 24px;
   border: none;
   border-radius: 6px;
@@ -1113,6 +1175,26 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
+<script>
+  async function startSellerCheckout(landingPageId, sellerId, pdfUrl, price_in_cents) {
+    try {
+      const res = await fetch('https://cre8tlystudio.com/api/seller-checkout/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ landingPageId, sellerId, pdfUrl, price_in_cents })
+      });
+      const data = await res.json();
+      console.log("✅ Stripe response:", data); 
+      if (data?.url) window.location.href = data.url;
+      else alert("Unable to start checkout. Please try again.");
+    } catch (err) {
+      console.error("Stripe Checkout Error:", err);
+      alert("Error connecting to Stripe. Please try again later.");
+    }
+  }
+</script>
+
+
 
 
 
@@ -1147,52 +1229,6 @@ router.post("/landing-leads", async (req, res) => {
         .json({ success: false, message: "Landing page not found" });
     }
 
-    // 3️⃣ Compose email HTML (clean and branded)
-    // const emailHtml = `
-    //   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #030303; padding: 40px 30px; border-radius: 12px; border: 1px solid #f1f1f1; max-width: 600px; margin: 0 auto;">
-    //   <div style="text-align: center; margin-bottom: 25px;">
-    //     <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" alt="Cre8tly Studio" style="width: 120px; height: auto; margin-bottom: 15px;" />
-    //     <h1 style="color: #670fe7; font-size: 26px; margin: 0;">Your Free Guide Awaits</h1>
-    //   </div>
-
-    //   <p style="color: #fff; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-    //     Thanks for connecting with <strong>${landingPage.username}</strong>! 🎉
-    //   </p>
-
-    //   <p style="color: #444; font-size: 15px; line-height: 1.6; margin-bottom: 25px;">
-    //     ${
-    //       landingPage.email_thank_you_msg ||
-    //       "Your download is ready below — enjoy this exclusive Cre8tly guide created just for you."
-    //     }
-    //   </p>
-
-    //   <div style="text-align: center; margin-top: 30px;">
-    //     <a href="${landingPage.pdf_url}" target="_blank"
-    //       style="background-color: #7bed9f; color: #000000; padding: 14px 34px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(242,133,195,0.4);">
-    //       Download Your PDF
-    //     </a>
-    //   </div>
-
-    //   <div style="margin-top: 35px; text-align: center;">
-    //     <p style="font-size: 14px; color: #666; line-height: 1.6; margin: 0;">
-    //       Ready to elevate your next project? Visit
-    //       <a href="https://cre8tlystudio.com" target="_blank" style="color: #7bed9f; text-decoration: none; font-weight: 600;">
-    //         Cre8tly Studio
-    //       </a>
-    //       for professional tools that help you design, write, and publish like a pro.
-    //     </p>
-    //   </div>
-
-    //   <hr style="border: none; border-top: 1px solid #f1f1f1; margin: 40px 0;" />
-
-    //   <p style="color: #999; font-size: 12px; text-align: center;">
-    //     © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital<br/>
-    //     You received this email because you downloaded a file through ${
-    //       landingPage.username
-    //     }'s Cre8tly page.
-    //   </p>
-    // </div>
-    // `;
     const emailHtml = `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 25px;">
@@ -1201,7 +1237,9 @@ router.post("/landing-leads", async (req, res) => {
     </div>
 
     <p style="color: #e5e5e5; font-size: 16px; line-height: 1.6; margin-bottom: 20px; text-align: center;">
-      Thanks for connecting with <strong style="color: #ffffff;">${landingPage.username}</strong>! 🎉
+      Thanks for connecting with <strong style="color: #ffffff;">${
+        landingPage.username
+      }</strong>! 🎉
     </p>
 
     <p style="color: #b3b3b3; font-size: 15px; line-height: 1.6; margin-bottom: 25px; text-align: center;">
@@ -1238,7 +1276,6 @@ router.post("/landing-leads", async (req, res) => {
     </p>
   </div>
 `;
-
 
     // 4️⃣ Send via Outlook
     await sendOutLookMail({

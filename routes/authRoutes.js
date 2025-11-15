@@ -8,6 +8,7 @@ import {
   getUserById,
   getUserByRefreshToken,
   getWebAuthnCredentials,
+  logEmployeeReferral,
   removeUserPasskey,
   saveRefreshToken,
   saveWebAuthnCredentials,
@@ -36,10 +37,11 @@ import { decodeBase64URL, encodeBase64URL } from "../utils/base64url.js";
 
 const router = express.Router();
 
-// SIGNUP
+// SIGN UP
+
 router.post("/signup", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, refEmployee } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
     }
@@ -49,7 +51,20 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
+    // ✅ Create user via helper
     const user = await createUser({ name, email, password });
+
+    // ✅ Handle referral asynchronously (non-blocking)
+    if (refEmployee) {
+      logEmployeeReferral(refEmployee, email)
+        .then((logged) => {
+          if (logged)
+            console.log(`👥 Referral logged: ${refEmployee} → ${email}`);
+        })
+        .catch((err) =>
+          console.error("Referral logging error:", err.message)
+        );
+    }
 
     res.status(201).json({ message: "User created", userId: user.id });
   } catch (err) {
@@ -57,6 +72,7 @@ router.post("/signup", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 router.post("/login", async (req, res) => {
   try {
@@ -126,6 +142,8 @@ router.post("/login", async (req, res) => {
         billing_type: user.billing_type,
         pro_expiration: user.pro_expiration,
         twofa_enabled: user.twofa_enabled,
+        stripe_connect_account_id: user.stripe_connect_account_id,
+        is_admin_employee: user.is_admin_employee,
       },
       accessToken,
       refreshToken,
@@ -209,6 +227,8 @@ router.get("/me", authenticateToken, async (req, res) => {
       trialExpired,
       trial_days_remaining: user.trial_days_remaining || null,
       twofa_enabled: user.twofa_enabled || 0,
+      stripe_connect_account_id: user.stripe_connect_account_id,
+      is_admin_employee: user.is_admin_employee,
     });
   } catch (err) {
     console.error("❌ Error in /me:", err);

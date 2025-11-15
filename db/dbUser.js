@@ -87,6 +87,59 @@ export async function createUser({ name, email, password }) {
   }
 }
 
+export async function logEmployeeReferral(refEmployee, email) {
+  const db = await connect();
+
+  // Check if this is a valid admin employee
+  const [rows] = await db.query(
+    "SELECT id FROM users WHERE id = ? AND is_admin_employee = 1",
+    [refEmployee]
+  );
+
+  if (rows.length === 0) return false;
+
+  // Log referral
+  await db.query(
+    "INSERT INTO employee_referrals (id, employee_id, referred_email, created_at) VALUES (UUID(), ?, ?, NOW())",
+    [refEmployee, email]
+  );
+
+  return true;
+}
+
+export async function getReferralsByEmployee(employeeId) {
+  const db = await connect();
+  const [rows] = await db.query(
+    `SELECT er.*, u.name AS employee_name
+     FROM employee_referrals er
+     LEFT JOIN users u ON er.employee_id = u.id
+     WHERE er.employee_id = ?
+     ORDER BY er.created_at DESC`,
+    [employeeId]
+  );
+  return rows;
+}
+
+/**
+ * ✅ Aggregate total referrals for all employees (for admin dashboard view)
+ */
+export async function getAllEmployeeReferralStats() {
+  const db = await connect();
+  const [rows] = await db.query(`
+    SELECT 
+      u.id AS employee_id,
+      u.name AS employee_name,
+      u.email AS employee_email,
+      COUNT(er.id) AS total_referrals
+    FROM users u
+    LEFT JOIN employee_referrals er ON u.id = er.employee_id
+    WHERE u.is_admin_employee = 1
+    GROUP BY u.id, u.name, u.email
+    ORDER BY total_referrals DESC;
+  `);
+  return rows;
+}
+
 export async function getUserByEmail(email) {
   const db = await connect();
 
@@ -116,7 +169,9 @@ export async function getUserByEmail(email) {
          twofa_enabled,
          webauthn_challenge,          
          webauthn_id,                 
-         webauthn_public_key
+         webauthn_public_key,
+         stripe_connect_account_id,
+         is_admin_employee
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -184,7 +239,9 @@ export async function getUserById(id) {
         has_free_magnet,
         is_free_user,
         free_trial_expires_at,
-        twofa_enabled 
+        twofa_enabled,
+        stripe_connect_account_id,
+        is_admin_employee
        FROM users 
        WHERE id = ?`,
       [id]
@@ -273,87 +330,6 @@ export async function upgradeUserToBooks(email) {
   }
 }
 
-export async function upgradeUserToMagnets(email) {
-  const db = await connect();
-  try {
-    const [rows] = await db.query(
-      "SELECT id, magnet_slots FROM users WHERE email = ?",
-      [email]
-    );
-
-    if (!rows.length) {
-      console.warn(`⚠️ No user found for email: ${email}`);
-      await db.end();
-      return false;
-    }
-
-    const user = rows[0];
-    const newSlots = (user.magnet_slots || 0) + 5;
-
-    await db.query(
-      `UPDATE users 
-         SET has_magnet = 1, 
-             magnet_slots = ?, 
-             has_free_magnet = 0,         -- 🚫 Remove free tier flag
-             free_trial_expires_at = NULL  -- 🧹 Clear trial expiration
-       WHERE email = ?`,
-      [newSlots, email]
-    );
-
-    console.log(
-      `🎯 Upgraded ${email}: +5 lead magnet slots (total: ${newSlots}) and removed free tier.`
-    );
-    await db.end();
-    return true;
-  } catch (err) {
-    console.error("❌ upgradeUserToMagnets failed:", err.message);
-    await db.end();
-    throw err;
-  }
-}
-
-export async function upgradeUserToBundle(email) {
-  const db = await connect();
-  try {
-    const [rows] = await db.query(
-      "SELECT id, book_slots, has_magnet, has_book, pro_covers FROM users WHERE email = ?",
-      [email]
-    );
-
-    if (!rows.length) {
-      console.warn(`⚠️ No user found for email: ${email}`);
-      await db.end();
-      return false;
-    }
-
-    const user = rows[0];
-    const newBookSlots = user.book_slots > 0 ? user.book_slots : 1;
-
-    await db.query(
-      `UPDATE users 
-         SET has_magnet = 1,
-             pro_covers = 1,
-             has_book = 1,
-             book_slots = ?,
-             has_free_magnet = 0,         -- 🚫 remove free tier
-             free_trial_expires_at = NULL  -- 🧹 clear trial expiration
-       WHERE email = ?`,
-      [newBookSlots, email]
-    );
-
-    console.log(
-      `🎁 Bundle activated for ${email}: Pro Covers + Book Slot + Lead Magnets (free tier removed)`
-    );
-
-    await db.end();
-    return true;
-  } catch (err) {
-    console.error("❌ upgradeUserToBundle failed:", err.message);
-    await db.end();
-    throw err;
-  }
-}
-
 export async function activatePromptMemory(email) {
   try {
     const db = await connect();
@@ -377,25 +353,41 @@ export async function activatePromptMemory(email) {
   }
 }
 
-export async function deactivatePromptMemory(email) {
+export async function upgradeUserToMagnets(email) {
+  const db = await connect();
   try {
-    const db = await connect();
-    const [result] = await db.query(
-      "UPDATE users SET has_memory = 0 WHERE email = ?",
+    const [rows] = await db.query(
+      "SELECT id, magnet_slots FROM users WHERE email = ?",
       [email]
     );
-    await db.end();
 
-    if (result.affectedRows === 0) {
-      console.warn(`⚠️ No user found for deactivation with email: ${email}`);
-    } else {
-      console.log(`❌ Deactivated Prompt Memory for ${email}`);
+    if (!rows.length) {
+      console.warn(`⚠️ No user found for email: ${email}`);
+      await db.end();
+      return false;
     }
-  } catch (err) {
-    console.error(
-      `❌ Error deactivating Prompt Memory for ${email}:`,
-      err.message
+
+    const user = rows[0];
+    const newSlots = (user.magnet_slots || 0) + 15;
+
+    await db.query(
+      `UPDATE users 
+         SET has_magnet = 1, 
+             magnet_slots = ?, 
+             has_free_magnet = 0,         -- 🚫 Remove free tier flag
+             free_trial_expires_at = NULL  -- 🧹 Clear trial expiration
+       WHERE email = ?`,
+      [newSlots, email]
     );
+
+    console.log(
+      `🎯 Added +15 lead magnet slots for ${email} (new total: ${newSlots})`
+    );
+    await db.end();
+    return true;
+  } catch (err) {
+    console.error("❌ upgradeUserToMagnets failed:", err.message);
+    await db.end();
     throw err;
   }
 }
@@ -431,14 +423,14 @@ export async function activateBusinessBuilder(email, billingCycle = "annual") {
       [billingCycle, lockedUntil, lockedUntil, userId]
     );
 
-    console.log(
-      `🏗️ Activated Business Builder Pack (${billingCycle}) for ${email}`
-    );
+    await Promise.all([
+      upgradeUserToProCovers(email),
+      activatePromptMemory(email),
+      upgradeUserToMagnets(email),
+    ]);
 
-    // ✅ Grant 5 free lead magnets
-    await upgradeUserToMagnets(email);
 
-    console.log(`🎁 Granted 5 free lead magnet slots to ${email}`);
+    console.log(`🎁 Granted 15 lead magnet slots to ${email}`);
 
     await db.end();
     return true;
@@ -455,7 +447,17 @@ export async function deactivateBusinessBuilder(email) {
     await db.query(
       `UPDATE users 
        SET pro_status = 'inactive',
-           status = 'cancelled'
+           status = 'cancelled',
+           pro_covers = 0,
+           has_memory = 0,
+           has_magnet = 0,
+           magnet_slots = 0,
+           has_free_magnet = 0,
+           free_trial_expires_at = NULL,
+           plan = NULL,
+           billing_type = NULL,
+           locked_until = NULL,
+           pro_expiration = NULL
        WHERE email = ?`,
       [email]
     );
@@ -467,15 +469,28 @@ export async function deactivateBusinessBuilder(email) {
   }
 }
 
-// PASSKEYS FUNCTIONS
+export async function getLeadMagnetByPdfUrl(pdfUrl) {
+  try {
+    const db = await connect();
+    const [rows] = await db.query(
+      "SELECT * FROM lead_magnets WHERE pdf_url = ? OR original_pdf_url = ? LIMIT 1",
+      [pdfUrl, pdfUrl]
+    );
+    return rows[0] || null;
+  } catch (err) {
+    console.error("❌ getLeadMagnetByPdfUrl error:", err);
+    throw err;
+  }
+}
 
+// PASSKEYS FUNCTIONS
 export async function updateWebAuthnChallenge(userId, challenge) {
   const db = await connect();
   try {
-    await db.query(
-      "UPDATE users SET webauthn_challenge = ? WHERE id = ?",
-      [challenge, userId]
-    );
+    await db.query("UPDATE users SET webauthn_challenge = ? WHERE id = ?", [
+      challenge,
+      userId,
+    ]);
   } catch (err) {
     console.error("❌ Error in updateWebAuthnChallenge:", err);
     throw err;
@@ -504,7 +519,6 @@ export async function saveWebAuthnCredentials({
 
     // ✅ Mark user as having a passkey
     await db.query("UPDATE users SET has_passkey = 1 WHERE id = ?", [userId]);
-
   } catch (err) {
     console.error("❌ Error in saveWebAuthnCredentials:", err);
     throw err;
@@ -512,6 +526,7 @@ export async function saveWebAuthnCredentials({
     await db.end();
   }
 }
+
 
 
 // 🔹 Retrieve a user's WebAuthn credential info by email
@@ -530,7 +545,7 @@ export async function getWebAuthnCredentials(email) {
        LIMIT 1`,
       [email]
     );
-    console.log("🧩 getWebAuthnCredentials result:", rows[0]);
+
     return rows[0] || null;
   } catch (err) {
     console.error("❌ Error in getWebAuthnCredentials:", err);
@@ -540,16 +555,14 @@ export async function getWebAuthnCredentials(email) {
   }
 }
 
-
-
 // 🔹 Update WebAuthn counter after successful authentication
 export async function updateWebAuthnCounter(userId, newCounter) {
   const db = await connect();
   try {
-    await db.query(
-      "UPDATE users SET webauthn_counter = ? WHERE id = ?",
-      [newCounter, userId]
-    );
+    await db.query("UPDATE users SET webauthn_counter = ? WHERE id = ?", [
+      newCounter,
+      userId,
+    ]);
   } catch (err) {
     console.error("❌ Error in updateWebAuthnCounter:", err);
     throw err;
@@ -577,4 +590,15 @@ export async function removeUserPasskey(userId) {
   } finally {
     await db.end();
   }
+}
+
+// Stripe
+
+export async function updateStripeAccountId(userId, accountId) {
+  const db = await connect();
+  await db.query("UPDATE users SET stripe_connect_account_id = ? WHERE id = ?", [
+    accountId,
+    userId,
+  ]);
+  return true;
 }

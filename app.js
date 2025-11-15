@@ -40,6 +40,9 @@ import settingsRoutes from "./routes/admin/settingsRoutes.js";
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
 import landingPageRoutes from "./routes/landing/landingPageRoutes.js";
 import landingAnalyticsRoutes from "./routes/analytics/landingAnalyticsRoutes.js";
+import sellerRoutes from "./routes/seller/sellerRoutes.js";
+import sellerWebhookRoute from "./routes/seller/sellerWebhookRoute.js";
+import sellerCheckoutRoutes from "./routes/seller/checkout/sellerCheckoutRoutes.js";
 
 
 
@@ -56,6 +59,7 @@ app.use(
   bodyParser.raw({ type: "application/json" }),
   webhookRoutes
 );
+app.use("/api/seller/webhook", sellerWebhookRoute);
 
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json({limit: "500mb"})); // parse json 
@@ -167,6 +171,8 @@ app.use("/api/vip", leadVipRoutes);
 app.use("/api/landing", landingPageRoutes);
 app.use("/api/landing-analytics", landingAnalyticsRoutes);
 app.use("/", landingPageRoutes);
+app.use("/api/seller", sellerRoutes);
+app.use("/api/seller-checkout", sellerCheckoutRoutes);
 
 
 // Admin

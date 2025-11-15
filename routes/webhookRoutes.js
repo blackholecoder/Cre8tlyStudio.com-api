@@ -2,12 +2,7 @@ import express from "express";
 import Stripe from "stripe";
 import { handleCheckoutCompleted } from "../services/leadMagnetService.js";
 import {
-  activatePromptMemory,
-  deactivatePromptMemory,
   upgradeUserToBooks,
-  upgradeUserToBundle,
-  upgradeUserToMagnets,
-  upgradeUserToProCovers,
   activateBusinessBuilder,
   deactivateBusinessBuilder,
 } from "../db/dbUser.js"; // ✅ make sure these two new helpers are exported there
@@ -48,33 +43,10 @@ router.post("/", async (req, res) => {
       let handledUpgrade = false;
 
       switch (product) {
-        case "pro":
-          console.log(`✨ Pro Covers upgrade for: ${email}`);
-          await upgradeUserToProCovers(email);
-          handledUpgrade = true;
-          break;
 
         case "author":
           console.log(`📚 Author’s Assistant upgrade for: ${email}`);
           await upgradeUserToBooks(email);
-          handledUpgrade = true;
-          break;
-
-        case "bundle":
-          console.log(`🎁 All-In-One Bundle purchase for: ${email}`);
-          await upgradeUserToBundle(email);
-          handledUpgrade = true;
-          break;
-
-        case "prompt_memory":
-          console.log(`🧠 Prompt Memory subscription for: ${email}`);
-          await activatePromptMemory(email);
-          handledUpgrade = true;
-          break;
-
-        case "basic":
-          console.log(`📄 Basic Creator plan for: ${email}`);
-          await upgradeUserToMagnets(email);
           handledUpgrade = true;
           break;
 
@@ -114,9 +86,6 @@ router.post("/", async (req, res) => {
           if (productType.includes("business_builder_pack")) {
             await activateBusinessBuilder(email);
             console.log(`✅ Business Builder payment succeeded for ${email}`);
-          } else if (productType.includes("prompt_memory")) {
-            await activatePromptMemory(email);
-            console.log(`✅ Prompt Memory payment succeeded for ${email}`);
           }
         } catch (err) {
           console.error(
@@ -140,8 +109,6 @@ router.post("/", async (req, res) => {
         try {
           if (productType.includes("business_builder_pack")) {
             await deactivateBusinessBuilder(email);
-          } else if (productType.includes("prompt_memory")) {
-            await deactivatePromptMemory(email);
           }
           console.log(`🚫 Subscription canceled or payment failed for ${email}`);
         } catch (err) {
