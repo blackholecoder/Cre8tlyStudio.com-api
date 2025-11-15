@@ -11,7 +11,7 @@ import {
 
 const router = express.Router();
 // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Stripe requires the raw body for signature verification
 router.post(
