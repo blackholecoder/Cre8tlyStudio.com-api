@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import connect from "../connect.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_TEST_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Update seller account flags
 export async function updateSellerStatus(stripeAccountId, fields) {
