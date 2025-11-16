@@ -284,3 +284,24 @@ export async function getPromptMemory(userId) {
     await db.end();
   }
 }
+
+
+export async function getLeadMagnetByPdfUrl(pdfUrl) {
+  const db = await connect();
+  try {
+    const [rows] = await db.query(
+      `SELECT id, user_id, title, prompt, pdf_url, cover_image, price
+       FROM lead_magnets
+       WHERE pdf_url = ? OR original_pdf_url = ?
+       LIMIT 1`,
+      [pdfUrl, pdfUrl]
+    );
+    return rows[0];
+  } catch (err) {
+    console.error("❌ getLeadMagnetByPdfUrl error:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
+}
+

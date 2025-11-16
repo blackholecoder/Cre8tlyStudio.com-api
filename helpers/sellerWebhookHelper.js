@@ -1,8 +1,12 @@
 // /helpers/sellerWebhookHelper.js
-import { updateSellerStatus, markProductDelivered } from "../db/seller/dbSeller.js";
+import {
+  updateSellerStatus,
+  markProductDelivered,
+} from "../db/seller/dbSeller.js";
 import { deliverDigitalProduct } from "../services/deliveryService.js";
 import { getLandingPageById } from "../db/landing/dbLanding.js";
 import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+import { insertDelivery } from "../db/dbDeliveries.js";
 
 // 🧠 Fired when a seller completes verification or updates info
 export async function handleAccountUpdated(account) {
@@ -36,6 +40,7 @@ export async function handleCheckoutCompleted(session) {
   const landingPageId = session.metadata?.landingPageId;
   const pdfUrl = session.metadata?.pdfUrl;
   const sellerId = session.metadata?.sellerId;
+  const leadMagnetId = session.metadata?.leadMagnetId;
 
   try {
     // 🧠 Case 1: Regular seller product
@@ -54,6 +59,17 @@ export async function handleCheckoutCompleted(session) {
         return;
       }
 
+      // ✅ Insert delivery record for verified reviews
+      await insertDelivery({
+        user_id: sellerId, // seller’s user ID
+        seller_stripe_id: landingPageId, // we use this as contextual page ref
+        product_id: leadMagnetId, // specific eBook (for reviews)
+        product_name: landingPage.title || "Digital eBook",
+        download_url: pdfUrl,
+        buyer_email: buyerEmail,
+        stripe_session_id: session.id,
+      });
+
       const emailHtml = `
         <div style="font-family: Helvetica, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
           <div style="text-align:center;margin-bottom:25px;">
@@ -61,7 +77,9 @@ export async function handleCheckoutCompleted(session) {
             <h1 style="color:#7bed9f;font-size:26px;margin:0;">Your Purchase is Ready</h1>
           </div>
           <p style="color:#e5e5e5;text-align:center;">
-            Thanks for purchasing <strong style="color:#fff;">${landingPage.username}</strong>’s product!
+            Thanks for purchasing <strong style="color:#fff;">${
+              landingPage.username
+            }</strong>’s product!
           </p>
           <div style="text-align:center;margin-top:30px;">
             <a href="${pdfUrl}" target="_blank"
@@ -81,7 +99,9 @@ export async function handleCheckoutCompleted(session) {
         html: emailHtml,
       });
 
-      console.log(`✅ Purchase email sent to ${buyerEmail} for ${landingPage.username}`);
+      console.log(
+        `✅ Purchase email sent to ${buyerEmail} for ${landingPage.username}`
+      );
       return;
     }
 

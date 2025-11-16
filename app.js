@@ -43,6 +43,7 @@ import landingAnalyticsRoutes from "./routes/analytics/landingAnalyticsRoutes.js
 import sellerRoutes from "./routes/seller/sellerRoutes.js";
 import sellerWebhookRoute from "./routes/seller/sellerWebhookRoute.js";
 import sellerCheckoutRoutes from "./routes/seller/checkout/sellerCheckoutRoutes.js";
+import reviewsRoutes from "./routes/landing/reviewsRoutes.js";
 
 
 
@@ -173,6 +174,7 @@ app.use("/api/landing-analytics", landingAnalyticsRoutes);
 app.use("/", landingPageRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/seller-checkout", sellerCheckoutRoutes);
+app.use("/api/reviews", reviewsRoutes);
 
 
 // Admin

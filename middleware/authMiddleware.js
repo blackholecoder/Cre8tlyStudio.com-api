@@ -64,3 +64,23 @@ export function requireMarketerOrAdmin(req, res, next) {
 
   return res.status(403).json({ message: "Access denied" });
 }
+
+export function authOptional(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    // no token → just move on as guest
+    req.user = null;
+    return next();
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      req.user = null; // invalid token still treated as guest
+    } else {
+      req.user = user;
+    }
+    next();
+  });
+}

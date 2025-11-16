@@ -4,18 +4,42 @@ export async function logLandingEvent(
   landing_page_id,
   event_type,
   ip_address,
-  user_agent
+  user_agent,
+  viewerId = null,
+  referer = "",
+  owner_preview = null
 ) {
   const db = await connect();
   try {
+
+    const [ownerRows] = await db.query(
+      "SELECT user_id FROM user_landing_pages WHERE id = ? LIMIT 1",
+      [landing_page_id]
+    );
+    const ownerId = ownerRows?.[0]?.user_id;
+    console.log("🧠 OWNER CHECK →", { ownerId, viewerId, owner_preview });
+
+    const isOwnerView =
+      (owner_preview && owner_preview === ownerId) ||
+      (viewerId && viewerId === ownerId);
+
+      if (isOwnerView) {
+      console.log("🚫 SKIPPING: Owner view detected");
+      return { success: true, skipped: true, message: "Owner view not tracked." };
+    }
+
+    // ✅ Safety: trim overly long user-agent strings (some are 500+ chars)
+    const safeUserAgent = (user_agent || "").toString().slice(0, 1000);
+
     const [result] = await db.query(
       `
       INSERT INTO landing_analytics 
       (landing_page_id, event_type, ip_address, user_agent)
       VALUES (?, ?, ?, ?)
       `,
-      [landing_page_id, event_type, ip_address, user_agent]
+      [landing_page_id, event_type, ip_address, safeUserAgent]
     );
+
     return { success: true, id: result.insertId };
   } catch (error) {
     console.error("❌ Error logging landing analytics:", error);
@@ -24,6 +48,7 @@ export async function logLandingEvent(
     await db.end();
   }
 }
+
 
 export async function getLandingAnalyticsSummary(landingPageId, days = 7) {
   const db = await connect();

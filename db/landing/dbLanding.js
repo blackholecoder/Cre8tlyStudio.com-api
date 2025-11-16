@@ -70,6 +70,7 @@ export async function getLandingPageById(id) {
 }
 
 
+
 export async function getLandingPageByUserId(userId) {
   const db = await connect();
   try {
@@ -227,8 +228,6 @@ export async function updateLandingPage(id, fields) {
         id,
       ]
     );
-
-    console.log("✅ Successfully updated landing page:", id);
 
     // ✅ Return updated record
     const [updated] = await db.query(
