@@ -2,7 +2,7 @@ import connect from "../connect.js";
 
 
 export async function giveFreeBooks(userId, count = 5) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // 1️⃣ Give free book slots
@@ -27,7 +27,5 @@ export async function giveFreeBooks(userId, count = 5) {
   } catch (err) {
     console.error("❌ giveFreeBooks error:", err);
     return { success: false, error: err.message };
-  } finally {
-    await db.end();
   }
 }

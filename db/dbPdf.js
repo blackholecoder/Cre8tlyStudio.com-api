@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export const pdfLeads = async (email, source) => {
   try {
-    const db = await connect();
+    const db = connect();
     const id = uuidv4();
     const created_at = new Date();
     const source = 'free pdf'
@@ -13,7 +13,7 @@ export const pdfLeads = async (email, source) => {
       [id, email, source, created_at]
     );
 
-    await db.end();
+    ;
     return true;
   } catch (e) {
     if (e.code === "ER_DUP_ENTRY") {

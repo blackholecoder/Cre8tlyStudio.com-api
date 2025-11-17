@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function createTopic(name, slug, description = null) {
   try {
-    const db = await connect();
+    const db = connect();
     const id = uuidv4();
 
     await db.query(
@@ -23,7 +23,7 @@ export async function createTopic(name, slug, description = null) {
 
 export async function getTopics() {
   try {
-    const db = await connect();
+    const db = connect();
 
     const [rows] = await db.query(`
       SELECT id, name, slug, description, is_locked, created_at
@@ -40,7 +40,7 @@ export async function getTopics() {
 
 export async function getTopicById(topicId) {
   try {
-    const db = await connect();
+    const db = connect();
 
     const [rows] = await db.query(
       `SELECT * FROM community_topics WHERE id = ? LIMIT 1`,

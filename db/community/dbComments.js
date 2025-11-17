@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function addComment(postId, userId, body) {
   try {
-    const db = await connect();
+    const db = connect();
     const id = uuidv4();
 
     await db.query(
@@ -23,7 +23,7 @@ export async function addComment(postId, userId, body) {
 
 export async function getCommentsByPost(postId, userId) {
   try {
-    const db = await connect();
+    const db = connect();
 
     const [rows] = await db.query(
       `
@@ -56,7 +56,7 @@ export async function getCommentsByPost(postId, userId) {
 
 export async function getCommentsPaginated(postId, userId, page = 1, limit = 10) {
   try {
-    const db = await connect();
+    const db = connect();
     const offset = (page - 1) * limit;
 
     const [comments] = await db.query(
@@ -114,7 +114,7 @@ export async function getCommentsPaginated(postId, userId, page = 1, limit = 10)
 
 export async function createReply(userId, postId, parentId, body) {
   try {
-    const db = await connect();
+    const db = connect();
     const id = crypto.randomUUID();
 
     await db.query(
@@ -132,73 +132,39 @@ export async function createReply(userId, postId, parentId, body) {
   }
 }
 
-// export async function getRepliesForComment(parentId, userId) {
-//   try {
-//     const db = await connect();
 
-//     const [rows] = await db.query(
-//       `
-//       SELECT 
-//         c.id,
-//         c.body,
-//         c.created_at,
-//         u.name AS author,
-//         u.role AS author_role,
-
-//         /* ❤️ Total likes on this reply */
-//         (
-//           SELECT COUNT(*)
-//           FROM community_comment_likes l
-//           WHERE l.comment_id = c.id
-//         ) AS like_count,
-
-//         /* ❤️ Whether THIS user liked it */
-//         (
-//           SELECT COUNT(*)
-//           FROM community_comment_likes l
-//           WHERE l.comment_id = c.id AND l.user_id = ?
-//         ) AS user_liked
-
-//       FROM community_comments c
-//       JOIN users u ON c.user_id = u.id
-//       WHERE c.parent_id = ?
-//       ORDER BY c.created_at ASC
-//       `,
-//       [userId, parentId]
-//     );
-
-//     return rows.map((r) => ({
-//       ...r,
-//       like_count: Number(r.like_count) || 0,
-//       user_liked: Number(r.user_liked) || 0,
-//     }));
-//   } catch (error) {
-//     console.error("Error in getRepliesForComment:", error);
-//     throw error;
-//   }
-// }
 export async function getRepliesPaginated(parentId, userId, limit, offset) {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(
     `
     SELECT 
       c.id,
+      c.parent_id, 
       c.body,
       c.created_at,
       u.name AS author,
       u.role AS author_role,
 
       /* ❤️ Total likes */
-      (SELECT COUNT(*) FROM community_comment_likes l WHERE l.comment_id = c.id) AS like_count,
+      (SELECT COUNT(*) 
+       FROM community_comment_likes l 
+       WHERE l.comment_id = c.id) AS like_count,
 
       /* ❤️ Whether user liked */
-      (SELECT COUNT(*) FROM community_comment_likes l WHERE l.comment_id = c.id AND l.user_id = ?) AS user_liked
+      (SELECT COUNT(*) 
+       FROM community_comment_likes l 
+       WHERE l.comment_id = c.id AND l.user_id = ?) AS user_liked,
+
+      /* 🔥 Correct reply count for ANY depth */
+      (SELECT COUNT(*) 
+       FROM community_comments cc2 
+       WHERE cc2.parent_id = c.id) AS reply_count
 
     FROM community_comments c
     JOIN users u ON c.user_id = u.id
     WHERE c.parent_id = ?
-    ORDER BY c.created_at ASC
+    ORDER BY c.created_at DESC, c.id DESC
     LIMIT ? OFFSET ?
     `,
     [userId, parentId, limit, offset]
@@ -218,6 +184,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
       ...r,
       like_count: Number(r.like_count) || 0,
       user_liked: Number(r.user_liked) || 0,
+      reply_count: Number(r.reply_count) || 0,
     })),
     total: totalRow.total,
   };
@@ -225,9 +192,10 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
 
 
 
+
 export async function updateComment(commentId, userId, body) {
   try {
-    const db = await connect();
+    const db = connect();
 
     // Only allow editing your own comment OR admin editing anything
     await db.query(
@@ -248,7 +216,7 @@ export async function updateComment(commentId, userId, body) {
 
 export async function deleteComment(commentId, userId, role) {
   try {
-    const db = await connect();
+    const db = connect();
 
     // Check who owns the comment
     const [rows] = await db.query(
@@ -280,7 +248,7 @@ export async function deleteComment(commentId, userId, role) {
 // LIKES
 
 export async function likeComment(commentId, userId) {
-  const db = await connect();
+  const db = connect();
 
   await db.query(
     `
@@ -295,7 +263,7 @@ export async function likeComment(commentId, userId) {
 
 // --- Remove Like ---
 export async function unlikeComment(commentId, userId) {
-  const db = await connect();
+  const db = connect();
 
   await db.query(
     `
@@ -310,7 +278,7 @@ export async function unlikeComment(commentId, userId) {
 
 // --- Count Likes ---
 export async function getLikesForComment(commentId) {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(
     `
@@ -326,7 +294,7 @@ export async function getLikesForComment(commentId) {
 
 // --- Check if user already liked ---
 export async function userLikedComment(commentId, userId) {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(
     `

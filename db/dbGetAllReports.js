@@ -1,7 +1,7 @@
 import connect from "./connect.js";
 
 export async function getAllReports() {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(`
     SELECT 

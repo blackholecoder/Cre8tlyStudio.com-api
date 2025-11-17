@@ -3,7 +3,7 @@ import connect from "../connect.js";
 
 // ✅ Create a new empty book slot for a user
 export async function createBook(userId, prompt, title = "Untitled Book", authorName = null, bookType = "fiction") {
-  const db = await connect();
+  const db = connect();
   const id = uuidv4();
   const createdAt = new Date();
 
@@ -34,25 +34,25 @@ export async function createBook(userId, prompt, title = "Untitled Book", author
     ]
   );
 
-  await db.end();
+  ;
   return { id, status };
 }
 
 // ✅ Mark book as complete
 export async function markBookComplete(id, pdfUrl) {
-  const db = await connect();
+  const db = connect();
   await db.query(
     `UPDATE generated_books 
      SET pdf_url=?, status='completed' 
      WHERE id=? AND deleted_at IS NULL`,
     [pdfUrl, id]
   );
-  await db.end();
+  ;
 }
 
 // ✅ Get all books for a user
 export async function getBooksByUser(userId) {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(
     `
@@ -89,39 +89,39 @@ export async function getBooksByUser(userId) {
     [userId]
   );
 
-  await db.end();
+  ;
   return rows;
 }
 
 
 // ✅ Get all books (admin)
 export async function getAllBooks() {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query(
     `SELECT id, user_id, title, slot_number, status, prompt, pdf_url, pages, created_at, author_name
      FROM generated_books
      WHERE deleted_at IS NULL
      ORDER BY created_at DESC`
   );
-  await db.end();
+  ;
   return rows;
 }
 
 // ✅ Soft delete
 export async function softDeleteBook(id) {
-  const db = await connect();
+  const db = connect();
   await db.query(
     "UPDATE generated_books SET deleted_at=NOW() WHERE id=? AND deleted_at IS NULL",
     [id]
   );
-  await db.end();
+  ;
 }
 
 // ✅ Get single book by ID
 export async function getBookById(id) {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query("SELECT * FROM generated_books WHERE id = ?", [id]);
-  await db.end();
+  ;
 
   if (!rows[0]) return null;
 
@@ -139,12 +139,12 @@ export async function getBookById(id) {
 
 // ✅ Update prompt after submission
 export async function updateBookPrompt(id, prompt) {
-  const db = await connect();
+  const db = connect();
   const [result] = await db.query(
     "UPDATE generated_books SET prompt=?, status='pending' WHERE id=? AND deleted_at IS NULL",
     [prompt, id]
   );
-  await db.end();
+  ;
   return result.affectedRows > 0;
 }
 
@@ -217,9 +217,8 @@ export async function saveBookPdf(
   }
 }
 
-
 export async function getBookParts(bookId, userId) {
-  const db = await connect();
+  const db = connect();
 
   try {
     const [rows] = await db.query(
@@ -231,12 +230,12 @@ export async function getBookParts(bookId, userId) {
     );
     return rows;
   } finally {
-    await db.end();
+    ;
   }
 }
 
 export async function updateBookInfo(bookId, userId, bookName, authorName, bookType) {
-  const db = await connect();
+  const db = connect();
 
   try {
     await db.query(
@@ -254,14 +253,12 @@ export async function updateBookInfo(bookId, userId, bookName, authorName, bookT
   } catch (err) {
     console.error("❌ updateBookInfo failed:", err.message);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 
 export async function getBookTypeById(bookId, userId) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT book_type FROM generated_books WHERE id = ? AND user_id = ?",
@@ -269,12 +266,12 @@ export async function getBookTypeById(bookId, userId) {
     );
     return rows.length ? rows[0].book_type : null;
   } finally {
-    await db.end();
+    ;
   }
 }
 
 export async function markBookOnboardingComplete(userId) {
-  const db = await connect();
+  const db = connect();
 
   try {
     const [result] = await db.query(
@@ -292,13 +289,11 @@ export async function markBookOnboardingComplete(userId) {
   } catch (err) {
     console.error("❌ Database error updating onboarding:", err);
     return { success: false, message: "Database update failed", error: err };
-  } finally {
-    if (db) await db.end();
   }
 }
 
 export async function resetBookOnboarding(userId) {
-  const db = await connect();
+  const db = connect();
 
   try {
     await db.query(
@@ -309,8 +304,6 @@ export async function resetBookOnboarding(userId) {
   } catch (err) {
     console.error("❌ dbResetBookOnboarding error:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
@@ -326,7 +319,7 @@ export async function saveBookDraft({
   font_name,
   font_file,
 }) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // ✅ Optional check: prevent duplicate parts
@@ -337,13 +330,13 @@ export async function saveBookDraft({
       );
 
       if (existingPart.length > 0) {
-        await db.end();
+        ;
         return { error: true, message: `Part ${partNumber} already submitted, cannot save draft.` };
       }
     }
 
     if (!bookId) {
-      await db.end();
+      ;
       throw new Error("Missing bookId — each user must have a pre-created book row before saving a draft.");
     }
 
@@ -376,7 +369,7 @@ export async function saveBookDraft({
       ]
     );
 
-    await db.end();
+    ;
 
     if (result.affectedRows === 0) {
       console.warn(`⚠️ No book found for user ${userId} with id ${bookId}`);
@@ -385,17 +378,15 @@ export async function saveBookDraft({
 
     return { success: true, id: bookId, message: "Draft updated" };
   } catch (err) {
-    await db.end();
+    ;
     console.error("❌ Error in saveBookDraft:", err);
     throw err;
   }
 }
 
-
-
 // Get existing draft by ID
 export async function getBookDraft({ userId, bookId }) {
-  const db = await connect();
+  const db = connect();
 
   try {
     const [rows] = await db.query(
@@ -416,18 +407,17 @@ export async function getBookDraft({ userId, bookId }) {
       [bookId, userId]
     );
 
-    await db.end();
+    ;
     return rows.length ? rows[0] : null;
   } catch (err) {
-    await db.end();
+    ;
     console.error("❌ Error in getBookDraft:", err);
     throw err;
   }
 }
 
-
 export async function saveBookPartDraft({ userId, bookId, partNumber, draftText, title }) {
-  const db = await connect();
+  const db = connect();
 
   try {
     const [existing] = await db.query(
@@ -450,10 +440,10 @@ export async function saveBookPartDraft({ userId, bookId, partNumber, draftText,
       );
     }
 
-    await db.end();
+    ;
     return { message: "Part draft saved" };
   } catch (err) {
-    await db.end();
+    ;
     console.error("❌ saveBookPartDraft error:", err);
     throw err;
   }

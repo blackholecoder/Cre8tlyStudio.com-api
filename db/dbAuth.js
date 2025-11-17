@@ -5,7 +5,7 @@ import connect from "./connect.js";
 import { sendMail } from "../utils/sendMail.js";
 
 export const forgotPassword = async (email) => {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
   if (!rows.length) {
     return { message: "If that email exists, a reset link has been sent." };
@@ -55,7 +55,7 @@ export const forgotPassword = async (email) => {
 
 // 🔹 Reset Password
 export async function resetPassword(token, newPassword) {
-  const db = await connect();
+  const db = connect();
   if (!token || !newPassword) {
     return { status: 400, message: "Token and new password are required" };
   }

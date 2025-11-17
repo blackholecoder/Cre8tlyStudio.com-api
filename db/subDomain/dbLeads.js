@@ -4,7 +4,7 @@ import connect from "../connect.js";
 
 export async function saveLead(id, email, source) {
   try {
-      const db = await connect();
+      const db = connect();
     // Check if the email already exists
     const [existing] = await db.query(
       "SELECT id FROM pdf_leads WHERE email = ?",

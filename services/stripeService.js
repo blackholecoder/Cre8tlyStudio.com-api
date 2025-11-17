@@ -16,9 +16,9 @@ export async function createCheckout({
   priceId, // keep this for flexibility
 }) {
   // ✅ Fetch user email
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query("SELECT email FROM users WHERE id = ?", [userId]);
-  await db.end();
+  ;
 
   if (!rows.length) throw new Error("User not found");
   const email = rows[0].email;

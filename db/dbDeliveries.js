@@ -14,7 +14,7 @@ export async function insertDelivery({
   buyer_email,          // Customer’s email
   stripe_session_id,    // Stripe session reference
 }) {
-  const db = await connect();
+  const db = connect();
   try {
     const id = uuidv4();
 
@@ -42,7 +42,5 @@ export async function insertDelivery({
   } catch (err) {
     console.error("❌ insertDelivery error:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }

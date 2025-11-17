@@ -1,20 +1,38 @@
-import { createConnection } from "mysql2/promise";
+// import { createConnection } from "mysql2/promise";
+// import dotenv from "dotenv";
+
+
+// dotenv.config();
+
+// const connect = async () => {
+//   const connection = await createConnection({
+//     host: process.env.MYSQL_HOST,
+//     user: process.env.MYSQL_USER,
+//     password: process.env.MYSQL_PASSWORD,
+//     database: process.env.MYSQL_DATABASE,
+//     connectTimeout: 1000000
+//   });
+
+//   connection.connect();
+//   return connection;
+// };
+
+// export default connect;
+
+import mysql from "mysql2/promise";
 import dotenv from "dotenv";
-
-
 dotenv.config();
 
-const connect = async () => {
-  const connection = await createConnection({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.MYSQL_DATABASE,
-    connectTimeout: 1000000
-  });
+const pool = mysql.createPool({
+  host: process.env.MYSQL_HOST,
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD,
+  database: process.env.MYSQL_DATABASE,
+  waitForConnections: true,
+  connectionLimit: 10,    // safe for your DO droplet
+  queueLimit: 0
+});
 
-  connection.connect();
-  return connection;
-};
-
-export default connect;
+export default function connect() {
+  return pool;
+}

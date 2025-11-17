@@ -12,8 +12,8 @@ export async function saveBookRecord({
   fileUrl,
   title,
 }) {
-  const db = await connect();
-  const bookId = uuidv4(); // ✅ Matches CHAR(36) UUID format
+  const db = connect();
+  const bookId = uuidv4();
 
   try {
     await db.query(
@@ -44,7 +44,6 @@ export async function saveBookRecord({
   } catch (err) {
     console.error("❌ Error saving book record:", err);
     throw err;
-  } finally {
-    if (db.release) db.release();
   }
 }
+

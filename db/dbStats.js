@@ -2,7 +2,7 @@ import connect from "./connect.js";
 
 
 export async function getAdminStats() {
-  const db = await connect();
+  const db = connect();
 
   // ✅ Total registered users
   const [[{ total_users }]] = await db.query(`
@@ -40,7 +40,7 @@ export async function getAdminStats() {
     FROM pdf_leads;
   `);
 
-  await db.end();
+  ;
 
   // ✅ Return clean data for frontend
   return {

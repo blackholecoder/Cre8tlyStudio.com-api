@@ -40,12 +40,12 @@ export async function uploadAdminImage(userId, { imageData, fileName, mimeType }
   const imageUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_REGION}.digitaloceanspaces.com/${fileKey}`;
 
   // ✅ 3. save URL to DB
-  const db = await connect();
+  const db = connect();
   await db.query("UPDATE users SET profile_image_url = ? WHERE id = ?", [
     imageUrl,
     userId,
   ]);
-  await db.end();
+  ;
 
   return { imageUrl };
 }

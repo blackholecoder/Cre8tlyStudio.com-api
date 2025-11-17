@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function getLandingPageByUser(username) {
   try {
-    const db = await connect();
+    const db = connect();
 
     const [rows] = await db.query(
       "SELECT * FROM user_landing_pages WHERE username = ? LIMIT 1",
@@ -30,7 +30,7 @@ export async function getLandingPageByUser(username) {
 }
 
 export async function saveLandingPageLead(landingPageId, email) {
-  const db = await connect();
+  const db = connect();
 
   try {
     const id = uuidv4();
@@ -42,14 +42,12 @@ export async function saveLandingPageLead(landingPageId, email) {
   } catch (err) {
     console.error("❌ Error saving landing page lead:", err);
     throw err;
-  } finally {
-    await db.end(); // ✅ only if your connect() doesn’t use a shared pool
   }
 }
 
 export async function getLandingPageById(id) {
   try {
-    const db = await connect();
+    const db = connect();
     const [rows] = await db.query(
       `
       SELECT 
@@ -72,7 +70,7 @@ export async function getLandingPageById(id) {
 
 
 export async function getLandingPageByUserId(userId) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       `
@@ -95,7 +93,7 @@ export async function getLandingPageByUserId(userId) {
 }
 
 export async function updateLandingPage(id, fields) {
-  const db = await connect();
+  const db = connect();
   try {
     let {
       headline,
@@ -239,14 +237,12 @@ export async function updateLandingPage(id, fields) {
   } catch (err) {
     console.error("❌ Error updating landing page:", err);
     return { success: false, message: err.message || "Server error" };
-  } finally {
-    await db.end();
   }
 }
 
 
 export async function getOrCreateLandingPage(userId) {
-  const db = await connect();
+  const db = connect();
   try {
     // 1️⃣ Check if landing page already exists
     const [rows] = await db.query(
@@ -382,14 +378,12 @@ export async function getOrCreateLandingPage(userId) {
   } catch (err) {
     console.error("❌ Error in getOrCreateLandingPage:", err);
     return { error: "Server error", status: 500 };
-  } finally {
-    await db.end();
   }
 }
 
 
 export async function checkUsernameAvailability(username) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT id FROM user_landing_pages WHERE username = ? LIMIT 1",
@@ -399,13 +393,11 @@ export async function checkUsernameAvailability(username) {
   } catch (err) {
     console.error("❌ Error in checkUsernameAvailability helper:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 export async function updateLandingLogo(landingId, logoUrl) {
-  const db = await connect();
+  const db = connect();
   try {
     await db.query(
       "UPDATE user_landing_pages SET logo_url = ? WHERE id = ?",
@@ -415,13 +407,11 @@ export async function updateLandingLogo(landingId, logoUrl) {
   } catch (err) {
     console.error("❌ Error in updateLandingLogo helper:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 export async function getCoverImageByPdfUrl(pdfUrl) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT cover_image FROM lead_magnets WHERE pdf_url = ? LIMIT 1",
@@ -431,13 +421,11 @@ export async function getCoverImageByPdfUrl(pdfUrl) {
   } catch (err) {
     console.error("❌ Error in getCoverImageByPdfUrl:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 export async function getUserLeads(userId, page = 1, limit = 20) {
-  const db = await connect();
+  const db = connect();
   const offset = (page - 1) * limit;
 
   // ✅ Main paginated query

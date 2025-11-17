@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import AWS from "aws-sdk";
 
 export async function createEbook({ title, description, price, imageBase64, productType }) {
-  const db = await connect();
+  const db = connect();
 
   try {
     if (!title || !price || !productType || !imageBase64)
@@ -64,7 +64,7 @@ export async function createEbook({ title, description, price, imageBase64, prod
       [id, title, formattedDescription, price, imageUrl, productType, now]
     );
 
-    await db.end();
+    ;
 
     return {
       success: true,
@@ -73,28 +73,28 @@ export async function createEbook({ title, description, price, imageBase64, prod
       imageUrl,
     };
   } catch (err) {
-    await db.end();
+    ;
     console.error("Error creating ebook:", err);
     throw err;
   }
 }
 
 export async function getEbooks() {
-  const db = await connect();
+  const db = connect();
 
   try {
     const [rows] = await db.query("SELECT * FROM ebooks ORDER BY created_at DESC");
-    await db.end();
+    ;
     return rows;
   } catch (err) {
-    await db.end();
+    ;
     throw err;
   }
 }
 
 // 🗑️ Delete ebook + its image from DigitalOcean Spaces
 export async function deleteEbook(ebookId) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // 1️⃣ Fetch the ebook record to get its image URL
@@ -128,21 +128,21 @@ export async function deleteEbook(ebookId) {
 
     // 3️⃣ Delete the ebook from database
     await db.query("DELETE FROM ebooks WHERE id = ?", [ebookId]);
-    await db.end();
+    ;
 
     return {
       success: true,
       message: "Ebook and image deleted successfully",
     };
   } catch (err) {
-    await db.end();
+    ;
     console.error("Error deleting ebook:", err);
     throw err;
   }
 }
 
 export async function updateEbook({ id, title, description, price }) {
-  const db = await connect();
+  const db = connect();
 
   try {
     if (!id) throw new Error("Missing ebook ID");
@@ -172,14 +172,14 @@ export async function updateEbook({ id, title, description, price }) {
       values
     );
 
-    await db.end();
+    ;
 
     return {
       success: true,
       message: "Ebook updated successfully",
     };
   } catch (err) {
-    await db.end();
+    ;
     console.error("Error updating ebook:", err);
     throw err;
   }

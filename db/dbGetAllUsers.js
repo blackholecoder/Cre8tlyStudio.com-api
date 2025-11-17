@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 
 export async function getAllUsers() {
-  const db = await connect();
+  const db = connect();
   const page = 1;
   const limit = 20;
   const offset = (page - 1) * limit;
@@ -20,7 +20,7 @@ export async function getAllUsers() {
 
 
 export async function deleteUserById(userId) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // 1️⃣ Verify user exists
@@ -36,7 +36,7 @@ export async function deleteUserById(userId) {
     // 3️⃣ Delete the user record
     const [result] = await db.query("DELETE FROM users WHERE id = ?", [userId]);
 
-    await db.end();
+    ;
 
     return {
       success: true,
@@ -45,7 +45,7 @@ export async function deleteUserById(userId) {
       result,
     };
   } catch (err) {
-    await db.end();
+    ;
     console.error("❌ Error deleting user and slots:", err);
     throw err;
   }

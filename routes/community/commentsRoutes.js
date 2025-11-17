@@ -70,7 +70,12 @@ router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
-    const comments = await getCommentsPaginated(postId, req.user.id, page, limit);
+    const comments = await getCommentsPaginated(
+      postId,
+      req.user.id,
+      page,
+      limit
+    );
 
     res.json({
       success: true,
@@ -87,38 +92,29 @@ router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
 
 // Replies
 
-router.post("/comments/:commentId/reply", authenticateToken, async (req, res) => {
-  try {
-    const { commentId } = req.params;
-    const { body, postId } = req.body;
+router.post(
+  "/comments/:commentId/reply",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { commentId } = req.params;
+      const { body, postId } = req.body;
 
-    if (!body) {
-      return res.status(400).json({ success: false, message: "Reply cannot be empty" });
+      if (!body) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Reply cannot be empty" });
+      }
+
+      const replyId = await createReply(req.user.id, postId, commentId, body);
+
+      res.json({ success: true, replyId });
+    } catch (error) {
+      console.error("POST /community/comments/:commentId/reply error:", error);
+      res.status(500).json({ success: false, message: "Failed to post reply" });
     }
-
-    const replyId = await createReply(req.user.id, postId, commentId, body);
-
-    res.json({ success: true, replyId });
-
-  } catch (error) {
-    console.error("POST /community/comments/:commentId/reply error:", error);
-    res.status(500).json({ success: false, message: "Failed to post reply" });
   }
-});
-
-// router.get("/comments/:commentId/replies", authenticateToken, async (req, res) => {
-//   try {
-//     const { commentId } = req.params;
-//     const userId = req.user.id;
-
-//     const replies = await getRepliesForComment(commentId, userId);
-
-//     res.json({ success: true, replies });
-//   } catch (err) {
-//     console.error("Failed to load replies:", err);
-//     res.status(500).json({ success: false, message: "Failed to load replies" });
-//   }
-// });
+);
 
 router.get(
   "/comments/:commentId/replies",
@@ -155,13 +151,11 @@ router.get(
   }
 );
 
-
-
 router.put("/comments/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { body } = req.body;
-  const userId = req.user.id;       // from auth
-  const role = req.user.role;       // admin or user
+  const userId = req.user.id; // from auth
+  const role = req.user.role; // admin or user
 
   try {
     await updateComment(id, userId, body, role);
@@ -187,13 +181,13 @@ router.delete("/comments/:id", authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("Delete failed:", err);
-    res.status(500).json({ success: false, message: "Failed to delete comment" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to delete comment" });
   }
 });
 
-
 // LIKES
-
 
 router.post("/comments/:id/like", authenticateToken, async (req, res) => {
   const commentId = req.params.id;
@@ -222,7 +216,5 @@ router.delete("/comments/:id/like", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
-
-
 
 export default router;

@@ -9,7 +9,7 @@ import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import mammoth from "mammoth";
 
 export async function uploadBrandIdentity(userId, fileName, base64Data) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // 1️⃣ Create a safe filename
@@ -60,7 +60,7 @@ export async function uploadBrandIdentity(userId, fileName, base64Data) {
         userId,
       ]);
     } finally {
-      await db.end();
+      ;
     }
 
     return {
@@ -69,14 +69,14 @@ export async function uploadBrandIdentity(userId, fileName, base64Data) {
       fileUrl: upload.Location,
     };
   } catch (err) {
-    await db.end();
+    ;
     console.error("Error uploading brand file:", err);
     throw err;
   }
 }
 
 export async function deleteBrandIdentity(userId) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // 1️⃣ Fetch user’s brand file URL
@@ -111,21 +111,21 @@ export async function deleteBrandIdentity(userId) {
       userId,
     ]);
 
-    await db.end();
+    ;
 
     return {
       success: true,
       message: "Brand identity file deleted successfully",
     };
   } catch (err) {
-    await db.end();
+    ;
     console.error("Error deleting brand file:", err);
     throw err;
   }
 }
 
 export async function getUserSettings(userId) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT id, email, name, brand_identity_file, cta FROM users WHERE id = ?",
@@ -137,13 +137,11 @@ export async function getUserSettings(userId) {
   } catch (err) {
     console.error("Error fetching user settings:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 export async function getUserBrandFile(userId) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT brand_identity_file FROM users WHERE id = ? LIMIT 1",
@@ -198,14 +196,12 @@ export async function getUserBrandFile(userId) {
   } catch (err) {
     console.error("Error fetching user brand file:", err);
     return null;
-  } finally {
-    await db.end();
   }
 }
 
 
 export async function removeUserBrandFile(userId) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // 1️⃣ Fetch file URL
@@ -244,13 +240,11 @@ export async function removeUserBrandFile(userId) {
   } catch (err) {
     console.error("Error removing brand file:", err);
     throw err;
-  } finally {
-    await db.end();
-  }
+  } 
 }
 
 export async function updateUserCta(userId, cta) {
-  const db = await connect();
+  const db = connect();
   try {
     const [result] = await db.query("UPDATE users SET cta = ? WHERE id = ?", [
       cta,

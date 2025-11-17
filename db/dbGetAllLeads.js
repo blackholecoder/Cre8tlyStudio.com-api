@@ -2,7 +2,7 @@ import connect from "./connect.js";
 
 
 export async function getAllLeads() {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(`
     SELECT id, email, source, created_at
@@ -10,6 +10,6 @@ export async function getAllLeads() {
     ORDER BY created_at DESC;
   `);
 
-  await db.end();
+  ;
   return rows;
 }

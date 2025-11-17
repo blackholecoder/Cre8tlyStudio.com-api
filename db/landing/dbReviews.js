@@ -3,7 +3,7 @@ import connect from "../connect.js";
 
 
 export async function verifyBuyer(email, productId) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT id FROM deliveries WHERE buyer_email = ? AND product_id = ? LIMIT 1",
@@ -13,8 +13,6 @@ export async function verifyBuyer(email, productId) {
   } catch (err) {
     console.error("❌ verifyBuyer error:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
@@ -29,7 +27,7 @@ export async function insertReview({
   rating,
   review_text,
 }) {
-  const db = await connect();
+  const db = connect();
   try {
     const id = uuidv4();
     await db.query(
@@ -42,8 +40,6 @@ export async function insertReview({
   } catch (err) {
     console.error("❌ insertReview error:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
@@ -51,7 +47,7 @@ export async function insertReview({
  * ✅ Fetch all reviews for a specific landing page
  */
 export async function getReviewsByLandingPage(landingPageId) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       `SELECT username, rating, review_text, created_at 
@@ -64,7 +60,5 @@ export async function getReviewsByLandingPage(landingPageId) {
   } catch (err) {
     console.error("❌ getReviewsByLandingPage error:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }

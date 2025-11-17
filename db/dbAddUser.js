@@ -9,7 +9,7 @@ export async function createUserAndGiveFreeSlots({
   slots = 5,
   role = "customer",
 }) {
-  const db = await connect();
+  const db = connect();
   const now = new Date();
 
   try {
@@ -59,12 +59,12 @@ export async function createUserAndGiveFreeSlots({
     console.error("❌ createUserAndGiveFreeSlots failed:", err.message);
     throw err;
   } finally {
-    await db.end();
+    ;
   }
 }
 
 export async function giveFreeLeadMagnets(userId, count = 1) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // 1️⃣ Confirm user exists
@@ -122,7 +122,7 @@ export async function giveFreeLeadMagnets(userId, count = 1) {
       `✅ Gave ${count} free lead magnet slots to ${userEmail} (total: ${newSlotCount})`
     );
 
-    await db.end();
+    ;
 
     return {
       success: true,
@@ -131,7 +131,7 @@ export async function giveFreeLeadMagnets(userId, count = 1) {
       newSlots: leadMagnets.map((s) => s[10]), // optional: returns slot numbers
     };
   } catch (err) {
-    await db.end();
+    ;
     console.error("❌ giveFreeLeadMagnets failed:", err.message);
     throw err;
   }

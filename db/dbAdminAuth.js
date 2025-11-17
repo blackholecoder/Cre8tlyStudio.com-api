@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 export async function loginAdmin(email, password) {
-  const db = await connect();
+  const db = connect();
 
   // ✅ Allow both admins and marketers to log in
   const [rows] = await db.query(
@@ -11,7 +11,7 @@ export async function loginAdmin(email, password) {
     [email]
   );
 
-  await db.end();
+  ;
 
   if (rows.length === 0) {
     throw new Error("Access denied: not an admin or marketer");

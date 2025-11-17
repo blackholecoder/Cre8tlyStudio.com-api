@@ -9,7 +9,7 @@ export async function logLandingEvent(
   referer = "",
   owner_preview = null
 ) {
-  const db = await connect();
+  const db = connect();
   try {
 
     const [ownerRows] = await db.query(
@@ -42,14 +42,12 @@ export async function logLandingEvent(
   } catch (error) {
     console.error("❌ Error logging landing analytics:", error);
     return { success: false, error };
-  } finally {
-    await db.end();
   }
 }
 
 
 export async function getLandingAnalyticsSummary(landingPageId, days = 7) {
-  const db = await connect();
+  const db = connect();
   const limitDays = parseInt(days, 10) || 7;
 
   try {
@@ -86,13 +84,11 @@ ORDER BY DATE(created_at) ASC
   } catch (error) {
     console.error("❌ Error in getLandingAnalyticsSummary:", error);
     return { success: false, error };
-  } finally {
-    await db.end();
   }
 }
 
 export async function getLandingPageIdForUser(userId) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT id FROM user_landing_pages WHERE user_id = ?",
@@ -100,6 +96,6 @@ export async function getLandingPageIdForUser(userId) {
     );
     return rows.length ? rows[0].id : null;
   } finally {
-    await db.end();
+    ;
   }
 }

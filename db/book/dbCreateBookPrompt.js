@@ -30,7 +30,7 @@ console.log("font_name", font_name);
 
 
   console.log(`✍️ Running Book GPT Engine (Part ${partNumber})...`);
-  const db = await connect();
+  const db = connect();
 
   if (!prompt || typeof prompt !== "string") {
     throw new Error("Prompt text is required to create a book section");
@@ -179,8 +179,6 @@ console.log("font_name", font_name);
   } catch (err) {
     console.error("❌ Error creating book part:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
@@ -196,7 +194,7 @@ export function validateBookPromptInput(bookId, prompt) {
  * Check if book exists and hasn’t exceeded its page limit.
  */
 export async function enforcePageLimit(userId, bookId, pages) {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query(
     `SELECT pages FROM generated_books WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
     [bookId, userId]
@@ -233,7 +231,7 @@ export async function processBookPrompt({
   console.log("font_name", font_name);
     console.log("font_file", font_file);
 
-  const db = await connect();
+  const db = connect();
 
 
   // ✅ Generate content and upload
@@ -291,7 +289,7 @@ export async function processBookPrompt({
     `📊 Updating DB with ${generated.actualPages} pages (requested ${pages}), font: ${font_name}`
   );
 
-  await db.end();
+  ;
   return generated;
 }
 

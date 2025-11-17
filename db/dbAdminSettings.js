@@ -4,7 +4,7 @@ import AWS from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
 
 export async function updateAdminSettings(userId, { email, currentPassword, newPassword, profileImage }) {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query("SELECT email, password_hash FROM users WHERE id = ? AND role = 'admin'", [userId]);
   if (!rows.length) throw new Error("Admin not found");
@@ -55,6 +55,6 @@ export async function updateAdminSettings(userId, { email, currentPassword, newP
     await db.query("UPDATE users SET profile_image = ? WHERE id = ?", [upload.Location, userId]);
   }
 
-  await db.end();
+  ;
   return { message: "Settings updated successfully" };
 }

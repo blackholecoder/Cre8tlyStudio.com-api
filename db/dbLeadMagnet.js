@@ -3,7 +3,7 @@ import connect from "./connect.js";
 import { optimizeCoverImage } from "../utils/optimizeCoverImage.js";
 
 export async function createLeadMagnet(userId, prompt, font_name = "Montserrat", font_file = "/fonts/Montserrat-Regular.ttf") {
-  const db = await connect();
+  const db = connect();
   const id = uuidv4();
   const createdAt = new Date();
 
@@ -43,19 +43,19 @@ export async function createLeadMagnet(userId, prompt, font_name = "Montserrat",
     ]
   );
 
-  await db.end();
+  ;
 
   return { id, status, hasProCovers };
 }
 export async function markLeadMagnetComplete(id, pdfUrl) {
-  const db = await connect();
+  const db = connect();
   await db.query(
     `UPDATE lead_magnets 
      SET pdf_url=?, status='completed' 
      WHERE id=? AND deleted_at IS NULL`,
     [pdfUrl, id]
   );
-  await db.end();
+  ;
 }
 export async function insertLeadMagnet({
   id,
@@ -71,7 +71,7 @@ export async function insertLeadMagnet({
   font_name,   
   font_file,
 }) {
-  const db = await connect();
+  const db = connect();
   await db.query(
     `INSERT INTO lead_magnets 
       (id, user_id, prompt, title, pdf_url, price, status, created_at, stripe_session_id, slot_number, font_name, font_file)
@@ -91,10 +91,10 @@ export async function insertLeadMagnet({
       font_file,
     ]
   );
-  await db.end();
+  ;
 }
 export async function getLeadMagnetBySessionId(sessionId) {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(
     `
@@ -115,23 +115,23 @@ export async function getLeadMagnetBySessionId(sessionId) {
     [sessionId]
   );
 
-  await db.end();
+  ;
 
   return rows[0] || null;
 }
 
 export async function updateLeadMagnetPrompt(id, prompt) {
-  const db = await connect();
+  const db = connect();
   const [result] = await db.query(
     "UPDATE lead_magnets SET prompt=?, status='pending' WHERE id=? AND prompt='' AND deleted_at IS NULL",
     [prompt, id]
   );
-  await db.end();
+  ;
   return result.affectedRows > 0; // false if already had a prompt
 }
 
 export async function getLeadMagnetsByUser(userId) {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(
     `
@@ -167,7 +167,7 @@ export async function getLeadMagnetsByUser(userId) {
     [userId]
   );
 
-  await db.end();
+  ;
   
 
   // Optimize images
@@ -197,15 +197,15 @@ export async function getLeadMagnetsByUser(userId) {
 }
 
 export async function softDeleteLeadMagnet(id) {
-  const db = await connect();
+  const db = connect();
   await db.query(
     "UPDATE lead_magnets SET deleted_at=NOW() WHERE id=? AND deleted_at IS NULL",
     [id]
   );
-  await db.end();
+  ;
 }
 export async function getLeadMagnetById(id) {
-  const db = await connect();
+  const db = connect();
 
   const [rows] = await db.query(
     `
@@ -218,12 +218,12 @@ export async function getLeadMagnetById(id) {
     [id]
   );
 
-  await db.end();
+  ;
   return rows[0] || null;
 }
 
 export async function updateLeadMagnetStatus(magnetId, userId, status) {
-  const db = await connect();
+  const db = connect();
   return db.query(
     "UPDATE lead_magnets SET status = ? WHERE id = ? AND user_id = ?",
     [status, magnetId, userId]
@@ -245,7 +245,7 @@ export async function saveLeadMagnetPdf(
   cta
 ) {
 
-  const db = await connect();
+  const db = connect();
   const finalBgTheme = bgTheme || "modern";
 
   await db.query(
@@ -287,10 +287,10 @@ export async function saveLeadMagnetPdf(
     ]
   );
 
-  await db.end();
+  ;
 }
 export async function getPromptMemory(userId) {
-  const db = await connect();
+  const db = connect();
 
   try {
     const [rows] = await db.query(
@@ -313,14 +313,11 @@ export async function getPromptMemory(userId) {
   } catch (err) {
     console.error("❌ Error fetching prompt memory:", err);
     throw err;
-  } finally {
-    await db.end();
-  }
+  } 
 }
 
-
 export async function getLeadMagnetByPdfUrl(pdfUrl) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       `SELECT id, user_id, title, prompt, pdf_url, cover_image, price
@@ -333,14 +330,11 @@ export async function getLeadMagnetByPdfUrl(pdfUrl) {
   } catch (err) {
     console.error("❌ getLeadMagnetByPdfUrl error:", err);
     throw err;
-  } finally {
-    await db.end();
-  }
+  } 
 }
 
-
 export async function softDeleteMagnetById(magnetId, userId) {
-  const db = await connect();
+  const db = connect();
   try {
     const [result] = await db.query(
       `UPDATE lead_magnets
@@ -358,7 +352,5 @@ export async function softDeleteMagnetById(magnetId, userId) {
   } catch (err) {
     console.error("❌ softDeleteMagnetById error:", err);
     throw err;
-  } finally {
-    await db.end();
-  }
+  } 
 }

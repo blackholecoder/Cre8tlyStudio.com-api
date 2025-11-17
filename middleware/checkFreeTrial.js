@@ -1,5 +1,5 @@
 export async function checkFreeTrial(req, res, next) {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query(
     "SELECT has_free_magnet, free_trial_expires_at FROM users WHERE id = ?",
     [req.user.id]

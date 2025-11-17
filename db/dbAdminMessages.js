@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 export async function getAllAdminMessages(userId, offset = 0, limit = 20) {
   let db;
   try {
-    db = await connect();
+    db = connect();
     const [rows] = await db.query(
       `
       SELECT am.id, am.title, am.message, am.created_at,
@@ -25,9 +25,7 @@ export async function getAllAdminMessages(userId, offset = 0, limit = 20) {
   } catch (err) {
     console.error("❌ Error in getAllAdminMessages:", err.message);
     throw new Error("Failed to fetch admin messages");
-  } finally {
-    if (db) await db.end();
-  }
+  } 
 }
 
 
@@ -37,7 +35,7 @@ export async function getAllAdminMessages(userId, offset = 0, limit = 20) {
 export async function createAdminMessage(adminId, title, message) {
   let db;
   try {
-    db = await connect();
+    db = connect();
     const id = uuidv4();
 
     await db.query(
@@ -50,8 +48,6 @@ export async function createAdminMessage(adminId, title, message) {
   } catch (err) {
     console.error("❌ Error in createAdminMessage:", err.message);
     throw new Error("Failed to create admin message");
-  } finally {
-    if (db) await db.end();
   }
 }
 
@@ -59,7 +55,7 @@ export async function createAdminMessage(adminId, title, message) {
 export async function softDeleteAdminMessage(id) {
   let db;
   try {
-    db = await connect();
+    db = connect();
 
     await db.query(
       `UPDATE admin_messages
@@ -72,9 +68,7 @@ export async function softDeleteAdminMessage(id) {
   } catch (err) {
     console.error("❌ Error in softDeleteAdminMessage:", err.message);
     throw new Error("Failed to delete admin message");
-  } finally {
-    if (db) await db.end();
-  }
+  } 
 }
 
 // USER MESSAGES DB
@@ -82,7 +76,7 @@ export async function softDeleteAdminMessage(id) {
 export async function getUnreadMessageCount(userId) {
   let db;
   try {
-    db = await connect();
+    db = connect();
     const [rows] = await db.query(
       `
       SELECT COUNT(*) AS unread_count
@@ -98,16 +92,14 @@ export async function getUnreadMessageCount(userId) {
   } catch (err) {
     console.error("❌ Error in getUnreadMessageCount:", err);
     throw new Error("Failed to get unread messages");
-  } finally {
-    if (db) await db.end();
-  }
+  } 
 }
 
 
 export async function markMessageAsRead(userId, messageId) {
   let db;
   try {
-    db = await connect();
+    db = connect();
     await db.query(
       `
       INSERT INTO user_message_reads (id, user_id, message_id, read_at)
@@ -120,16 +112,14 @@ export async function markMessageAsRead(userId, messageId) {
   } catch (err) {
     console.error("❌ Error marking message as read:", err);
     throw new Error("Failed to mark as read");
-  } finally {
-    if (db) await db.end();
-  }
+  } 
 }
 
 
 export async function softDeleteUserMessage(userId, messageId) {
   let db;
   try {
-    db = await connect();
+    db = connect();
     await db.query(
       `
       INSERT INTO user_message_reads (id, user_id, message_id, deleted_at)
@@ -142,7 +132,5 @@ export async function softDeleteUserMessage(userId, messageId) {
   } catch (err) {
     console.error("❌ Error deleting user message:", err);
     throw new Error("Failed to delete message for user");
-  } finally {
-    if (db) await db.end();
-  }
+  } 
 }

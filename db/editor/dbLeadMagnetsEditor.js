@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export async function startLeadMagnetEdit(userId, leadMagnetId) {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query(
   `SELECT user_id, editable_html, edit_used,
           theme, bg_theme, logo, link, cover_image, cta, pdf_url, original_pdf_url
@@ -21,7 +21,7 @@ export async function startLeadMagnetEdit(userId, leadMagnetId) {
     WHERE id = ?`,
   [leadMagnetId]
 );
-  await db.end();
+  ;
 
   if (!rows.length) throw new Error("Lead magnet not found");
   const record = rows[0];
@@ -57,20 +57,20 @@ export async function commitLeadMagnetEdit(
   leadMagnetId,
   { updatedHtml, file }
 ) {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query(
     "SELECT user_id, theme, bg_theme, logo, link, cover_image, cta FROM lead_magnets WHERE id = ?",
     [leadMagnetId]
   );
 
   if (!rows.length) {
-    await db.end();
+    ;
     throw new Error("Lead magnet not found");
   }
 
   const record = rows[0];
   if (record.user_id !== userId) {
-    await db.end();
+    ;
     throw new Error("Unauthorized");
   }
 
@@ -126,7 +126,7 @@ export async function commitLeadMagnetEdit(
     await file.mv(tmpPath);
     finalPdfPath = tmpPath;
   } else {
-    await db.end();
+    ;
     throw new Error("No valid data provided (missing HTML or PDF).");
   }
 
@@ -152,7 +152,7 @@ export async function commitLeadMagnetEdit(
     [uploaded.Location, editableHtml, leadMagnetId, userId]
   );
 
-  await db.end();
+  ;
   return { pdf_url: uploaded.Location };
 }
 

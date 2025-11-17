@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import connect from "../connect.js";
 
 export async function sendEbookEmail({ email, title, productType }) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // ✅ Fetch ebook info from database
@@ -113,9 +113,9 @@ export async function sendEbookEmail({ email, title, productType }) {
     });
 
     console.log(`✅ Ebook email sent successfully to ${email}`);
-    await db.end();
+    ;
   } catch (err) {
     console.error("❌ Failed to send ebook email:", err.message);
-    await db.end();
+    ;
   }
 }

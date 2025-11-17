@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Update seller account flags
 export async function updateSellerStatus(stripeAccountId, fields) {
-  const db = await connect();
+  const db = connect();
   await db.query(
     "UPDATE users SET charges_enabled = ?, payouts_enabled = ? WHERE stripe_connect_account_id = ?",
     [fields.charges_enabled, fields.payouts_enabled, stripeAccountId]
@@ -14,7 +14,7 @@ export async function updateSellerStatus(stripeAccountId, fields) {
 
 // Mark a product as delivered
 export async function markProductDelivered(sessionId, productId, buyerEmail) {
-  const db = await connect();
+  const db = connect();
   await db.query(
     "INSERT INTO seller_purchases (session_id, product_id, buyer_email) VALUES (?, ?, ?)",
     [sessionId, productId, buyerEmail]
@@ -24,7 +24,7 @@ export async function markProductDelivered(sessionId, productId, buyerEmail) {
 
 export async function getSellerStripeAccountId(userId) {
   try {
-    const db = await connect();
+    const db = connect();
     const [rows] = await db.query(
       "SELECT stripe_connect_account_id FROM users WHERE id = ?",
       [userId]
@@ -39,7 +39,7 @@ export async function getSellerStripeAccountId(userId) {
 // 💾 Save a new Stripe account ID to the user record
 export async function saveSellerStripeAccountId(userId, accountId) {
   try {
-    const db = await connect();
+    const db = connect();
     await db.query(
       "UPDATE users SET stripe_connect_account_id = ? WHERE id = ?",
       [accountId, userId]

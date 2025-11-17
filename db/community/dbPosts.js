@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function createPost(userId, topicId, title, body) {
   try {
-    const db = await connect();
+    const db = connect();
     const id = uuidv4();
 
     await db.query(
@@ -24,7 +24,7 @@ export async function createPost(userId, topicId, title, body) {
 
 export async function getPostsByTopic(topicId) {
   try {
-    const db = await connect();
+    const db = connect();
 
     const [rows] = await db.query(
       `
@@ -55,7 +55,7 @@ export async function getPostsByTopic(topicId) {
 
 export async function getPostById(postId) {
   try {
-    const db = await connect();
+    const db = connect();
 
     const [rows] = await db.query(
       `
@@ -81,7 +81,7 @@ export async function getPostById(postId) {
 
 export async function pinPost(postId, state = 1) {
   try {
-    const db = await connect();
+    const db = connect();
     await db.query(
       `UPDATE community_posts SET is_pinned = ? WHERE id = ?`,
       [state, postId]
@@ -94,7 +94,7 @@ export async function pinPost(postId, state = 1) {
 
 export async function lockPost(postId, state = 1) {
   try {
-    const db = await connect();
+    const db = connect();
     await db.query(
       `UPDATE community_posts SET is_locked = ? WHERE id = ?`,
       [state, postId]

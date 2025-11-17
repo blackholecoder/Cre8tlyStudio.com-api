@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 
 export async function createUser({ name, email, password }) {
-  const db = await connect();
+  const db = connect();
   const id = uuidv4();
   const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -57,8 +57,6 @@ export async function createUser({ name, email, password }) {
       [freeMagnetId, id]
     );
 
-    console.log("🆓 Free trial slot created for:", email);
-
     // 🔹 4. Return sanitized user object
     return {
       id,
@@ -82,13 +80,11 @@ export async function createUser({ name, email, password }) {
   } catch (err) {
     console.error("❌ Error creating user:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 export async function logEmployeeReferral(refEmployee, email) {
-  const db = await connect();
+  const db = connect();
 
   // Check if this is a valid admin employee
   const [rows] = await db.query(
@@ -108,7 +104,7 @@ export async function logEmployeeReferral(refEmployee, email) {
 }
 
 export async function getReferralsByEmployee(employeeId) {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query(
     `SELECT er.*, u.name AS employee_name
      FROM employee_referrals er
@@ -123,7 +119,7 @@ export async function getReferralsByEmployee(employeeId) {
  * ✅ Aggregate total referrals for all employees (for admin dashboard view)
  */
 export async function getAllEmployeeReferralStats() {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query(`
     SELECT 
       u.id AS employee_id,
@@ -140,7 +136,7 @@ export async function getAllEmployeeReferralStats() {
 }
 
 export async function getUserByEmail(email) {
-  const db = await connect();
+  const db = connect();
 
   try {
     const [rows] = await db.query(
@@ -183,38 +179,36 @@ export async function getUserByEmail(email) {
   } catch (err) {
     console.error("❌ Error in getUserByEmail:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 export async function saveRefreshToken(userId, refreshToken) {
-  const db = await connect();
+  const db = connect();
   await db.query("UPDATE users SET refresh_token=? WHERE id=?", [
     refreshToken,
     userId,
   ]);
-  await db.end();
+  ;
 }
 
 export async function getUserByRefreshToken(refreshToken) {
-  const db = await connect();
+  const db = connect();
   const [rows] = await db.query(
     "SELECT * FROM users WHERE refresh_token=? LIMIT 1",
     [refreshToken]
   );
-  await db.end();
+  ;
   return rows[0] || null;
 }
 
 export async function updateUserRole(userId, role) {
-  const db = await connect();
+  const db = connect();
   await db.query("UPDATE users SET role=? WHERE id=?", [role, userId]);
-  await db.end();
+  ;
 }
 
 export async function getUserById(id) {
-  const db = await connect();
+  const db = connect();
 
   try {
     const [rows] = await db.query(
@@ -270,13 +264,11 @@ export async function getUserById(id) {
   } catch (err) {
     console.error("❌ Error in getUserById:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 export async function upgradeUserToProCovers(email) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // Double-check the user exists before updating
@@ -285,24 +277,24 @@ export async function upgradeUserToProCovers(email) {
     ]);
     if (!rows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
-      await db.end();
+      ;
       return false;
     }
 
     await db.query("UPDATE users SET pro_covers = 1 WHERE email = ?", [email]);
-    await db.end();
+    ;
 
     console.log(`✅ Upgraded ${email} to Pro Covers`);
     return true;
   } catch (err) {
     console.error("❌ Failed to upgrade user to Pro Covers:", err.message);
-    await db.end();
+    ;
     throw err;
   }
 }
 
 export async function upgradeUserToBooks(email) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT id, book_slots FROM users WHERE email = ?",
@@ -311,7 +303,7 @@ export async function upgradeUserToBooks(email) {
 
     if (!rows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
-      await db.end();
+      ;
       return false;
     }
 
@@ -324,23 +316,23 @@ export async function upgradeUserToBooks(email) {
     );
 
     console.log(`📚 Activated Book slot + Pro Covers for ${email}`);
-    await db.end();
+    ;
     return true;
   } catch (err) {
     console.error("❌ upgradeUserToBooks failed:", err.message);
-    await db.end();
+    ;
     throw err;
   }
 }
 
 export async function activatePromptMemory(email) {
   try {
-    const db = await connect();
+    const db = connect();
     const [result] = await db.query(
       "UPDATE users SET has_memory = 1 WHERE email = ?",
       [email]
     );
-    await db.end();
+    ;
 
     if (result.affectedRows === 0) {
       console.warn(`⚠️ No user found for activation with email: ${email}`);
@@ -357,7 +349,7 @@ export async function activatePromptMemory(email) {
 }
 
 export async function upgradeUserToMagnets(email) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       "SELECT id, magnet_slots FROM users WHERE email = ?",
@@ -366,7 +358,7 @@ export async function upgradeUserToMagnets(email) {
 
     if (!rows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
-      await db.end();
+      ;
       return false;
     }
 
@@ -386,24 +378,24 @@ export async function upgradeUserToMagnets(email) {
     console.log(
       `🎯 Added +15 lead magnet slots for ${email} (new total: ${newSlots})`
     );
-    await db.end();
+    ;
     return true;
   } catch (err) {
     console.error("❌ upgradeUserToMagnets failed:", err.message);
-    await db.end();
+    ;
     throw err;
   }
 }
 
 export async function activateBusinessBuilder(email, billingCycle = "annual") {
-  const db = await connect();
+  const db = connect();
   try {
     const [userRows] = await db.query("SELECT id FROM users WHERE email = ?", [
       email,
     ]);
     if (!userRows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
-      await db.end();
+      ;
       return;
     }
 
@@ -435,17 +427,17 @@ export async function activateBusinessBuilder(email, billingCycle = "annual") {
 
     console.log(`🎁 Granted 15 lead magnet slots to ${email}`);
 
-    await db.end();
+    ;
     return true;
   } catch (err) {
     console.error("❌ activateBusinessBuilder failed:", err.message);
-    await db.end();
+    ;
     throw err;
   }
 }
 
 export async function deactivateBusinessBuilder(email) {
-  const db = await connect();
+  const db = connect();
   try {
     await db.query(
       `UPDATE users 
@@ -465,16 +457,16 @@ export async function deactivateBusinessBuilder(email) {
       [email]
     );
     console.log(`🚫 Business Builder Pack deactivated for ${email}`);
-    await db.end();
+    ;
   } catch (err) {
     console.error("❌ deactivateBusinessBuilder failed:", err.message);
-    await db.end();
+    ;
   }
 }
 
 export async function getLeadMagnetByPdfUrl(pdfUrl) {
   try {
-    const db = await connect();
+    const db = connect();
     const [rows] = await db.query(
       "SELECT * FROM lead_magnets WHERE pdf_url = ? OR original_pdf_url = ? LIMIT 1",
       [pdfUrl, pdfUrl]
@@ -488,7 +480,7 @@ export async function getLeadMagnetByPdfUrl(pdfUrl) {
 
 // PASSKEYS FUNCTIONS
 export async function updateWebAuthnChallenge(userId, challenge) {
-  const db = await connect();
+  const db = connect();
   try {
     await db.query("UPDATE users SET webauthn_challenge = ? WHERE id = ?", [
       challenge,
@@ -497,8 +489,6 @@ export async function updateWebAuthnChallenge(userId, challenge) {
   } catch (err) {
     console.error("❌ Error in updateWebAuthnChallenge:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
@@ -509,7 +499,7 @@ export async function saveWebAuthnCredentials({
   credentialPublicKey,
   counter,
 }) {
-  const db = await connect();
+  const db = connect();
   try {
     await db.query(
       `UPDATE users SET 
@@ -525,8 +515,6 @@ export async function saveWebAuthnCredentials({
   } catch (err) {
     console.error("❌ Error in saveWebAuthnCredentials:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
@@ -534,7 +522,7 @@ export async function saveWebAuthnCredentials({
 
 // 🔹 Retrieve a user's WebAuthn credential info by email
 export async function getWebAuthnCredentials(email) {
-  const db = await connect();
+  const db = connect();
   try {
     const [rows] = await db.query(
       `SELECT 
@@ -553,14 +541,12 @@ export async function getWebAuthnCredentials(email) {
   } catch (err) {
     console.error("❌ Error in getWebAuthnCredentials:", err);
     throw err;
-  } finally {
-    await db.end();
-  }
+  } 
 }
 
 // 🔹 Update WebAuthn counter after successful authentication
 export async function updateWebAuthnCounter(userId, newCounter) {
-  const db = await connect();
+  const db = connect();
   try {
     await db.query("UPDATE users SET webauthn_counter = ? WHERE id = ?", [
       newCounter,
@@ -569,13 +555,11 @@ export async function updateWebAuthnCounter(userId, newCounter) {
   } catch (err) {
     console.error("❌ Error in updateWebAuthnCounter:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 export async function removeUserPasskey(userId) {
-  const db = await connect();
+  const db = connect();
   try {
     await db.query(
       `UPDATE users 
@@ -590,15 +574,13 @@ export async function removeUserPasskey(userId) {
   } catch (err) {
     console.error("❌ Error in removeUserPasskey:", err);
     throw err;
-  } finally {
-    await db.end();
   }
 }
 
 // Stripe
 
 export async function updateStripeAccountId(userId, accountId) {
-  const db = await connect();
+  const db = connect();
   await db.query("UPDATE users SET stripe_connect_account_id = ? WHERE id = ?", [
     accountId,
     userId,

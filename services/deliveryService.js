@@ -10,7 +10,7 @@ import { sendOutLookMail } from "../utils/sendOutllokMail.js";
  * Logs to deliveries table and sends buyer an Outlook email.
  */
 export async function deliverDigitalProduct(buyerEmail, productId, sellerStripeId, sessionId = null) {
-  const db = await connect();
+  const db = connect();
 
   try {
     // 1️⃣ Find buyer in users table
