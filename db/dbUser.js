@@ -119,7 +119,6 @@ export async function getReferralsByEmployee(employeeId) {
   );
   return rows;
 }
-
 /**
  * ✅ Aggregate total referrals for all employees (for admin dashboard view)
  */
@@ -171,7 +170,9 @@ export async function getUserByEmail(email) {
          webauthn_id,                 
          webauthn_public_key,
          stripe_connect_account_id,
-         is_admin_employee
+         has_passkey,
+         is_admin_employee,
+         plan
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -241,14 +242,16 @@ export async function getUserById(id) {
         free_trial_expires_at,
         twofa_enabled,
         stripe_connect_account_id,
-        is_admin_employee
+        has_passkey,
+        is_admin_employee,
+        plan
        FROM users 
        WHERE id = ?`,
       [id]
     );
 
     const user = rows[0] || null;
-
+     if (!user) return null;
     // 🔹 Add a derived field for frontend convenience
     if (user?.free_trial_expires_at) {
       const now = new Date();

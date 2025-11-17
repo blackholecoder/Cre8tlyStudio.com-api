@@ -570,24 +570,45 @@ router.get("/", async (req, res) => {
             }
 
             case "verified_reviews": {
-  const landingPageId = landingPage.id;
-  const productId = landingPage.pdf_url || "";
+              const landingPageId = landingPage.id;
+              const productId = landingPage.pdf_url || "";
 
-  const title = block.title || "Verified Buyer Reviews";
-  const textColor = block.text_color || "#FFFFFF";
-  const bgColor = block.bg_color || "rgba(0,0,0,0.3)";
-  const useGlass = block.use_glass ? true : false;
-  const alignment = block.alignment || "center";
+              const title = block.title || "Verified Buyer Reviews";
+              const textColor = block.text_color || "#FFFFFF";
+              const bgColor = block.bg_color || "rgba(0,0,0,0.3)";
+              const useGlass = block.use_glass ? true : false;
+              const alignment = block.alignment || "center";
 
-  const bgStyle = useGlass
-    ? "rgba(255,255,255,0.08);backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.3);"
-    : `${bgColor};box-shadow:0 8px 25px rgba(0,0,0,0.25);`;
+              const bgStyle = useGlass
+                ? "rgba(255,255,255,0.08);backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.3);"
+                : `${bgColor};box-shadow:0 8px 25px rgba(0,0,0,0.25);`;
 
-  return `
+              return `
   <div id="reviews-section" 
        style="margin-top:80px;padding:40px;text-align:${alignment};
        background:${bgStyle};
        border-radius:20px;max-width:1000px;margin-left:auto;margin-right:auto;">
+       <style>
+      @media (max-width: 600px) {
+        #reviews-section {
+          padding: 20px !important;
+          border-radius: 0 !important;
+          max-width: 100% !important;
+          border-radius: 20px !important;
+        }
+        #reviews-container {
+          max-width: 100% !important;
+          margin: 0 auto !important;
+          text-align: center !important;
+        }
+        #review-box {
+          width: 90% !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          border-radius: 12px !important;
+        }
+      }
+    </style>
     <h2 style="color:${textColor};font-size:2rem;font-weight:700;margin-bottom:30px;">
       ${title}
     </h2>
@@ -613,13 +634,16 @@ router.get("/", async (req, res) => {
         id="review-btn"
         style="width:100%;padding:12px 26px;border:none;border-radius:10px;
                background:#7bed9f;color:#000;font-weight:600;font-size:1rem;
-               cursor:pointer;transition:all 0.25s ease;margin-bottom:15px;
+               cursor:pointer;transition:all 0.25s ease;
                box-shadow:0 4px 12px rgba(0,0,0,0.3);">
         Leave a Review
       </button>
 
       <!-- Verify Email -->
-      <div id="verify-box" style="display:none;width:100%;flex-direction:column;gap:12px;">
+      <div id="verify-box" style="display:none;width:100%;flex-direction:column;align-items:center;
+  justify-content:center;
+  gap:12px;
+  text-align:center;">
         <input id="verify-email" type="email" placeholder="Enter your purchase email"
                style="width:100%;padding:12px 16px;background:#0c0c0c;
                       border:1px solid rgba(255,255,255,0.08);border-radius:10px;
@@ -777,8 +801,7 @@ router.get("/", async (req, res) => {
     </script>
   </div>
   `;
-}
-
+            }
 
             default:
               return "";
@@ -1288,8 +1311,10 @@ document.getElementById("leadForm").addEventListener("submit", async (e) => {
 
     <footer>
       ${
-        landingPage.email_thank_you_msg
-          ? `<footer><em>${landingPage.email_thank_you_msg}</em></footer>`
+        landingPage.show_download_button
+          ? `<p id="thankyou" style="display:none;">${
+              landingPage.email_thank_you_msg || ""
+            }</p>`
           : ""
       }
      <p class="powered" style="color:${footerTextColor}">
@@ -1512,7 +1537,6 @@ router.post("/landing-leads", async (req, res) => {
 
 router.get("/builder/:userId", authenticateToken, async (req, res) => {
   try {
-    console.log("🧭 /builder route hit");
     const { userId } = req.params;
 
     if (!req.user?.id) {

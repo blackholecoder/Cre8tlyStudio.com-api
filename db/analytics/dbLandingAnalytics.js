@@ -17,14 +17,12 @@ export async function logLandingEvent(
       [landing_page_id]
     );
     const ownerId = ownerRows?.[0]?.user_id;
-    console.log("🧠 OWNER CHECK →", { ownerId, viewerId, owner_preview });
 
     const isOwnerView =
       (owner_preview && owner_preview === ownerId) ||
       (viewerId && viewerId === ownerId);
 
       if (isOwnerView) {
-      console.log("🚫 SKIPPING: Owner view detected");
       return { success: true, skipped: true, message: "Owner view not tracked." };
     }
 
@@ -83,10 +81,6 @@ ORDER BY DATE(created_at) ASC
     const downloads = rows
       .filter((r) => r.event_type === "download")
       .map((r) => ({ date: r.date, total: r.total }));
-
-    console.log("✅ Parsed views:", views);
-    console.log("✅ Parsed clicks:", clicks);
-    console.log("✅ Parsed downloads:", downloads);
 
     return { success: true, views, clicks, downloads };
   } catch (error) {

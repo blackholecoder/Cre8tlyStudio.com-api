@@ -34,6 +34,7 @@ import {
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
 import { decodeBase64URL, encodeBase64URL } from "../utils/base64url.js";
+import { getStripeConnectStatus } from "../helpers/stripeHelper.js";
 
 const router = express.Router();
 
@@ -61,9 +62,7 @@ router.post("/signup", async (req, res) => {
           if (logged)
             console.log(`👥 Referral logged: ${refEmployee} → ${email}`);
         })
-        .catch((err) =>
-          console.error("Referral logging error:", err.message)
-        );
+        .catch((err) => console.error("Referral logging error:", err.message));
     }
 
     res.status(201).json({ message: "User created", userId: user.id });
@@ -72,7 +71,6 @@ router.post("/signup", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 router.post("/login", async (req, res) => {
   try {
@@ -144,6 +142,8 @@ router.post("/login", async (req, res) => {
         twofa_enabled: user.twofa_enabled,
         stripe_connect_account_id: user.stripe_connect_account_id,
         is_admin_employee: user.is_admin_employee,
+        has_passkey: user.has_passkey,
+        plan: user.plan,
       },
       accessToken,
       refreshToken,
@@ -199,6 +199,13 @@ router.get("/me", authenticateToken, async (req, res) => {
       trialExpired = new Date() > new Date(user.free_trial_expires_at);
     }
 
+    let stripeStatus = { connected: false, details_submitted: false };
+    if (user.stripe_connect_account_id) {
+      stripeStatus = await getStripeConnectStatus(
+        user.stripe_connect_account_id
+      );
+    }
+
     // ✅ Return everything needed for dashboard/header
     res.json({
       id: user.id,
@@ -227,8 +234,14 @@ router.get("/me", authenticateToken, async (req, res) => {
       trialExpired,
       trial_days_remaining: user.trial_days_remaining || null,
       twofa_enabled: user.twofa_enabled || 0,
+      has_passkey: user.has_passkey || 0,
+      // 🏦 Stripe Connect
       stripe_connect_account_id: user.stripe_connect_account_id,
+      stripe_connected: stripeStatus.connected,
+      stripe_details_submitted: stripeStatus.details_submitted,
+      stripe_account_type: stripeStatus.account_type || null,
       is_admin_employee: user.is_admin_employee,
+      plan: user.plan,
     });
   } catch (err) {
     console.error("❌ Error in /me:", err);
@@ -252,14 +265,31 @@ router.post("/user/verify-login-2fa", async (req, res) => {
     const { token, twofaToken } = req.body;
     const jwtPayload = jwt.verify(twofaToken, process.env.JWT_SECRET);
 
-    // ✅ Verify user code
+    // 1️⃣ Verify 2FA token
     const result = await verifyUserTwoFA(jwtPayload.id, token);
     if (!result.verified) throw new Error("Invalid 2FA code");
 
-    // ✅ Get user details
+    // 2️⃣ Get user
     const user = await getUserById(jwtPayload.id);
+    if (!user) throw new Error("User not found");
 
-    // ✅ Generate tokens
+    // 3️⃣ Fetch Stripe status
+    let stripeStatus = {
+      connected: false,
+      details_submitted: false,
+      account_type: null,
+    };
+    if (user.stripe_connect_account_id) {
+      try {
+        stripeStatus = await getStripeConnectStatus(
+          user.stripe_connect_account_id
+        );
+      } catch (err) {
+        console.error("Stripe status fetch error:", err);
+      }
+    }
+
+    // 4️⃣ Generate tokens
     const accessToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
@@ -272,17 +302,20 @@ router.post("/user/verify-login-2fa", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    // ✅ Store refresh token
     await saveRefreshToken(user.id, refreshToken);
-
-    // ✅ Mark 2FA as enabled (if not already)
     await enableUserTwoFA(user.id);
 
-    // ✅ Send both tokens back for frontend AuthContext.saveAuth()
+    // 5️⃣ FINAL FIX — return EXACT login format
     res.json({
       success: true,
       message: "2FA verified successfully",
-      user,
+      user: {
+        ...user,
+        has_passkey: user.has_passkey,
+        stripe_connected: stripeStatus.connected,
+        stripe_details_submitted: stripeStatus.details_submitted,
+        stripe_account_type: stripeStatus.account_type,
+      },
       accessToken,
       refreshToken,
     });
@@ -291,8 +324,6 @@ router.post("/user/verify-login-2fa", async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 });
-
-// ADMIN ROUTES
 
 router.post("/admin/login", async (req, res) => {
   try {
@@ -766,6 +797,13 @@ router.post("/webauthn/login-verify", async (req, res) => {
 
     console.log("✅ WebAuthn login verified successfully!");
     const creds = await getWebAuthnCredentials(email);
+
+    let stripeStatus = { connected: false, details_submitted: false };
+    if (user.stripe_connect_account_id) {
+      stripeStatus = await getStripeConnectStatus(
+        user.stripe_connect_account_id
+      );
+    }
     // --- Return consistent structure ---
     res.json({
       success: true,
@@ -789,6 +827,11 @@ router.post("/webauthn/login-verify", async (req, res) => {
         pro_expiration: user.pro_expiration,
         twofa_enabled: user.twofa_enabled,
         has_passkey: !!creds?.credentialID,
+        stripe_connect_account_id: user.stripe_connect_account_id,
+        stripe_connected: stripeStatus.connected,
+        stripe_details_submitted: stripeStatus.details_submitted,
+        stripe_account_type: stripeStatus.account_type || null,
+        plan: user.plan,
         passkey: creds
           ? {
               id: creds.credentialID,

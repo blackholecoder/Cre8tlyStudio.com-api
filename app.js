@@ -45,6 +45,10 @@ import sellerWebhookRoute from "./routes/seller/sellerWebhookRoute.js";
 import sellerCheckoutRoutes from "./routes/seller/checkout/sellerCheckoutRoutes.js";
 import reviewsRoutes from "./routes/landing/reviewsRoutes.js";
 
+import communityTopics from "./routes/community/topicsRoutes.js";
+import communityPosts from "./routes/community/postsRoutes.js";
+import communityComments from "./routes/community/commentsRoutes.js";
+
 
 
 import cors from "cors";
@@ -175,6 +179,11 @@ app.use("/", landingPageRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/seller-checkout", sellerCheckoutRoutes);
 app.use("/api/reviews", reviewsRoutes);
+
+// community
+app.use("/api/community/topics", communityTopics);
+app.use("/api/community", communityPosts);
+app.use("/api/community", communityComments);
 
 
 // Admin

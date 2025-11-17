@@ -29,15 +29,6 @@ router.post("/track", authOptional, async (req, res) => {
 
     const user_agent = req.headers["user-agent"] || null;
 
-    console.log("🧩 TRACK DEBUG →", {
-      landing_page_id,
-      event_type,
-      viewerId,
-      referer,
-      owner_preview,
-      ip_address,
-    });
-
     const result = await logLandingEvent(
       landing_page_id,
       event_type,
@@ -70,9 +61,7 @@ router.get("/summary/:landing_page_id", async (req, res) => {
 
     const result = await getLandingAnalyticsSummary(landing_page_id, days);
 
-    console.log("📤 Sending analytics summary:", result);
-
-    res.json(result); // ✅ send directly — not result.data
+    res.json(result); 
   } catch (err) {
     console.error("❌ Error fetching summary:", err);
     res.status(500).json({

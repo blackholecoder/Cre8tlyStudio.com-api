@@ -12,6 +12,7 @@ import {
   getSellerStripeAccountId,
   saveSellerStripeAccountId,
 } from "../../db/seller/dbSeller.js";
+import { getUserById } from "../../db/dbUser.js";
 
 const router = express.Router();
 
@@ -44,8 +45,9 @@ router.post("/product", authenticateToken, async (req, res) => {
 router.post("/create-account-link", authenticateToken, async (req, res) => {
 
   try {
-    const userId = req.user.id;
-    const userEmail = req.user.email;
+    const user = await getUserById(req.user.id);
+    const userId = user.id;
+    const userEmail = user.email;
 
     // 1️⃣ Get seller’s existing Stripe account ID (if any)
     let accountId = await getSellerStripeAccountId(userId);

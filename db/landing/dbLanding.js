@@ -293,11 +293,8 @@ export async function getOrCreateLandingPage(userId) {
         }
       }
 
-      console.log("📦 Found existing landing page");
       return page;
     }
-
-    console.log("⚙️ No landing page found, creating default one...");
 
     // 2️⃣ Check user and PRO plan status
     const [userRows] = await db.query(

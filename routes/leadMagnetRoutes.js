@@ -5,11 +5,11 @@ import {
   getLeadMagnetsByUser,
   getPromptMemory,
   markLeadMagnetComplete,
+  softDeleteMagnetById,
 } from "../db/dbLeadMagnet.js";
 import { processPromptFlow } from "../services/leadMagnetService.js";
 import {
   authenticateToken,
-  requireAdmin,
 } from "../middleware/authMiddleware.js";
 import { askGPT } from "../helpers/gptHelper.js";
 import { getUserBrandFile } from "../db/dbUploads.js";
@@ -37,11 +37,6 @@ router.get("/", authenticateToken, async (req, res) => {
     console.error("LeadMagnet fetch error:", err);
     res.status(500).json({ message: "Server error" });
   }
-});
-
-router.get("/all", authenticateToken, requireAdmin, async (req, res) => {
-  const rows = await getAllLeadMagnets();
-  res.json(rows);
 });
 
 router.post("/:id/complete", async (req, res) => {
@@ -265,5 +260,26 @@ router.get("/prompt-memory/:userId", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Failed to load prompt memory" });
   }
 });
+
+router.delete("/magnets/:id", authenticateToken, async (req, res) => {
+  try {
+    const magnetId = req.params.id;
+
+    const deleted = await softDeleteMagnetById(magnetId, req.user.id);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Magnet not found or already deleted",
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Soft delete magnet error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 
 export default router;

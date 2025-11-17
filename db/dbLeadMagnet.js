@@ -95,18 +95,31 @@ export async function insertLeadMagnet({
 }
 export async function getLeadMagnetBySessionId(sessionId) {
   const db = await connect();
+
   const [rows] = await db.query(
     `
-    SELECT id, user_id, slot_number, status, prompt, pdf_url, created_at, theme
+    SELECT 
+      id,
+      user_id,
+      slot_number,
+      status,
+      prompt,
+      pdf_url,
+      created_at,
+      theme
     FROM lead_magnets
-    WHERE stripe_session_id = ? AND deleted_at IS NULL
+    WHERE stripe_session_id = ?
+      AND deleted_at IS NULL
+    LIMIT 1
     `,
     [sessionId]
   );
+
   await db.end();
-  console.log("DB lookup rows:", rows);
+
   return rows[0] || null;
 }
+
 export async function updateLeadMagnetPrompt(id, prompt) {
   const db = await connect();
   const [result] = await db.query(
@@ -116,10 +129,10 @@ export async function updateLeadMagnetPrompt(id, prompt) {
   await db.end();
   return result.affectedRows > 0; // false if already had a prompt
 }
+
 export async function getLeadMagnetsByUser(userId) {
   const db = await connect();
 
-  // ✅ Fetch all magnets and user slot info in one go
   const [rows] = await db.query(
     `
     SELECT 
@@ -138,22 +151,27 @@ export async function getLeadMagnetsByUser(userId) {
       lm.cover_image,
       u.magnet_slots AS total_slots,
       (
-        SELECT COUNT(*) 
-        FROM lead_magnets 
-        WHERE user_id = lm.user_id 
-          AND status = 'completed' 
-          AND deleted_at IS NULL
-      ) AS used_slots
+      SELECT COUNT(*)
+      FROM lead_magnets
+      WHERE user_id = lm.user_id
+        AND status != 'awaiting_prompt'
+        AND deleted_at IS NULL
+    ) AS used_slots
+
     FROM lead_magnets lm
     JOIN users u ON lm.user_id = u.id
-    WHERE lm.user_id = ? AND lm.deleted_at IS NULL
+    WHERE lm.user_id = ? 
+      AND lm.deleted_at IS NULL
     ORDER BY lm.created_at DESC
     `,
     [userId]
   );
 
   await db.end();
-const optimizedRows = await Promise.all(
+  
+
+  // Optimize images
+  const optimizedRows = await Promise.all(
     rows.map(async (row) => {
       if (row.cover_image) {
         row.cover_image = await optimizeCoverImage(row.cover_image, "medium");
@@ -162,18 +180,22 @@ const optimizedRows = await Promise.all(
     })
   );
 
-  // ✅ Build summary
+  // SAFER SUMMARY — uses filtered rows, not raw DB rows
   const summary =
-    rows.length > 0
+    optimizedRows.length > 0
       ? {
-          total_slots: rows[0].total_slots,
-          used_slots: rows[0].used_slots,
-          available_slots: Math.max(rows[0].total_slots - rows[0].used_slots, 0),
+          total_slots: optimizedRows[0].total_slots,
+          used_slots: optimizedRows[0].used_slots,
+          available_slots: Math.max(
+            optimizedRows[0].total_slots - optimizedRows[0].used_slots,
+            0
+          ),
         }
       : { total_slots: 0, used_slots: 0, available_slots: 0 };
 
   return { magnets: optimizedRows, summary };
 }
+
 export async function softDeleteLeadMagnet(id) {
   const db = await connect();
   await db.query(
@@ -184,11 +206,22 @@ export async function softDeleteLeadMagnet(id) {
 }
 export async function getLeadMagnetById(id) {
   const db = await connect();
-  const [rows] = await db.query("SELECT * FROM lead_magnets WHERE id = ?", [
-    id,
-  ]);
+
+  const [rows] = await db.query(
+    `
+    SELECT *
+    FROM lead_magnets
+    WHERE id = ?
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [id]
+  );
+
+  await db.end();
   return rows[0] || null;
 }
+
 export async function updateLeadMagnetStatus(magnetId, userId, status) {
   const db = await connect();
   return db.query(
@@ -305,3 +338,27 @@ export async function getLeadMagnetByPdfUrl(pdfUrl) {
   }
 }
 
+
+export async function softDeleteMagnetById(magnetId, userId) {
+  const db = await connect();
+  try {
+    const [result] = await db.query(
+      `UPDATE lead_magnets
+  SET 
+    deleted_at = NOW(),
+    status = 'completed'  
+  WHERE id = ? 
+    AND user_id = ? 
+    AND deleted_at IS NULL
+  `,
+  [magnetId, userId]
+    );
+
+    return result.affectedRows > 0;
+  } catch (err) {
+    console.error("❌ softDeleteMagnetById error:", err);
+    throw err;
+  } finally {
+    await db.end();
+  }
+}
