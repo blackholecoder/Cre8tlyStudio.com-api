@@ -29,7 +29,7 @@ const pool = mysql.createPool({
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DATABASE,
   waitForConnections: true,
-  connectionLimit: 10,    // safe for your DO droplet
+  connectionLimit: 50,    // safe for your DO droplet
   queueLimit: 0
 });
 
