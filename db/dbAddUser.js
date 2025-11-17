@@ -58,8 +58,6 @@ export async function createUserAndGiveFreeSlots({
   } catch (err) {
     console.error("❌ createUserAndGiveFreeSlots failed:", err.message);
     throw err;
-  } finally {
-    ;
   }
 }
 
