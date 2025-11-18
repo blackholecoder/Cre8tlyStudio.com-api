@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
+import AWS from "aws-sdk";
 
 export async function createUser({ name, email, password }) {
   const db = connect();
@@ -17,6 +18,7 @@ export async function createUser({ name, email, password }) {
          email,
          password_hash,
          role,
+         profile_image_url, 
          has_magnet,
          magnet_slots,
          has_book,
@@ -29,7 +31,7 @@ export async function createUser({ name, email, password }) {
          pro_expiration,
          created_at
        )
-       VALUES (?, ?, ?, ?, 'customer', 0, 0, 0, 0, 0, 0, 0, 'inactive', NULL, NULL, NOW())`,
+       VALUES (?, ?, ?, ?, 'customer', NULL, 0, 0, 0, 0, 0, 0, 0, 'inactive', NULL, NULL, NOW())`,
       [id, name, email, hashedPassword]
     );
 
@@ -63,6 +65,7 @@ export async function createUser({ name, email, password }) {
       name,
       email,
       role: "customer",
+      profile_image: null,
       has_magnet: 1,
       magnet_slots: 1,
       has_book: 0,
@@ -145,6 +148,7 @@ export async function getUserByEmail(email) {
          name,
          email,
          role,
+         profile_image_url, 
          password_hash,
          pro_covers,
          has_book,
@@ -586,4 +590,48 @@ export async function updateStripeAccountId(userId, accountId) {
     userId,
   ]);
   return true;
+}
+
+
+// Image Upload
+
+
+export async function uploadUserAvatar(userId, profileImage) {
+  const db = connect();
+
+  // Remove prefix & decode base64
+  const base64Data = Buffer.from(
+    profileImage.replace(/^data:image\/\w+;base64,/, ""),
+    "base64"
+  );
+  const type = profileImage.split(";")[0].split("/")[1];
+
+  // Setup Spaces
+  const s3 = new AWS.S3({
+    endpoint: process.env.DO_SPACES_ENDPOINT,
+    accessKeyId: process.env.DO_SPACES_KEY,
+    secretAccessKey: process.env.DO_SPACES_SECRET,
+  });
+
+  const filename = `profiles/${uuidv4()}.${type}`;
+
+  // Upload
+  const params = {
+    Bucket: process.env.DO_SPACES_BUCKET,
+    Key: filename,
+    Body: base64Data,
+    ACL: "public-read",
+    ContentEncoding: "base64",
+    ContentType: `image/${type}`,
+  };
+
+  const upload = await s3.upload(params).promise();
+
+  // Save in DB
+  await db.query(
+    "UPDATE users SET profile_image_url = ? WHERE id = ?",
+    [upload.Location, userId]
+  );
+
+  return { profileImage: upload.Location };
 }

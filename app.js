@@ -48,6 +48,10 @@ import reviewsRoutes from "./routes/landing/reviewsRoutes.js";
 import communityTopics from "./routes/community/topicsRoutes.js";
 import communityPosts from "./routes/community/postsRoutes.js";
 import communityComments from "./routes/community/commentsRoutes.js";
+import notificationsRoutes from "./routes/community/notifications/notificationsRoutes.js";
+
+
+
 
 
 
@@ -184,6 +188,7 @@ app.use("/api/reviews", reviewsRoutes);
 app.use("/api/community/topics", communityTopics);
 app.use("/api/community", communityPosts);
 app.use("/api/community", communityComments);
+app.use("/api/notifications", notificationsRoutes);
 
 
 // Admin

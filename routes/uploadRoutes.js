@@ -2,6 +2,7 @@ import express from "express";
 import { getUserSettings, removeUserBrandFile, updateUserCta, uploadBrandIdentity } from "../db/dbUploads.js";
 import { uploadBrandFileSchema } from "../middleware/uploadBrandFileSchema.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+import { uploadUserAvatar } from "../db/dbUser.js";
 
 const router = express.Router();
 
@@ -58,6 +59,27 @@ router.put("/user/settings/update-cta", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("🔥 Error in /update-cta:", err);
     res.status(500).json({ message: "Failed to update CTA" });
+  }
+});
+
+router.post("/upload-avatar", async (req, res) => {
+  try {
+    const { userId, profileImage } = req.body;
+
+    if (!userId || !profileImage) {
+      return res.status(400).json({ error: "Missing userId or image" });
+    }
+
+    const result = await uploadUserAvatar(userId, profileImage);
+
+    res.json({
+      success: true,
+      profileImage: result.profileImage,
+    });
+
+  } catch (err) {
+    console.error("Avatar upload failed:", err);
+    res.status(500).json({ error: "Failed to upload avatar" });
   }
 });
 

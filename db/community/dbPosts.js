@@ -62,7 +62,8 @@ export async function getPostById(postId) {
       SELECT 
         p.*,
         u.name AS author,
-        u.role AS author_role
+        u.role AS author_role,
+        u.profile_image_url AS author_image 
       FROM community_posts p
       JOIN users u ON p.user_id = u.id
       WHERE p.id = ?

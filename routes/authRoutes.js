@@ -311,6 +311,7 @@ router.post("/user/verify-login-2fa", async (req, res) => {
       message: "2FA verified successfully",
       user: {
         ...user,
+        profile_image: user.profile_image_url || null,
         has_passkey: user.has_passkey,
         stripe_connected: stripeStatus.connected,
         stripe_details_submitted: stripeStatus.details_submitted,

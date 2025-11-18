@@ -1,25 +1,57 @@
 import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
+import { saveNotification } from "./notifications/notifications.js";
+
 
 export async function addComment(postId, userId, body) {
   try {
     const db = connect();
-    const id = uuidv4();
+    const commentId = uuidv4();
 
-    await db.query(
-      `
-      INSERT INTO community_comments (id, post_id, user_id, body)
-      VALUES (?, ?, ?, ?)
-      `,
-      [id, postId, userId, body.trim()]
+    // 1️⃣ Fetch post owner
+    const [postRows] = await db.query(
+      `SELECT user_id FROM community_posts WHERE id = ?`,
+      [postId]
     );
 
-    return { id, post_id: postId, user_id: userId, body };
+    if (!postRows.length) throw new Error("Post not found");
+
+    const postOwner = postRows[0].user_id;
+
+    // 2️⃣ Save comment
+    await db.query(
+      `INSERT INTO community_comments (id, post_id, user_id, body)
+       VALUES (?, ?, ?, ?)`,
+      [commentId, postId, userId, body.trim()]
+    );
+
+    // 3️⃣ Save notification (if not the owner)
+    if (postOwner !== userId) {
+      await saveNotification({
+        userId: postOwner,     // person receiving the notification
+        actorId: userId,       // person who made the comment
+        type: "comment",
+        postId,                // ⭐ needed to open the correct post
+        parentId: null,        // ⭐ top-level comment
+        commentId,             // ⭐ the comment itself
+        message: `commented on your post.`
+      });
+    }
+
+    return {
+      id: commentId,
+      post_id: postId,
+      user_id: userId,
+      body
+    };
+
   } catch (error) {
-    console.error("Error in addComment:", error);
+    console.error("❌ Error in addComment:", error);
     throw error;
   }
 }
+
+
 
 export async function getCommentsByPost(postId, userId) {
   try {
@@ -33,6 +65,7 @@ export async function getCommentsByPost(postId, userId) {
     c.created_at,
     u.name AS author,
     u.role AS author_role,
+    u.profile_image_url AS author_image,
 
     (SELECT COUNT(*) FROM community_comments r WHERE r.parent_id = c.id) AS reply_count,
 
@@ -54,19 +87,25 @@ export async function getCommentsByPost(postId, userId) {
   }
 }
 
-export async function getCommentsPaginated(postId, userId, page = 1, limit = 10) {
+export async function getCommentsPaginated(
+  postId,
+  userId,
+  page = 1,
+  limit = 10
+) {
   try {
     const db = connect();
     const offset = (page - 1) * limit;
 
     const [comments] = await db.query(
-  `
+      `
   SELECT 
     c.id,
     c.body,
     c.created_at,
     u.name AS author,
     u.role AS author_role,
+    u.profile_image_url AS author_image,
 
     (SELECT COUNT(*) FROM community_comments r WHERE r.parent_id = c.id) AS reply_count,
 
@@ -79,9 +118,8 @@ export async function getCommentsPaginated(postId, userId, page = 1, limit = 10)
   ORDER BY c.created_at ASC
   LIMIT ? OFFSET ?
   `,
-  [userId, postId, limit, offset]
-);
-
+      [userId, postId, limit, offset]
+    );
 
     for (let c of comments) {
       const [replies] = await db.query(
@@ -91,7 +129,8 @@ export async function getCommentsPaginated(postId, userId, page = 1, limit = 10)
           r.body,
           r.created_at,
           u.name AS author,
-          u.role AS author_role
+          u.role AS author_role,
+          u.profile_image_url AS author_image
         FROM community_comments r
         JOIN users u ON r.user_id = u.id
         WHERE r.parent_id = ?
@@ -112,25 +151,84 @@ export async function getCommentsPaginated(postId, userId, page = 1, limit = 10)
 
 // Replies
 
-export async function createReply(userId, postId, parentId, body) {
+// export async function createReply(userId, postId, parentId, body, parentUserId) {
+//   try {
+//     const db = connect();
+//     const replyId = crypto.randomUUID();
+
+//     await db.query(
+//       `
+//       INSERT INTO community_comments (id, user_id, post_id, parent_id, body)
+//       VALUES (?, ?, ?, ?, ?)
+//       `,
+//       [replyId, userId, postId, parentId, body]
+//     );
+
+//     // 🔔 Notify the comment owner (not self)
+//     if (parentUserId !== userId) {
+//       await saveNotification({
+//         userId: parentUserId,
+//         actorId: userId,
+//         type: "reply",
+//         postId,
+//         parentId,     // the original comment
+//         commentId: replyId,
+//         message: `replied to your comment`
+//       });
+//     }
+
+//     return replyId;
+//   } catch (err) {
+//     console.error("❌ createReply failed:", err);
+//     throw err;
+//   }
+// }
+
+export async function createReply(userId, postId, parentId, body, parentUserId) {
   try {
     const db = connect();
-    const id = crypto.randomUUID();
+    const replyId = crypto.randomUUID();
 
     await db.query(
       `
       INSERT INTO community_comments (id, user_id, post_id, parent_id, body)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [id, userId, postId, parentId, body]
+      [replyId, userId, postId, parentId, body]
     );
 
-    return id;
-  } catch (error) {
-    console.error("Error in createReply:", error);
-    throw error;
+    // 🔔 Send notification only if replying to someone else
+    if (parentUserId && parentUserId !== userId) {
+      await saveNotification({
+        userId: parentUserId,
+        actorId: userId,
+        type: "reply",
+        postId,
+        parentId,
+        commentId: replyId,
+        message: "replied to your comment"
+      });
+    }
+
+    return replyId;
+  } catch (err) {
+    console.error("❌ createReply failed:", err);
+    throw err;
   }
 }
+
+
+export async function getParentCommentUserId(commentId) {
+  const db = connect();
+
+  const [rows] = await db.query(
+    "SELECT user_id FROM community_comments WHERE id = ?",
+    [commentId]
+  );
+
+  return rows?.[0]?.user_id || null;
+}
+
 
 
 export async function getRepliesPaginated(parentId, userId, limit, offset) {
@@ -145,6 +243,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
       c.created_at,
       u.name AS author,
       u.role AS author_role,
+      u.profile_image_url AS author_image,
 
       /* ❤️ Total likes */
       (SELECT COUNT(*) 
@@ -189,9 +288,6 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     total: totalRow.total,
   };
 }
-
-
-
 
 export async function updateComment(commentId, userId, body) {
   try {
@@ -250,61 +346,108 @@ export async function deleteComment(commentId, userId, role) {
 export async function likeComment(commentId, userId) {
   const db = connect();
 
-  await db.query(
-    `
-    INSERT IGNORE INTO community_comment_likes (id, comment_id, user_id)
-    VALUES (UUID(), ?, ?)
-    `,
-    [commentId, userId]
-  );
+  try {
+    // Insert like
+    await db.query(
+      `
+      INSERT IGNORE INTO community_comment_likes (id, comment_id, user_id)
+      VALUES (UUID(), ?, ?)
+      `,
+      [commentId, userId]
+    );
 
-  return true;
+    // OPTIONAL: Send notification
+    // Get the comment owner
+    const [rows] = await db.query(
+      `SELECT user_id FROM community_comments WHERE id = ?`,
+      [commentId]
+    );
+
+    if (rows.length) {
+      const ownerId = rows[0].user_id;
+
+      // Don't notify yourself
+      if (ownerId !== userId) {
+        await saveNotification({
+          userId: ownerId,
+          actorId: userId,
+          type: "like",
+          referenceId: commentId,
+          message: `Someone liked your comment.`,
+        });
+      }
+    }
+
+    return true;
+  } catch (err) {
+    console.error("❌ Error in likeComment:", err);
+    throw err;
+  }
 }
+
 
 // --- Remove Like ---
 export async function unlikeComment(commentId, userId) {
   const db = connect();
 
-  await db.query(
-    `
-    DELETE FROM community_comment_likes 
-    WHERE comment_id = ? AND user_id = ?
-    `,
-    [commentId, userId]
-  );
+  try {
+    await db.query(
+      `
+      DELETE FROM community_comment_likes 
+      WHERE comment_id = ? AND user_id = ?
+      `,
+      [commentId, userId]
+    );
 
-  return true;
+    return true;
+  } catch (err) {
+    console.error("❌ Error in unlikeComment:", err);
+    throw err;
+  }
 }
+
 
 // --- Count Likes ---
 export async function getLikesForComment(commentId) {
   const db = connect();
 
-  const [rows] = await db.query(
-    `
-    SELECT COUNT(*) AS likes 
-    FROM community_comment_likes 
-    WHERE comment_id = ?
-    `,
-    [commentId]
-  );
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT COUNT(*) AS likes 
+      FROM community_comment_likes 
+      WHERE comment_id = ?
+      `,
+      [commentId]
+    );
 
-  return rows[0]?.likes || 0;
+    return rows[0]?.likes || 0;
+  } catch (err) {
+    console.error("❌ Error in getLikesForComment:", err);
+    throw err;
+  }
 }
+
 
 // --- Check if user already liked ---
 export async function userLikedComment(commentId, userId) {
   const db = connect();
 
-  const [rows] = await db.query(
-    `
-    SELECT 1 
-    FROM community_comment_likes
-    WHERE comment_id = ? AND user_id = ?
-    LIMIT 1
-    `,
-    [commentId, userId]
-  );
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT 1 
+      FROM community_comment_likes
+      WHERE comment_id = ? AND user_id = ?
+      LIMIT 1
+      `,
+      [commentId, userId]
+    );
 
-  return rows.length > 0;
+    return rows.length > 0;
+  } catch (err) {
+    console.error("❌ Error in userLikedComment:", err);
+    throw err;
+  }
 }
+

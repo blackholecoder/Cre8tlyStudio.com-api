@@ -5,6 +5,7 @@ import {
   deleteComment,
   getCommentsByPost,
   getCommentsPaginated,
+  getParentCommentUserId,
   getRepliesPaginated,
   likeComment,
   unlikeComment,
@@ -92,6 +93,7 @@ router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
 
 // Replies
 
+
 router.post(
   "/comments/:commentId/reply",
   authenticateToken,
@@ -106,7 +108,17 @@ router.post(
           .json({ success: false, message: "Reply cannot be empty" });
       }
 
-      const replyId = await createReply(req.user.id, postId, commentId, body);
+      // 🧼 Clean helper call to get parent comment user
+      const parentUserId = await getParentCommentUserId(commentId);
+
+      // 🧼 Clean helper call to create reply + notification
+      const replyId = await createReply(
+        req.user.id,
+        postId,
+        commentId,
+        body,
+        parentUserId
+      );
 
       res.json({ success: true, replyId });
     } catch (error) {
@@ -115,6 +127,7 @@ router.post(
     }
   }
 );
+
 
 router.get(
   "/comments/:commentId/replies",
