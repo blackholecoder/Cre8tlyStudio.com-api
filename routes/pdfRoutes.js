@@ -111,8 +111,6 @@ router.get("/proxy", async (req, res) => {
       url = `https://${url}`;
     }
 
-    console.log("🔗 Fetching PDF via proxy:", url);
-
     const response = await axios.get(url, { responseType: "arraybuffer" });
 
     // ✅ Determine clean filename

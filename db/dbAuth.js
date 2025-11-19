@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 import bcrypt from "bcryptjs";
 import connect from "./connect.js";
-import { sendMail } from "../utils/sendMail.js";
+import { sendOutLookMail } from "../utils/sendOutllokMail.js";
 
 export const forgotPassword = async (email) => {
   const db = connect();
@@ -22,31 +22,124 @@ export const forgotPassword = async (email) => {
 
   const resetLink = `https://cre8tlystudio.com/reset-password?token=${rawToken}`;
 
-  await sendMail({
+  await sendOutLookMail({
   to: email,
   subject: "Reset Your Cre8tly Studio Password",
   html: `
-  <div style="background-color:#0a0a0a; color:#ffffff; font-family:'Montserrat',Arial,sans-serif; padding:40px 20px; text-align:center; border-radius:12px;">
-    <h1 style="color:#00ff9d; margin-bottom:16px;">Cre8tly Studio</h1>
-    <p style="font-size:16px; color:#cccccc; margin-bottom:30px;">
-      You requested to reset your password for your Cre8tly Studio account.<br/>
-      Click the button below to securely reset it.
-    </p>
-    <a href="${resetLink}"
-      style="display:inline-block; background-color:#00ff9d; color:#000000;
-             font-weight:600; text-decoration:none; padding:14px 28px;
-             border-radius:8px; font-size:15px;">
-      Reset Password
-    </a>
-    <p style="color:#999999; font-size:14px; margin-top:30px;">
-      If you didn’t request this, please ignore this email.<br/>
-      Your password will remain unchanged.
-    </p>
-    <p style="color:#555555; font-size:12px; margin-top:40px;">
-      © ${new Date().getFullYear()} Cre8tly Studio. All rights reserved.
-    </p>
+  <div style="background:#0b0b0b;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
+    <table width="600" align="center" cellpadding="0" cellspacing="0"
+      style="
+        background:#111;
+        border-radius:14px;
+        color:#f2f2f2;
+        box-shadow:0 0 25px rgba(0,0,0,0.6);
+        padding:0;
+      ">
+
+      <!-- Header -->
+      <tr>
+        <td align="center" style="padding:40px 40px 20px 40px;">
+          <img src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              width="95" style="opacity:0.95;margin-bottom:10px;" />
+
+          <h2 style="
+            color:#7bed9f;
+            font-size:26px;
+            margin-top:10px;
+            margin-bottom:5px;
+          ">
+            Password Reset Request
+          </h2>
+
+          <p style="
+            font-size:14px;
+            color:#ccc;
+            margin:0;
+          ">
+            Secure password recovery for your Cre8tly Studio account
+          </p>
+        </td>
+      </tr>
+
+      <!-- Divider -->
+      <tr>
+        <td style="padding:0 60px;">
+          <div style="height:1px;background:#222;margin:25px 0;"></div>
+        </td>
+      </tr>
+
+      <!-- Body -->
+      <tr>
+        <td style="
+          padding:0 50px 20px 50px;
+          font-size:15px;
+          line-height:1.7;
+          text-align:center;
+        ">
+          You requested to reset your password for your Cre8tly Studio account.
+          Click the button below to proceed securely.
+        </td>
+      </tr>
+
+      <!-- CTA Button -->
+      <tr>
+        <td align="center" style="padding:20px 0 35px 0;">
+          <a href="${resetLink}"
+            style="
+              background:#7bed9f;
+              color:#000;
+              padding:14px 40px;
+              border-radius:8px;
+              text-decoration:none;
+              font-weight:700;
+              font-size:15px;
+              display:inline-block;
+            ">
+            Reset Password
+          </a>
+        </td>
+      </tr>
+
+      <!-- Reminder Text -->
+      <tr>
+        <td style="
+          padding:0 50px 20px 50px;
+          font-size:13px;
+          color:#ccc;
+          line-height:1.6;
+          text-align:center;
+        ">
+          If you didn’t request this, you can safely ignore this email.
+          Your password will remain unchanged.
+        </td>
+      </tr>
+
+      <!-- Divider -->
+      <tr>
+        <td style="padding:0 60px;">
+          <div style="height:1px;background:#222;margin:20px 0;"></div>
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td align="center" style="padding:0 0 35px 0;">
+          <p style="font-size:12px;color:#9ca3af;margin-bottom:6px;">
+            © ${new Date().getFullYear()} Cre8tly Studio. All rights reserved.
+          </p>
+          <p style="font-size:11px;color:#7bed9f;font-weight:600;">
+            Cre8tly Security System
+          </p>
+        </td>
+      </tr>
+
+    </table>
   </div>
-  `,
+`
+
+
+
+,
 });
 
 

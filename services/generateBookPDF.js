@@ -18,8 +18,6 @@ export async function generateBookPDF({
   font_file = "/fonts/AdobeArabic-Regular.ttf", 
 }) {
 
-  console.log("font_name", font_name);
-    console.log("font_file", font_file);
 
   const browser = await puppeteer.launch({
     headless: "new",
@@ -80,8 +78,7 @@ const fontBase64 = fs.readFileSync(finalFontPath).toString("base64");
       </div>`
     : "";
 
-    console.log("font_name right before", font_name);
-    console.log("font_file right before", font_file);
+
 
   const html = `
   <html>
@@ -208,9 +205,6 @@ try {
 } catch (err) {
   console.warn("⚠️ Page count read error:", err.message);
 }
-
-console.log(`📄 Final PDF page count: ${pageCount}`);
-console.log("✅ Book PDF generated:", localPdfPath);
 
 return { localPdfPath, pageCount };
 }

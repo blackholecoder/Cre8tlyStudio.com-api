@@ -49,6 +49,7 @@ import communityTopics from "./routes/community/topicsRoutes.js";
 import communityPosts from "./routes/community/postsRoutes.js";
 import communityComments from "./routes/community/commentsRoutes.js";
 import notificationsRoutes from "./routes/community/notifications/notificationsRoutes.js";
+import careersRoutes from "./routes/careers/careeersRoutes.js";
 
 
 
@@ -183,6 +184,7 @@ app.use("/", landingPageRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/seller-checkout", sellerCheckoutRoutes);
 app.use("/api/reviews", reviewsRoutes);
+app.use("/api/careers", careersRoutes);
 
 // community
 app.use("/api/community/topics", communityTopics);

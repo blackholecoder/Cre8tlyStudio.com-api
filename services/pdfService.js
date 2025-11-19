@@ -7,10 +7,16 @@ import { pdfThemes } from "./pdfThemes.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+
+
 function getReadableTextColor(backgroundColor) {
   try {
+
+    if (!backgroundColor || typeof backgroundColor !== "string") {
+      return "#ffffff";
+    }
     // If background is a gradient (like 'linear-gradient(...)'), return white by default
-    if (backgroundColor.startsWith("linear")) return "#ffffff";
+    if (backgroundColor?.startsWith("linear")) return "#ffffff";
 
     // Extract hex and remove possible '0x' or '#' prefix
     const hex = backgroundColor.replace("#", "").trim();
@@ -43,6 +49,9 @@ export async function generatePDF({
   coverImage,
   cta,
 }) {
+
+  bgTheme = bgTheme || "modern";
+font_file = font_file || "/fonts/Montserrat-Regular.ttf";
 
   const browser = await puppeteer.launch({
     headless: "new",
@@ -78,17 +87,26 @@ export async function generatePDF({
     `<div class="page"><div class="page-inner">${lastSection}</div></div>`,
   ].join("");
 
-  const fontPath = path.resolve(__dirname, `../public${font_file.startsWith('/') ? font_file : '/' + font_file}`);
+  const safeFontFile = font_file || "/fonts/Montserrat-Regular.ttf";
+
+const fontPath = path.resolve(
+  __dirname, 
+  `../public${safeFontFile?.startsWith("/") ? safeFontFile : "/" + safeFontFile}`
+);
+
 
 
 
   // 🔥 Read and embed font as Base64
   const fontBase64 = fs.readFileSync(fontPath).toString("base64");
-  const fontFormat = font_file.endsWith(".otf")
-    ? "opentype"
-    : font_file.endsWith(".ttf")
-    ? "truetype"
-    : "woff2";
+
+  const safeExt = (font_file || "").toLowerCase();
+
+const fontFormat = safeExt.endsWith(".otf")
+  ? "opentype"
+  : safeExt.endsWith(".ttf")
+  ? "truetype"
+  : "woff2";
 
   const logoImgTag = logo
     ? `<div class="logo-wrapper"><img src="${logo}" alt="Brand Logo" class="logo" /></div>`
@@ -103,7 +121,7 @@ if (coverImage && fs.existsSync(coverImage)) {
       <img src="data:image/${ext};base64,${base64Cover}" alt="Cover Image" class="cover-img" />
     </div>
   `;
-} else if (coverImage && coverImage.startsWith("http")) {
+} else if (coverImage?.startsWith("http")) {
   coverImgTag = `
     <div class="cover-page">
       <img src="${coverImage}" alt="Cover Image" class="cover-img" />
@@ -137,10 +155,7 @@ if (coverImage && fs.existsSync(coverImage)) {
           ? bgTheme
           : "#ffffff")
     )
-    // .replace(/{{fontSize}}/g, theme === "classic" ? "20pt" : "14pt")
-    // .replace(/{{h1Size}}/g, theme === "classic" ? "22pt" : "18pt")
-    // .replace(/{{h2Size}}/g, theme === "classic" ? "18pt" : "13pt")
-    // .replace(/{{pSize}}/g, theme === "classic" ? "16pt" : "14pt")
+
     .replace(/{{fontSize}}/g, "14pt")
     .replace(/{{h1Size}}/g, "18pt")
     .replace(/{{h2Size}}/g, "16pt")

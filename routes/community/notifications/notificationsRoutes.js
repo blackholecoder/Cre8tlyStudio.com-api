@@ -35,7 +35,7 @@ router.post("/read/:id", authenticateToken, async (req, res) => {
 });
 
 // 🔥 Get unread count
-router.get("/unread-count", authenticateToken, async (req, res) => {
+router.get("/count", authenticateToken, async (req, res) => {
   try {
     const count = await getUnreadNotificationCount(req.user.id);
     res.json({ count });

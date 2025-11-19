@@ -45,30 +45,75 @@ export async function deliverDigitalProduct(buyerEmail, productId, sellerStripeI
 
     // 4️⃣ Email buyer via Outlook
     const html = `
-      <div style="font-family:Arial,sans-serif;padding:20px;background:#0d0d0d;color:#f2f2f2;">
-        <div style="text-align:center;">
-          <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" alt="Cre8tly Studio" width="120" />
-          <h2 style="color:#7bed9f;">Your Download Awaits</h2>
-        </div>
-        <p style="font-size:15px;line-height:1.6;">
-          Hi ${userName},<br/>
-          Thank you for your purchase on <strong>Cre8tly Studio</strong>!
-        </p>
-        <p style="font-size:15px;line-height:1.6;">
-          You can download your product <strong>${name}</strong> below:
-        </p>
-        <div style="text-align:center;margin-top:20px;">
+  <div style="background:#0b0b0b;padding:40px 0;font-family:Arial,sans-serif;">
+    <table align="center" width="600" cellpadding="0" cellspacing="0"
+      style="background:#111;border-radius:14px;color:#f2f2f2;
+      box-shadow:0 0 25px rgba(0,0,0,0.6);padding:0;">
+
+      <!-- Header -->
+      <tr>
+        <td align="center" style="padding:40px 40px 10px 40px;">
+          <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="95" style="opacity:0.95;" />
+          <h2 style="color:#7bed9f;font-size:26px;margin:20px 0 5px 0;">
+            Your Download Awaits
+          </h2>
+          <p style="font-size:14px;color:#ccc;margin:0;">
+            Your digital product is ready
+          </p>
+        </td>
+      </tr>
+
+      <!-- Divider -->
+      <tr>
+        <td style="padding:0 60px;">
+          <div style="height:1px;background:#222;margin:25px 0;"></div>
+        </td>
+      </tr>
+
+      <!-- Body -->
+      <tr>
+        <td style="padding:0 50px 10px 50px;font-size:15px;line-height:1.7;text-align:center;">
+          Hi ${userName}, thank you for your purchase on <strong>Cre8tly Studio</strong>.
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:0 50px 25px 50px;font-size:15px;line-height:1.7;text-align:center;">
+          Your digital product <strong>${name}</strong> is ready for download.
+        </td>
+      </tr>
+
+      <!-- CTA Button -->
+      <tr>
+        <td align="center" style="padding:10px 0 40px 0;">
           <a href="${download_url}" target="_blank"
-            style="background:linear-gradient(90deg,#7bed9f,#670fe7);color:#000;padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:700;">
+            style="
+              background:#7bed9f;
+              color:#000;
+              padding:14px 40px;
+              border-radius:8px;
+              text-decoration:none;
+              font-weight:700;
+              font-size:16px;
+              display:inline-block;">
             Download Now
           </a>
-        </div>
-        <p style="margin-top:25px;font-size:13px;color:#999;text-align:center;">
-          If you have any issues, contact 
-          <a href="mailto:support@cre8tlystudio.com" style="color:#7bed9f;">support@cre8tlystudio.com</a>.
-        </p>
-      </div>
-    `;
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td align="center" style="font-size:13px;color:#777;padding:0 0 35px 0;">
+          If you have any issues, contact
+          <a href="mailto:support@aluredigital.com" style="color:#7bed9f;text-decoration:none;">
+            support@aluredigital.com
+          </a>
+        </td>
+      </tr>
+
+    </table>
+  </div>
+`;
 
     await sendOutLookMail({
       to: buyerEmail,

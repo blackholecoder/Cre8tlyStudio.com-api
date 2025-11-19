@@ -16,6 +16,10 @@ import {
   saveBookDraft,
   getBookDraft,
   saveBookPartDraft,
+  getBookPartByNumber,
+  lockBookPartEdit,
+  updateEditedChapter,
+  getBookPartDraft,
 } from "../../db/book/dbBooks.js";
 import {
   enforcePageLimit,
@@ -28,11 +32,11 @@ const router = express.Router();
 // ✅ Create empty book slot
 router.post("/", authenticateToken, async (req, res) => {
   try {
-    const { title, authorName, bookType } = req.body;
+    const { bookName, authorName, bookType } = req.body;
     const result = await createBook(
       req.user.id,
       null,
-      title,
+      bookName,
       authorName,
       bookType
     );
@@ -99,20 +103,48 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       pages = 10,
       link,
       coverImage,
-      title, // ✅ chapter title
+      title, 
       authorName,
-      bookName, // ✅ main book title
+      bookName, 
       partNumber = 1,
       bookType,
-      font_name = "Montserrat", // ✅ NEW
-      font_file = "/fonts/Montserrat-Regular.ttf", // ✅ NEW
+      font_name = "Montserrat", 
+      font_file = "/fonts/Montserrat-Regular.ttf", 
+      isEditing = false,
     } = req.body;
 
-
-    console.log("font_name", font_name);
-    console.log("font_file", font_file);
+    
 
     const userId = req.user.id;
+
+    const existingPart = await getBookPartByNumber(bookId, partNumber, userId);
+
+    if (isEditing) {
+      if (!existingPart || existingPart.can_edit !== 1) {
+        return res.status(403).json({
+          error: "This chapter has already been edited and is now locked.",
+        });
+      }
+
+    // ✏️ --- EDIT MODE: Save edited text ONLY, no GPT ---
+      const updatedUrl = await updateEditedChapter({
+        bookId,
+        userId,
+        partNumber,
+        editedText: prompt,
+        title,
+        bookName,
+        authorName,
+        font_name,
+        font_file,
+      });
+
+      return res.json({
+        message: "Chapter edited successfully",
+        fileUrl: updatedUrl,
+        partNumber,
+      });
+    }
 
     // ✅ Step 1: Validate user input
     const validationError = validateBookPromptInput(bookId, prompt);
@@ -148,7 +180,13 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       bookType,
       font_name, // ✅ include in payload
       font_file,
+      isEditing,
     });
+
+    if (isEditing) {
+      await lockBookPartEdit(bookId, partNumber, userId);
+    }
+
 
     res.json(generated);
   } catch (err) {
@@ -172,13 +210,13 @@ router.get("/:bookId/parts", authenticateToken, async (req, res) => {
 
 router.put("/update-info/:id", authenticateToken, async (req, res) => {
   try {
-    const { title, authorName, bookType } = req.body; // ✅ match camelCase
+    const { bookName, authorName, bookType } = req.body; // ✅ match camelCase
     console.log("📘 API HIT BOOK TYPE:", bookType);
 
     await updateBookInfo(
       req.params.id,
       req.user.id,
-      title,
+      bookName,
       authorName,
       bookType
     );
@@ -288,6 +326,28 @@ router.post(
     } catch (err) {
       console.error("❌ Error saving part draft:", err);
       res.status(500).json({ message: "Failed to save part draft" });
+    }
+  }
+);
+
+router.get(
+  "/:bookId/part/:partNumber/draft",
+  authenticateToken,
+  async (req, res) => {
+    const { bookId, partNumber } = req.params;
+    const userId = req.user.id;
+
+    try {
+      const data = await getBookPartDraft(bookId, partNumber, userId);
+
+      if (!data) {
+        return res.status(404).json({ message: "No draft or chapter found" });
+      }
+
+      res.json(data);
+    } catch (err) {
+      console.error("❌ Error loading part draft:", err);
+      res.status(500).json({ message: "Failed to load chapter draft" });
     }
   }
 );

@@ -260,9 +260,7 @@ router.get("/", async (req, res) => {
         <button 
           class="btn"
           style="background:${bannerBg};color:#fff;font-weight:700;padding:14px 36px;border-radius:10px;"
-          onclick="startStripeCheckout('${landingPage.id}', '${
-                      landingPage.user_id
-                    }', '${landingPage.pdf_url}', '${block.price || 1000}')"
+          onclick="document.getElementById('buy-now').scrollIntoView({ behavior: 'smooth' })"
         >
           ${buttonText}
         </button>
@@ -495,7 +493,7 @@ router.get("/", async (req, res) => {
               const pdfUrl = block.pdf_url || landingPage.pdf_url || "";
 
               return `
-    <div style="
+    <div id="buy-now" style="
       text-align:${alignment};
       margin:60px auto;
     ">
@@ -510,13 +508,13 @@ router.get("/", async (req, res) => {
       </button>
 
       <p style="
-        margin-top:12px;
-        color:#aaa;
-        font-size:0.9rem;
-        text-align:${alignment};
-      ">
-        $${price.toFixed(2)} USD
-      </p>
+  margin-top:12px;
+  color:#fff;
+  font-size:0.9rem;
+  text-align:${alignment};
+">
+  Price: <span style="font-weight:700;">$${price.toFixed(2)}</span>
+</p>
     </div>
   `;
             }
@@ -977,15 +975,15 @@ header .cover {
   display: block;
   margin: 70px auto 50px;
   width: 100%;
-  max-width: 480px;           /* balanced width */
-  aspect-ratio: 3 / 4;        /* classic book/PDF ratio */
+  max-width: 480px;         
+  aspect-ratio: unset; 
+  height: auto;      
   border-radius: 12px;
   object-fit: cover;
   box-shadow:
     0 15px 35px rgba(0, 0, 0, 0.25),
     0 6px 20px rgba(0, 0, 0, 0.15);
   background: #000;
-  border: 2px solid rgba(255, 255, 255, 0.06);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -1470,7 +1468,7 @@ router.post("/landing-leads", async (req, res) => {
     const emailHtml = `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 25px;">
-      <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" alt="Cre8tly Studio" style="width: 120px; height: auto; margin-bottom: 15px;" />
+      <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" alt="Cre8tly Studio" style="width: 85px; height: auto; margin-bottom: 15px;" />
       <h1 style="color: #7bed9f; font-size: 26px; margin: 0;">Your Free Guide Awaits</h1>
     </div>
 

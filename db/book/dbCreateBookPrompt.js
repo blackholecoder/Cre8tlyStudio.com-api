@@ -16,7 +16,7 @@ export async function createBookPrompt({
   pages = 10,
   link,
   coverImage,
-  title,
+  bookName,
   authorName,
   partNumber = 1,
   bookId = null,
@@ -24,9 +24,9 @@ export async function createBookPrompt({
   bookType,
   font_name = "Montserrat",           // ✅ new
   font_file = "/fonts/Montserrat-Regular.ttf", // ✅ new
+  isEditing = false, 
 }) {
-console.log("font_name", font_name);
-    console.log("font_file", font_file);
+
 
 
   console.log(`✍️ Running Book GPT Engine (Part ${partNumber})...`);
@@ -103,17 +103,17 @@ console.log("font_name", font_name);
     }
 
     // ✅ 5. Fallbacks
-    let finalTitle = title?.trim() || null;
+    let finalTitle = bookName?.trim() || null;
     let finalAuthor = authorName?.trim() || null;
 
     // ✅ 5a. If missing, pull from DB
     if ((!finalTitle || !finalAuthor) && thisBookId) {
       const [rows] = await db.query(
-        `SELECT title, author_name FROM generated_books WHERE id = ? AND user_id = ? LIMIT 1`,
+        `SELECT book_name, author_name FROM generated_books WHERE id = ? AND user_id = ? LIMIT 1`,
         [thisBookId, userId]
       );
       if (rows.length > 0) {
-        finalTitle = finalTitle || rows[0].title || "Untitled Book";
+        finalTitle = finalTitle || rows[0].book_name || "Untitled Book";
         finalAuthor = finalAuthor || rows[0].author_name || "Anonymous";
         console.log("🪶 Loaded title/author from DB:", finalTitle, finalAuthor);
       }
@@ -137,7 +137,6 @@ console.log("font_name", font_name);
       font_file, 
     });
 
-    console.log("📄 PDF Generated, Page Count:", pageCount);
 
     // ✅ 7. Upload PDF to Spaces
     const fileName = `books/${thisBookId}_part${partNumber}-${Date.now()}.pdf`;
@@ -153,6 +152,7 @@ console.log("font_name", font_name);
       bookId: thisBookId,
       partNumber,
       text: gptOutput,
+      can_edit: isEditing ? 0 : 1,
     });
 
     await db.query(
@@ -161,8 +161,6 @@ console.log("font_name", font_name);
        WHERE id = ? AND user_id = ?`,
       [font_name, font_file, thisBookId, userId]
     );
-
-    console.log(`📚 Book Part ${partNumber} uploaded successfully: ${uploaded.Location}`);
 
     // ✅ 10. Return metadata
     return {
@@ -228,8 +226,6 @@ export async function processBookPrompt({
   font_file = "/fonts/Montserrat-Regular.ttf", 
 }) {
 
-  console.log("font_name", font_name);
-    console.log("font_file", font_file);
 
   const db = connect();
 
@@ -279,7 +275,7 @@ export async function processBookPrompt({
   if (bookName) {
     await db.query(
       `UPDATE generated_books
-       SET title = COALESCE(NULLIF(title, ''), ?) 
+       SET book_name = ? 
        WHERE id = ? AND user_id = ?`,
       [bookName, bookId, userId]
     );

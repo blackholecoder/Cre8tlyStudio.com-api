@@ -2,6 +2,226 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 import AWS from "aws-sdk";
+import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+
+async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {
+  const html = `
+    <div style="background:#0b0b0b;padding:40px 0;font-family:Arial,sans-serif;">
+      <table align="center" width="600" cellpadding="0" cellspacing="0"
+        style="background:#111;border-radius:14px;color:#f2f2f2;
+        box-shadow:0 0 25px rgba(0,0,0,0.6);padding:0;">
+
+        <!-- Header -->
+        <tr>
+          <td align="center" style="padding:35px 40px 10px 40px;">
+            <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="95" style="opacity:0.95;" />
+            <h2 style="color:#7bed9f;font-size:26px;margin:20px 0 5px 0;">
+              New Free Trial Signup
+            </h2>
+            <p style="font-size:14px;color:#ccc;margin:0;">A new user just joined Cre8tly Studio</p>
+          </td>
+        </tr>
+
+        <!-- Divider -->
+        <tr>
+          <td style="padding:0 60px;">
+            <div style="height:1px;background:#222;margin:25px 0;"></div>
+          </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+          <td style="padding:0 50px 20px 50px;font-size:15px;line-height:1.7;text-align:center;">
+            You received a new free trial signup inside Cre8tly Studio. Here are the details:
+          </td>
+        </tr>
+
+        <!-- User Details Box -->
+        <tr>
+          <td align="center" style="padding:0 50px 35px 50px;">
+            <table width="100%" cellpadding="0" cellspacing="0"
+              style="background:#0e0e0e;border-radius:10px;padding:20px;
+              border:1px solid #1e1e1e;">
+
+              <tr>
+                <td style="font-size:15px;padding:8px;color:#7bed9f;font-weight:bold;">Name</td>
+                <td style="font-size:15px;padding:8px;color:#ccc;text-align:right;">${name}</td>
+              </tr>
+
+              <tr>
+                <td style="font-size:15px;padding:8px;color:#7bed9f;font-weight:bold;">Email</td>
+                <td style="font-size:15px;padding:8px;color:#ccc;text-align:right;">${email}</td>
+              </tr>
+
+              <tr>
+                <td style="font-size:15px;padding:8px;color:#7bed9f;font-weight:bold;">User ID</td>
+                <td style="font-size:15px;padding:8px;color:#ccc;text-align:right;">${userId}</td>
+              </tr>
+
+              <tr>
+                <td style="font-size:15px;padding:8px;color:#7bed9f;font-weight:bold;">Trial Expires</td>
+                <td style="font-size:15px;padding:8px;color:#ccc;text-align:right;">
+                  ${expiresAt.toISOString().slice(0, 10)}
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td align="center" style="font-size:13px;color:#777;padding:0 0 35px 0;">
+            Notification sent automatically from Cre8tly Studio
+          </td>
+        </tr>
+
+      </table>
+    </div>
+  `;
+
+  await sendOutLookMail({
+    to: "business@aluredigital.com",
+    subject: "New Free Trial Signup on Cre8tly Studio",
+    html,
+  });
+}
+
+// Free Trial User EMAIL
+async function sendFreeTrialWelcomeEmail({ name, email, expiresAt }) {
+  const html = `
+    <div style="background:#0b0b0b;padding:40px 0;font-family:Arial,sans-serif;">
+      <table align="center" width="600" cellpadding="0" cellspacing="0" 
+        style="background:#111;border-radius:14px;padding:0;color:#f2f2f2;box-shadow:0 0 25px rgba(0,0,0,0.6);">
+        
+        <!-- Header / Hero -->
+        <tr>
+          <td align="center" style="padding:40px 40px 10px 40px;">
+            <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="95" style="opacity:0.95;" />
+            <h2 style="color:#7bed9f;font-size:28px;margin:20px 0 5px 0;">Welcome to Cre8tly Studio</h2>
+            <p style="font-size:15px;color:#ccc;margin:0;">Your creative engine is now unlocked</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:20px 50px 0 50px;font-size:15px;line-height:1.7;text-align:center;">
+            Hi ${name}, your free seven day trial is now active. You now have full access to create lead magnets, ebooks, covers, landing pages, brand assets, and complete digital products all inside one platform.
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:20px 50px 10px 50px;font-size:16px;line-height:1.6;text-align:center;color:#7bed9f;font-weight:bold;">
+            If there was ever a time you needed to make money online, now is that time.
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:10px 50px;font-size:15px;line-height:1.7;text-align:center;">
+            Cre8tly Studio is now a true all in one platform for creators. Build everything in one place with your own fonts, branding, and visual style. The Live Editor gives you real time control over each line of your digital product, and the Design Canvas lets you add shapes, visuals, highlights, and creative assets without extra tools.
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:10px 50px;font-size:15px;line-height:1.7;text-align:center;">
+            Create high converting landing pages with strong CTAs, email capture, branded sections, custom domains, analytics, and your logo. No extra software required.
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:10px 50px;font-size:15px;line-height:1.7;text-align:center;">
+            Sell your digital products directly inside Cre8tly Studio. Connect your Express account, upload your creations, track sales, manage customers, and keep ninety percent of every sale. Automated weekly payouts, no middleman, no complexity.
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:10px 50px 30px 50px;font-size:15px;line-height:1.7;text-align:center;">
+            Create it, design it, publish it, and sell it in one place. If you want a tool that saves time, saves money, and builds a ready to go automated sales funnel, you just found it. Put your business on autopilot with Cre8tly Studio.
+          </td>
+        </tr>
+
+        <!-- Divider -->
+        <tr>
+          <td style="padding:0 60px;">
+            <div style="height:1px;background:#222;margin:20px 0;"></div>
+          </td>
+        </tr>
+
+        <!-- Three Step Checklist -->
+        <tr>
+          <td style="padding:0 40px 30px 40px;text-align:center;">
+            <h3 style="color:#7bed9f;font-size:20px;margin-bottom:20px;">Your First Steps</h3>
+
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:10px 0;font-size:15px;color:#ccc;">
+                  <strong style="color:#7bed9f;">1.</strong> Create your first lead magnet or ebook
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:10px 0;font-size:15px;color:#ccc;">
+                  <strong style="color:#7bed9f;">2.</strong> Add visuals, highlights, and shapes using the Design Canvas
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:10px 0;font-size:15px;color:#ccc;">
+                  <strong style="color:#7bed9f;">3.</strong> View your creation and prepare it for your upgraded features
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 50px 30px 50px;text-align:center;font-size:15px;">
+            Your trial expires on <strong>${expiresAt
+              .toISOString()
+              .slice(0, 10)}</strong>.
+          </td>
+        </tr>
+
+        <!-- CTA Button -->
+        <tr>
+          <td align="center" style="padding-bottom:40px;">
+            <a href="https://cre8tlystudio.com/login"
+            style="
+              background:#7bed9f;
+              color:#000;
+              padding:14px 40px;
+              border-radius:8px;
+              text-decoration:none;
+              font-weight:700;
+              font-size:16px;
+              display:inline-block;
+            ">
+  Start Creating
+</a>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td align="center" style="font-size:13px;color:#777;padding-bottom:35px;">
+            Need help? Contact  
+            <a href="mailto:support@aluredigital.com" style="color:#7bed9f;text-decoration:none;">
+              support@aluredigital.com
+            </a>
+          </td>
+        </tr>
+
+      </table>
+    </div>
+  `;
+
+  await sendOutLookMail({
+    to: email,
+    subject: "Welcome to Cre8tly Studio Free Trial",
+    html,
+  });
+}
 
 export async function createUser({ name, email, password }) {
   const db = connect();
@@ -58,6 +278,19 @@ export async function createUser({ name, email, password }) {
        VALUES (?, ?, '', 'Free Starter', '', 'modern', 'Montserrat', '/fonts/Montserrat-Regular.ttf', NOW())`,
       [freeMagnetId, id]
     );
+
+    await sendFreeTrialNotification({
+      name,
+      email,
+      userId: id,
+      expiresAt,
+    });
+
+    await sendFreeTrialWelcomeEmail({
+      name,
+      email,
+      expiresAt,
+    });
 
     // 🔹 4. Return sanitized user object
     return {
@@ -192,7 +425,6 @@ export async function saveRefreshToken(userId, refreshToken) {
     refreshToken,
     userId,
   ]);
-  ;
 }
 
 export async function getUserByRefreshToken(refreshToken) {
@@ -201,14 +433,12 @@ export async function getUserByRefreshToken(refreshToken) {
     "SELECT * FROM users WHERE refresh_token=? LIMIT 1",
     [refreshToken]
   );
-  ;
   return rows[0] || null;
 }
 
 export async function updateUserRole(userId, role) {
   const db = connect();
   await db.query("UPDATE users SET role=? WHERE id=?", [role, userId]);
-  ;
 }
 
 export async function getUserById(id) {
@@ -249,7 +479,7 @@ export async function getUserById(id) {
     );
 
     const user = rows[0] || null;
-     if (!user) return null;
+    if (!user) return null;
     // 🔹 Add a derived field for frontend convenience
     if (user?.free_trial_expires_at) {
       const now = new Date();
@@ -281,18 +511,14 @@ export async function upgradeUserToProCovers(email) {
     ]);
     if (!rows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
-      ;
       return false;
     }
 
     await db.query("UPDATE users SET pro_covers = 1 WHERE email = ?", [email]);
-    ;
-
     console.log(`✅ Upgraded ${email} to Pro Covers`);
     return true;
   } catch (err) {
     console.error("❌ Failed to upgrade user to Pro Covers:", err.message);
-    ;
     throw err;
   }
 }
@@ -307,7 +533,6 @@ export async function upgradeUserToBooks(email) {
 
     if (!rows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
-      ;
       return false;
     }
 
@@ -320,11 +545,9 @@ export async function upgradeUserToBooks(email) {
     );
 
     console.log(`📚 Activated Book slot + Pro Covers for ${email}`);
-    ;
     return true;
   } catch (err) {
     console.error("❌ upgradeUserToBooks failed:", err.message);
-    ;
     throw err;
   }
 }
@@ -336,8 +559,6 @@ export async function activatePromptMemory(email) {
       "UPDATE users SET has_memory = 1 WHERE email = ?",
       [email]
     );
-    ;
-
     if (result.affectedRows === 0) {
       console.warn(`⚠️ No user found for activation with email: ${email}`);
     } else {
@@ -362,7 +583,6 @@ export async function upgradeUserToMagnets(email) {
 
     if (!rows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
-      ;
       return false;
     }
 
@@ -382,11 +602,9 @@ export async function upgradeUserToMagnets(email) {
     console.log(
       `🎯 Added +15 lead magnet slots for ${email} (new total: ${newSlots})`
     );
-    ;
     return true;
   } catch (err) {
     console.error("❌ upgradeUserToMagnets failed:", err.message);
-    ;
     throw err;
   }
 }
@@ -399,7 +617,6 @@ export async function activateBusinessBuilder(email, billingCycle = "annual") {
     ]);
     if (!userRows.length) {
       console.warn(`⚠️ No user found for email: ${email}`);
-      ;
       return;
     }
 
@@ -428,14 +645,11 @@ export async function activateBusinessBuilder(email, billingCycle = "annual") {
       upgradeUserToMagnets(email),
     ]);
 
-
     console.log(`🎁 Granted 15 lead magnet slots to ${email}`);
 
-    ;
     return true;
   } catch (err) {
     console.error("❌ activateBusinessBuilder failed:", err.message);
-    ;
     throw err;
   }
 }
@@ -461,10 +675,8 @@ export async function deactivateBusinessBuilder(email) {
       [email]
     );
     console.log(`🚫 Business Builder Pack deactivated for ${email}`);
-    ;
   } catch (err) {
     console.error("❌ deactivateBusinessBuilder failed:", err.message);
-    ;
   }
 }
 
@@ -481,7 +693,6 @@ export async function getLeadMagnetByPdfUrl(pdfUrl) {
     throw err;
   }
 }
-
 // PASSKEYS FUNCTIONS
 export async function updateWebAuthnChallenge(userId, challenge) {
   const db = connect();
@@ -495,7 +706,6 @@ export async function updateWebAuthnChallenge(userId, challenge) {
     throw err;
   }
 }
-
 // 🔹 Store the user’s credential public key and related data
 export async function saveWebAuthnCredentials({
   userId,
@@ -521,9 +731,6 @@ export async function saveWebAuthnCredentials({
     throw err;
   }
 }
-
-
-
 // 🔹 Retrieve a user's WebAuthn credential info by email
 export async function getWebAuthnCredentials(email) {
   const db = connect();
@@ -545,9 +752,8 @@ export async function getWebAuthnCredentials(email) {
   } catch (err) {
     console.error("❌ Error in getWebAuthnCredentials:", err);
     throw err;
-  } 
+  }
 }
-
 // 🔹 Update WebAuthn counter after successful authentication
 export async function updateWebAuthnCounter(userId, newCounter) {
   const db = connect();
@@ -561,7 +767,6 @@ export async function updateWebAuthnCounter(userId, newCounter) {
     throw err;
   }
 }
-
 export async function removeUserPasskey(userId) {
   const db = connect();
   try {
@@ -580,22 +785,16 @@ export async function removeUserPasskey(userId) {
     throw err;
   }
 }
-
 // Stripe
-
 export async function updateStripeAccountId(userId, accountId) {
   const db = connect();
-  await db.query("UPDATE users SET stripe_connect_account_id = ? WHERE id = ?", [
-    accountId,
-    userId,
-  ]);
+  await db.query(
+    "UPDATE users SET stripe_connect_account_id = ? WHERE id = ?",
+    [accountId, userId]
+  );
   return true;
 }
-
-
 // Image Upload
-
-
 export async function uploadUserAvatar(userId, profileImage) {
   const db = connect();
 
@@ -628,10 +827,10 @@ export async function uploadUserAvatar(userId, profileImage) {
   const upload = await s3.upload(params).promise();
 
   // Save in DB
-  await db.query(
-    "UPDATE users SET profile_image_url = ? WHERE id = ?",
-    [upload.Location, userId]
-  );
+  await db.query("UPDATE users SET profile_image_url = ? WHERE id = ?", [
+    upload.Location,
+    userId,
+  ]);
 
   return { profileImage: upload.Location };
 }

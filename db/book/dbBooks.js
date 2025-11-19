@@ -1,8 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
 import connect from "../connect.js";
+import { generateBookPDF } from "../../services/generateBookPDF.js";
+import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
+import fs from "fs";
 
 // ✅ Create a new empty book slot for a user
-export async function createBook(userId, prompt, title = "Untitled Book", authorName = null, bookType = "fiction") {
+export async function createBook(userId, prompt, book_name = "Untitled Book", authorName = null, bookType = "fiction") {
   const db = connect();
   const id = uuidv4();
   const createdAt = new Date();
@@ -17,12 +20,12 @@ export async function createBook(userId, prompt, title = "Untitled Book", author
 
   await db.query(
     `INSERT INTO generated_books 
-      (id, user_id, title, author_name, prompt, pdf_url, status, pages, created_at, slot_number, book_type)
+      (id, user_id, book_name, author_name, prompt, pdf_url, status, pages, created_at, slot_number, book_type)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       userId,
-      title?.trim() || "Untitled Book",
+      book_name?.trim() || "Untitled Book",
       authorName,
       prompt || "",
       "",
@@ -59,7 +62,7 @@ export async function getBooksByUser(userId) {
     SELECT 
       g.id,
       g.user_id,
-      g.title AS book_name,
+      g.book_name,
       g.slot_number,
       g.part_number,
       g.status,
@@ -74,6 +77,17 @@ export async function getBooksByUser(userId) {
       g.font_name,    
       g.font_file, 
       -- ✅ NEW: tell us if Part 1 already exists
+
+      (
+        SELECT bp.can_edit 
+        FROM book_parts bp
+        WHERE bp.book_id = g.id 
+          AND bp.user_id = g.user_id
+        ORDER BY bp.part_number DESC
+        LIMIT 1
+      ) AS can_edit,
+
+
       EXISTS (
         SELECT 1 
         FROM book_parts p
@@ -98,7 +112,7 @@ export async function getBooksByUser(userId) {
 export async function getAllBooks() {
   const db = connect();
   const [rows] = await db.query(
-    `SELECT id, user_id, title, slot_number, status, prompt, pdf_url, pages, created_at, author_name
+    `SELECT id, user_id, book_name, slot_number, status, prompt, pdf_url, pages, created_at, author_name
      FROM generated_books
      WHERE deleted_at IS NULL
      ORDER BY created_at DESC`
@@ -120,21 +134,175 @@ export async function softDeleteBook(id) {
 // ✅ Get single book by ID
 export async function getBookById(id) {
   const db = connect();
-  const [rows] = await db.query("SELECT * FROM generated_books WHERE id = ?", [id]);
-  ;
+
+  // Pull the base book info
+  const [rows] = await db.query(
+    `
+    SELECT 
+      g.*,
+
+      (
+        SELECT bp.can_edit
+        FROM book_parts bp
+        WHERE bp.book_id = g.id
+          AND bp.user_id = g.user_id
+        ORDER BY bp.part_number DESC
+        LIMIT 1
+      ) AS can_edit
+
+    FROM generated_books g
+    WHERE g.id = ?
+    LIMIT 1
+    `,
+    [id]
+  );
 
   if (!rows[0]) return null;
 
   const book = rows[0];
+
   return {
     id: book.id,
-    title: book.title,
+    book_name: book.book_name,
     authorName: book.author_name,
-    bookType: book.book_type, // ✅ normalized
-    font_name: book.font_name, // ✅ added
-    font_file: book.font_file, // ✅ added
-    ...book, // keep everything else
+    bookType: book.book_type,
+    font_name: book.font_name,
+    font_file: book.font_file,
+    can_edit: book.can_edit,   // ⚡ NEW
+    ...book,
   };
+}
+
+export async function updateEditedChapter({
+  bookId,
+  userId,
+  partNumber,
+  editedText,
+  title,
+  bookName,
+  authorName,
+  font_name,
+  font_file,
+}) {
+
+ let cleanText = editedText
+    .replace(/<h1[^>]*>.*?<\/h1>/gi, "")
+    .replace(/^# .*/gm, "")
+    .trim();
+
+
+  const db = connect();
+
+  if (bookName) {
+  await db.query(
+    `UPDATE generated_books
+     SET book_name = ?, updated_at = NOW()
+     WHERE id = ? AND user_id = ?`,
+    [bookName, bookId, userId]
+  );
+}
+
+  // 1. Save new edited text
+  await db.query(
+  `UPDATE book_parts
+   SET 
+     gpt_output = ?, 
+     title = ?,                  
+     can_edit = 0, 
+     updated_at = NOW()
+   WHERE book_id = ? 
+     AND user_id = ? 
+     AND part_number = ?`,
+  [cleanText, title, bookId, userId, partNumber]
+);
+
+  // 2. Regenerate PDF using edited text
+  const chapters = [{
+    title: title || `Part ${partNumber}`,
+    content: cleanText,
+  }];
+
+  const { localPdfPath, pageCount } = await generateBookPDF({
+    id: `${bookId}-part${partNumber}`,
+    title: title || `Part ${partNumber}`,
+    author: authorName,
+    chapters,
+    font_name,
+    font_file,
+  });
+
+  // 3. Upload PDF
+  const fileName = `books/${bookId}_part${partNumber}_edited-${Date.now()}.pdf`;
+  const uploaded = await uploadFileToSpaces(localPdfPath, fileName, "application/pdf");
+
+  await db.query(
+    `UPDATE book_parts 
+     SET file_url = ?, pages = ? 
+     WHERE book_id = ? AND user_id = ? AND part_number = ?`,
+    [uploaded.Location, pageCount, bookId, userId, partNumber]
+  );
+
+  try {
+  if (fs.existsSync(localPdfPath)) {
+    fs.unlinkSync(localPdfPath);
+  }
+} catch (err) {
+  console.warn("⚠️ Could not delete local PDF (probably already removed):", err.message);
+}
+
+  return uploaded.Location;
+}
+
+
+
+export async function getBookPartByNumber(bookId, partNumber, userId) {
+  const db = connect();
+
+  const [rows] = await db.query(
+    `
+      SELECT 
+        id,
+        book_id,
+        user_id,
+        part_number,
+        title,
+        gpt_output,
+        draft_text,
+        can_edit,
+        created_at,
+        updated_at
+      FROM book_parts
+      WHERE book_id = ? AND part_number = ? AND user_id = ?
+      LIMIT 1
+    `,
+    [bookId, partNumber, userId]
+  );
+
+  if (!rows.length) return null;
+
+  const row = rows[0];
+
+  return {
+    ...row,
+
+    // 🟩 Always give the editor the correct text:
+    // priority: user-edited draft > AI output > empty
+    editor_text: row.draft_text || row.gpt_output || "",
+
+    // Make sure can_edit is boolean
+    can_edit: row.can_edit === 1 ? 1 : 0
+  };
+}
+
+
+export async function lockBookPartEdit(bookId, partNumber, userId) {
+  const db = connect();
+  await db.query(
+    `UPDATE book_parts 
+     SET can_edit = 0, updated_at = NOW()
+     WHERE book_id = ? AND part_number = ? AND user_id = ?`,
+    [bookId, partNumber, userId]
+  );
 }
 
 // ✅ Update prompt after submission
@@ -240,7 +408,7 @@ export async function updateBookInfo(bookId, userId, bookName, authorName, bookT
   try {
     await db.query(
       `UPDATE generated_books
-         SET title = ?, author_name = ?, book_type = ?, updated_at = CURRENT_TIMESTAMP
+         SET book_name = ?, author_name = ?, book_type = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND user_id = ?`,
       [
         bookName?.trim() || "Untitled Book",
@@ -346,7 +514,7 @@ export async function saveBookDraft({
       UPDATE generated_books
       SET
         draft_text = ?,
-        title = COALESCE(?, title),
+        book_name = COALESCE(?, book_name),
         link = ?,
         author_name = ?,
         book_type = ?,
@@ -392,29 +560,50 @@ export async function getBookDraft({ userId, bookId }) {
     const [rows] = await db.query(
       `
       SELECT
-        id,
-        title AS book_name,
-        draft_text,
-        link,
-        author_name,
-        book_type,
-        last_saved_at,
-        font_name,   
-        font_file
-      FROM generated_books
-      WHERE id = ? AND user_id = ? AND is_draft = 1
+        g.id,
+        g.book_name,
+        g.draft_text,
+        g.link,
+        g.author_name,
+        g.book_type,
+        g.last_saved_at,
+        g.font_name,
+        g.font_file,
+
+        -- 🔥 Pull the GPT output for Part 1
+        (
+          SELECT bp.gpt_output 
+          FROM book_parts bp
+          WHERE bp.book_id = g.id 
+            AND bp.user_id = g.user_id
+            AND bp.part_number = 1
+          LIMIT 1
+        ) AS gpt_output,
+
+        -- 🔥 Also return can_edit for Part 1
+        (
+          SELECT bp.can_edit 
+          FROM book_parts bp
+          WHERE bp.book_id = g.id 
+            AND bp.user_id = g.user_id
+            AND bp.part_number = 1
+          LIMIT 1
+        ) AS can_edit
+
+      FROM generated_books g
+      WHERE g.id = ? AND g.user_id = ?
+      LIMIT 1
       `,
       [bookId, userId]
     );
 
-    ;
     return rows.length ? rows[0] : null;
   } catch (err) {
-    ;
     console.error("❌ Error in getBookDraft:", err);
     throw err;
   }
 }
+
 
 export async function saveBookPartDraft({ userId, bookId, partNumber, draftText, title }) {
   const db = connect();
@@ -448,6 +637,43 @@ export async function saveBookPartDraft({ userId, bookId, partNumber, draftText,
     throw err;
   }
 }
+
+export async function getBookPartDraft(bookId, partNumber, userId) {
+  const db = connect();
+
+  const [rows] = await db.query(
+    `
+    SELECT 
+      bp.id,
+      bp.part_number,
+      bp.title,
+      bp.file_url,
+      bp.pages,
+      bp.created_at,
+      bp.draft_text,
+      bp.gpt_output,
+      bp.can_edit,
+      
+      gb.book_name,
+      gb.author_name,
+      gb.book_type,
+      gb.link,
+      gb.font_name,
+      gb.font_file
+    FROM book_parts bp
+    LEFT JOIN generated_books gb
+      ON gb.id = bp.book_id
+    WHERE bp.book_id = ?
+      AND bp.part_number = ?
+      AND bp.user_id = ?
+    LIMIT 1
+    `,
+    [bookId, partNumber, userId]
+  );
+
+  return rows[0] || null;
+}
+
 
 
 
