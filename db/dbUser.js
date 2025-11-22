@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 import AWS from "aws-sdk";
 import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+import axios from "axios";
 
 async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {
   const html = `
@@ -425,6 +426,50 @@ export async function saveRefreshToken(userId, refreshToken) {
     refreshToken,
     userId,
   ]);
+}
+
+export async function logUserActivity({
+  userId,
+  eventType = "login",
+  ipAddress = null,
+  userAgent = null,
+  country = null,
+}) {
+  let city = null;
+  let region = null;
+
+  try {
+  if (ipAddress) {
+    console.log("🌎 Starting geo lookup for:", ipAddress);
+
+    const { data: geo } = await axios.get(`http://ip-api.com/json/${ipAddress}`);
+    console.log("🌎 Geo response:", geo);
+
+    if (geo?.status === "success") {
+      console.log("🌎 Replacing IPv6 with IPv4:", geo.query);
+      ipAddress = geo.query;  // <--- THIS MUST OVERRIDE
+      city = geo.city;
+      region = geo.regionName;
+      country = geo.country || country;
+    } else {
+      console.log("🌎 Geo lookup failed to find IPv4 for:", ipAddress);
+    }
+  }
+} catch (err) {
+  console.error("🌎 Axios geo lookup failed:", err.message);
+}
+
+  try {
+     const db = connect();
+    await db.query(
+      `INSERT INTO user_activity_log 
+       (user_id, event_type, ip_address, user_agent, country, region, city)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, eventType, ipAddress, userAgent, country, region, city]
+    );
+  } catch (err) {
+    console.error("🔥 Failed to log activity:", err);
+  }
 }
 
 export async function getUserByRefreshToken(refreshToken) {

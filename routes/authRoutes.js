@@ -9,6 +9,7 @@ import {
   getUserByRefreshToken,
   getWebAuthnCredentials,
   logEmployeeReferral,
+  logUserActivity,
   removeUserPasskey,
   saveRefreshToken,
   saveWebAuthnCredentials,
@@ -35,6 +36,7 @@ import {
 } from "@simplewebauthn/server";
 import { decodeBase64URL, encodeBase64URL } from "../utils/base64url.js";
 import { getStripeConnectStatus } from "../helpers/stripeHelper.js";
+import { getUserIp } from "../helpers/getUserIp.js";
 
 const router = express.Router();
 
@@ -119,6 +121,14 @@ router.post("/login", async (req, res) => {
     );
 
     await saveRefreshToken(user.id, refreshToken);
+
+    await logUserActivity({
+  userId: user.id,
+  eventType: "login",
+  ipAddress: getUserIp(req),
+  userAgent: req.headers["user-agent"] || null,
+  country: req.headers["cf-ipcountry"] || null, 
+});
 
     res.json({
       user: {
@@ -304,6 +314,16 @@ router.post("/user/verify-login-2fa", async (req, res) => {
 
     await saveRefreshToken(user.id, refreshToken);
     await enableUserTwoFA(user.id);
+
+
+await logUserActivity({
+  userId: user.id,
+  eventType: "login",
+  ipAddress: getUserIp(req),
+  userAgent: req.headers["user-agent"] || null,
+  country: req.headers["cf-ipcountry"] || null,
+});
+
 
     // 5️⃣ FINAL FIX — return EXACT login format
     res.json({
@@ -795,6 +815,16 @@ router.post("/webauthn/login-verify", async (req, res) => {
     );
 
     await saveRefreshToken(user.id, refreshToken);
+
+    console.log("➡️ Calling logUserActivity for:", user.id);
+
+    await logUserActivity({
+  userId: user.id,
+  eventType: "login",
+  ipAddress: getUserIp(req),
+  userAgent: req.headers["user-agent"] || null,
+  country: req.headers["cf-ipcountry"] || null, 
+});
 
     console.log("✅ WebAuthn login verified successfully!");
     const creds = await getWebAuthnCredentials(email);

@@ -241,6 +241,200 @@ export async function updateLandingPage(id, fields) {
 }
 
 
+// SAVE TEMPLATES 
+
+export async function saveLandingTemplate({ userId, landingPageId, name, snapshot }) {
+  const db = connect();
+
+  try {
+    const versionId = crypto.randomUUID();
+    const versionName = name?.trim() || `Version ${new Date().toLocaleString()}`;
+
+    await db.query(
+      `
+        INSERT INTO landing_page_templates
+        (id, user_id, landing_page_id, name, snapshot)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      [versionId, userId, landingPageId, versionName, JSON.stringify(snapshot)]
+    );
+
+    return { success: true, versionId };
+  } catch (err) {
+    console.error("❌ Error saving landing page template:", err);
+    return { success: false, message: err.message || "Server error" };
+  }
+}
+
+export async function getLandingTemplatesByPage(landingPageId) {
+  const db = connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+        SELECT id, name, created_at 
+        FROM landing_page_templates
+        WHERE landing_page_id = ?
+        ORDER BY created_at DESC
+      `,
+      [landingPageId]
+    );
+
+    return { success: true, templates: rows };
+  } catch (err) {
+    console.error("❌ Error fetching template versions:", err);
+    return { success: false, message: err.message || "Server error" };
+  }
+}
+
+
+export async function loadLandingTemplate(versionId) {
+  const db = connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+        SELECT snapshot
+        FROM landing_page_templates
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [versionId]
+    );
+
+    if (!rows.length) {
+      return { success: false, message: "Template not found" };
+    }
+
+    let snapshot = rows[0].snapshot;
+
+    // ⭐ Handle if snapshot is stored as TEXT (JSON string)
+    if (typeof snapshot === "string") {
+      try {
+        snapshot = JSON.parse(snapshot);
+      } catch (err) {
+        console.error("❌ Invalid JSON in snapshot:", err);
+        return { success: false, message: "Corrupted template data" };
+      }
+    }
+
+    // ⭐ Ensure content_blocks is valid
+    if (!snapshot.content_blocks) {
+      snapshot.content_blocks = [];
+    } else if (typeof snapshot.content_blocks === "string") {
+      try {
+        snapshot.content_blocks = JSON.parse(snapshot.content_blocks);
+      } catch {
+        snapshot.content_blocks = [];
+      }
+    }
+
+    return { success: true, snapshot };
+  } catch (err) {
+    console.error("❌ Error loading landing template:", err);
+    return { success: false, message: err.message || "Server error" };
+  }
+}
+
+
+export async function restoreLandingTemplate(landingPageId, snapshot) {
+  const db = connect();
+
+  try {
+    // pull fields exactly like your updateLandingPage uses
+    const {
+      headline,
+      description,
+      font,
+      font_file,
+      bg_theme,
+      username,
+      font_color_h1,
+      font_color_h2,
+      font_color_h3,
+      font_color_p,
+      content_blocks,
+      pdf_url,
+      cover_image_url,
+      logo_url,
+      show_download_button
+    } = snapshot;
+
+    await db.query(
+      `
+        UPDATE user_landing_pages SET
+          headline = ?,
+          description = ?,
+          font = ?,
+          font_file = ?,
+          bg_theme = ?,
+          username = ?,
+          font_color_h1 = ?,
+          font_color_h2 = ?,
+          font_color_h3 = ?,
+          font_color_p = ?,
+          content_blocks = ?,
+          pdf_url = ?,
+          cover_image_url = ?,
+          logo_url = ?,
+          show_download_button = ?,
+          updated_at = NOW()
+        WHERE id = ?
+      `,
+      [
+        headline,
+        description,
+        font,
+        font_file,
+        bg_theme,
+        username,
+        font_color_h1,
+        font_color_h2,
+        font_color_h3,
+        font_color_p,
+        JSON.stringify(content_blocks || []),
+        pdf_url,
+        cover_image_url,
+        logo_url,
+        show_download_button,
+        landingPageId
+      ]
+    );
+
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Error restoring landing template:", err);
+    return { success: false, message: err.message || "Server error" };
+  }
+}
+
+export async function deleteLandingTemplate(versionId, userId) {
+  const db = connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+        DELETE FROM landing_page_templates
+        WHERE id = ? AND user_id = ?
+      `,
+      [versionId, userId]
+    );
+
+    if (rows.affectedRows === 0) {
+      return {
+        success: false,
+        message: "Version not found or unauthorized"
+      };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("❌ deleteLandingTemplate error:", err);
+    return { success: false, message: err.message || "DB error" };
+  }
+}
+
+
 export async function getOrCreateLandingPage(userId) {
   const db = connect();
   try {

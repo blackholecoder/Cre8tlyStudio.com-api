@@ -190,6 +190,7 @@ if (coverImage && fs.existsSync(coverImage)) {
             : "#ffffff")
       )
     );
+    
 
   // ✅ Embed @font-face rule
   const fontFace = `
@@ -202,6 +203,8 @@ if (coverImage && fs.existsSync(coverImage)) {
       font-family: '${font_name}', sans-serif;
     }
   `;
+
+  
 
   const html = `
 <html>

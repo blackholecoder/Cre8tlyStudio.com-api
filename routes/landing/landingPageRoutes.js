@@ -1,12 +1,17 @@
 import express from "express";
 import {
   checkUsernameAvailability,
+  deleteLandingTemplate,
   getCoverImageByPdfUrl,
   getLandingPageById,
   getLandingPageByUser,
+  getLandingTemplatesByPage,
   getOrCreateLandingPage,
   getUserLeads,
+  loadLandingTemplate,
+  restoreLandingTemplate,
   saveLandingPageLead,
+  saveLandingTemplate,
   updateLandingLogo,
   updateLandingPage,
 } from "../../db/landing/dbLanding.js";
@@ -526,7 +531,7 @@ router.get("/", async (req, res) => {
               const alignment = block.alignment || "center";
 
               // 🧠 Generate referral signup link dynamically
-              const referralUrl = `https://cre8tlystudio.com/signup?ref_employee=${landingPage.user_id}`;
+              const referralUrl = `https://cre8tlystudio.com/sign-up?ref_employee=${landingPage.user_id}`;
 
               return `
     <div style="
@@ -824,9 +829,8 @@ router.get("/", async (req, res) => {
       bannerHTML = blocks
         .filter((b) => b.type === "offer_banner")
         .map((b) => {
-          // reuse your existing switch logic
           const bannerBg = b.match_main_bg
-            ? mainOverlayColor // 👈 matches the content div overlay color
+            ? mainOverlayColor
             : b.use_gradient
             ? `linear-gradient(${b.gradient_direction || "90deg"}, ${
                 b.gradient_start || "#F285C3"
@@ -834,58 +838,68 @@ router.get("/", async (req, res) => {
             : b.bg_color || "#F285C3";
 
           const buttonBg = bannerBg;
+          const buttonText = b.button_text || "Claim Offer";
+
           return `
-        <div style="
-          display:flex;
-          flex-direction:column;
-          justify-content:center;
-          align-items:center;
-          background:${bannerBg};
-          color:${b.text_color || "#fff"};
-          text-align:center;
-          padding:${b.padding || 50}px 20px;
-          font-weight:600;
-          font-size:1.2rem;
-          line-height:1.5;
-          margin:0 -30px 40px;
-          border-radius: 24px 24px 0 0;
-          box-shadow:0 6px 24px rgba(0,0,0,0.3);
-        ">
-          <div style="max-width:800px;margin:0 auto;">
-            <p style="
-              font-size:1.5rem;
-              font-weight:700;
-              margin:0 0 22px;
-              text-align:center;
-              color:${b.text_color || "#fff"};
-            ">
-              ${b.text || "🔥 Limited Time Offer! Get your free eBook today!"}
-            </p>
-            ${
-              b.link_text && b.link_url
-                ? `<a href="${b.link_url}" target="_blank" rel="noopener noreferrer"
-                    style="
-                      display:inline-block;
-                      background:${buttonBg};
-                      color:#fff;
-                      padding:14px 32px;
-                      border-radius:10px;
-                      font-weight:700;
-                      font-size:1rem;
-                      text-decoration:none;
-                      box-shadow:0 4px 15px rgba(0,0,0,0.3);
-                      transition:transform 0.25s ease;
-                    "
-                    onmouseover="this.style.transform='scale(1.05)'"
-                    onmouseout="this.style.transform='scale(1)'"
-                  >
-                    ${b.link_text}
-                  </a>`
-                : ""
-            }
-          </div>
+      <div style="
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        align-items:center;
+        background:${bannerBg};
+        color:${b.text_color || "#fff"};
+        text-align:center;
+        padding:${b.padding || 50}px 20px;
+        font-weight:600;
+        font-size:1.2rem;
+        line-height:1.5;
+        margin:0 -30px 40px;
+        border-radius: 24px 24px 0 0;
+        box-shadow:0 6px 24px rgba(0,0,0,0.3);
+      ">
+        <div style="max-width:800px;margin:0 auto;">
+          <p style="
+            font-size:1.5rem;
+            font-weight:700;
+            margin:0 0 22px;
+            text-align:center;
+            color:${b.text_color || "#fff"};
+          ">
+            ${b.text || "🔥 Limited Time Offer!"}
+          </p>
+
+          <!-- ALWAYS scroll to Stripe Checkout -->
+          <button
+  onclick="document.getElementById('buy-now').scrollIntoView({ behavior: 'smooth' })"
+  style="
+    display:inline-block;
+    background:${
+      b.use_gradient
+        ? `linear-gradient(${b.gradient_direction || "90deg"}, ${
+            b.gradient_start || "#F285C3"
+          }, ${b.gradient_end || "#7bed9f"})`
+        : b.button_color || b.bg_color || "#F285C3"
+    };
+    color:${b.text_color || "#fff"};
+    padding:14px 32px;
+    border-radius:10px;
+    font-weight:700;
+    font-size:1rem;
+    cursor:pointer;
+    border:none;
+    box-shadow:0 4px 15px rgba(0,0,0,0.3);
+    transition:transform 0.25s ease;
+  "
+  onmouseover="this.style.transform='scale(1.05)'"
+  onmouseout="this.style.transform='scale(1)'"
+>
+  ${buttonText}
+</button>
+
+
         </div>
-      `;
+      </div>
+    `;
         })
         .join("");
     }
@@ -1719,5 +1733,88 @@ router.get("/leads", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+
+// SAVE TEMPLATES
+
+router.post("/save-template/:id", authenticateToken, async (req, res) => {
+  try {
+    const landingPageId = req.params.id;
+    const name = req.body.name || null;
+    const snapshot = req.body.snapshot;
+    const userId = req.user.id;
+
+    if (!snapshot) {
+      return res.json({
+        success: false,
+        message: "Snapshot missing from request"
+      });
+    }
+
+    const response = await saveLandingTemplate({
+      userId,
+      landingPageId,
+      name,
+      snapshot
+    });
+
+    return res.json(response);
+  } catch (err) {
+    console.error("❌ save-template error:", err);
+    res.json({ success: false, message: "Server error" });
+  }
+});
+
+
+router.get("/templates/:id", authenticateToken, async (req, res) => {
+  try {
+    const landingPageId = req.params.id;
+    const response = await getLandingTemplatesByPage(landingPageId);
+    return res.json(response);
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false, message: "Server error" });
+  }
+});
+
+router.get("/load-template/:versionId", authenticateToken, async (req, res) => {
+  try {
+    const { versionId } = req.params;
+    const response = await loadLandingTemplate(versionId);
+    return res.json(response);
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false, message: "Server error" });
+  }
+});
+
+router.put("/restore-template/:id", authenticateToken, async (req, res) => {
+  try {
+    const landingPageId = req.params.id;
+    const { snapshot } = req.body;
+
+    const response = await restoreLandingTemplate(landingPageId, snapshot);
+    return res.json(response);
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false, message: "Server error" });
+  }
+});
+
+router.delete("/delete-template/:id", authenticateToken, async (req, res) => {
+  try {
+    const versionId = req.params.id;
+    const userId = req.user.id;
+
+    const result = await deleteLandingTemplate(versionId, userId);
+
+    return res.json(result);
+  } catch (err) {
+    console.error("❌ delete-template error:", err);
+    return res.json({ success: false, message: "Server error" });
+  }
+});
+
+
 
 export default router;

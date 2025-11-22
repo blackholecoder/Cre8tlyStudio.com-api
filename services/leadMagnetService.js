@@ -331,6 +331,7 @@ let htmlContent = `
   }
 }
 
+
 export async function handleCheckoutCompleted(session) {
   const createdAt = new Date();
 

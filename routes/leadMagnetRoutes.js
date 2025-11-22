@@ -166,6 +166,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
   }
 });
 
+
 router.post("/prompt-builder", authenticateToken, async (req, res) => {
   const { audience, pain, promise, offer, userId } = req.body;
   console.log("🎯 Received prompt-builder data:", req.body);
