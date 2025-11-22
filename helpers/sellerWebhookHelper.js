@@ -59,12 +59,22 @@ export async function handleCheckoutCompleted(session) {
         return;
       }
 
+      let productName = "Digital Product";
+
+      if (session.metadata?.productTitle) {
+        productName = session.metadata.productTitle;
+      } else if (session.metadata?.leadMagnetTitle) {
+        productName = session.metadata.leadMagnetTitle;
+      } else if (landingPage?.title) {
+        productName = landingPage.title;
+      }
+
       // ✅ Insert delivery record for verified reviews
       await insertDelivery({
         user_id: sellerId, // seller’s user ID
         seller_stripe_id: landingPageId, // we use this as contextual page ref
         product_id: leadMagnetId, // specific eBook (for reviews)
-        product_name: landingPage.title || "Digital eBook",
+        product_name: productName,
         download_url: pdfUrl,
         buyer_email: buyerEmail,
         stripe_session_id: session.id,

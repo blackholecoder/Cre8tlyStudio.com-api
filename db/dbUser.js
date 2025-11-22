@@ -439,28 +439,31 @@ export async function logUserActivity({
   let region = null;
 
   try {
-  if (ipAddress) {
-    console.log("🌎 Starting geo lookup for:", ipAddress);
+    if (ipAddress) {
+      console.log("🌎 Starting geo lookup for:", ipAddress);
 
-    const { data: geo } = await axios.get(`http://ip-api.com/json/${ipAddress}`);
-    console.log("🌎 Geo response:", geo);
+      // Do NOT override IPv6
+      const { data: geo } = await axios.get(
+        `http://ip-api.com/json/${ipAddress}`
+      );
 
-    if (geo?.status === "success") {
-      console.log("🌎 Replacing IPv6 with IPv4:", geo.query);
-      ipAddress = geo.query;  // <--- THIS MUST OVERRIDE
-      city = geo.city;
-      region = geo.regionName;
-      country = geo.country || country;
-    } else {
-      console.log("🌎 Geo lookup failed to find IPv4 for:", ipAddress);
+      console.log("🌎 Geo response:", geo);
+
+      if (geo?.status === "success") {
+        // keep IPv6 even if they return IPv4 format
+        city = geo.city || null;
+        region = geo.regionName || null;
+        country = geo.country || country;
+      } else {
+        console.log("🌎 Geo lookup failed for:", ipAddress);
+      }
     }
+  } catch (err) {
+    console.error("🌎 Axios geo lookup failed:", err.message);
   }
-} catch (err) {
-  console.error("🌎 Axios geo lookup failed:", err.message);
-}
 
   try {
-     const db = connect();
+    const db = connect();
     await db.query(
       `INSERT INTO user_activity_log 
        (user_id, event_type, ip_address, user_agent, country, region, city)
@@ -471,6 +474,7 @@ export async function logUserActivity({
     console.error("🔥 Failed to log activity:", err);
   }
 }
+
 
 export async function getUserByRefreshToken(refreshToken) {
   const db = connect();

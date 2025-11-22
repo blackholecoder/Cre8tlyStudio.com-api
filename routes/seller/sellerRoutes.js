@@ -7,12 +7,15 @@ import {
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import {
   createSellerDashboardLink,
+  generateAIMessage,
   getSellerBalance,
   getSellerPayouts,
+  getSellerSales,
   getSellerStripeAccountId,
   saveSellerStripeAccountId,
 } from "../../db/seller/dbSeller.js";
 import { getUserById } from "../../db/dbUser.js";
+import { getLandingPageByUserId } from "../../db/landing/dbLanding.js";
 
 const router = express.Router();
 
@@ -118,6 +121,65 @@ router.post("/stripe-dashboard", async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to create dashboard link" });
   }
 });
+
+router.get("/sales/:userId", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const result = await getSellerSales(userId);
+    return res.json(result);
+  } catch (err) {
+    console.error("❌ seller sales API error:", err);
+    res.json({ success: false, sales: [] });
+  }
+});
+
+
+router.post("/generate-thank-you", authenticateToken, async (req, res) => {
+  try {
+    const { buyerEmail, productName } = req.body;
+
+    // Each user has exactly ONE landing page
+    const landingPage = await getLandingPageByUserId(req.user.id);
+
+    if (!landingPage) {
+      return res.json({ success: false, message: "Landing page not found" });
+    }
+
+    // Seller identity (brand)
+    const sellerName =
+      landingPage.username ||
+      landingPage.title ||
+      req.user.name ||
+      "Your Seller";
+
+    const prompt = `
+  Write a short heartfelt thank-you email from a digital product seller.
+
+  Requirements:
+  - MUST start with "Hello," or "Hi there," — NEVER use "Dear"
+  - Include product name: ${productName}
+  - Include buyer email: ${buyerEmail}
+  - Include seller brand name: ${sellerName}
+  - Keep it warm, friendly, and under 6 sentences
+  - No fancy signatures, just the seller name on its own line
+`;
+
+    const aiMessage = await generateAIMessage(prompt);
+
+    return res.json({
+      success: true,
+      message: aiMessage,
+    });
+  } catch (err) {
+    console.error("❌ AI thank you error:", err);
+    return res.json({ success: false, message: "AI failed" });
+  }
+});
+
+
+
+
 
 
 export default router;

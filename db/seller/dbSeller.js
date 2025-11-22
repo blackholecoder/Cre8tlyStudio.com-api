@@ -1,5 +1,10 @@
 import Stripe from "stripe";
 import connect from "../connect.js";
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -91,3 +96,46 @@ export async function createSellerDashboardLink(accountId) {
     throw err;
   }
 }
+
+export async function getSellerSales(userId) {
+  const db = connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT 
+        id,
+        product_id,
+        product_name,
+        buyer_email,
+        download_url,
+        delivered_at
+      FROM deliveries
+      WHERE user_id = ?
+      ORDER BY delivered_at DESC
+      `,
+      [userId]
+    );
+
+    return { success: true, sales: rows };
+  } catch (err) {
+    console.error("❌ getSellerSales error:", err);
+    return { success: false, sales: [] };
+  }
+}
+
+export async function generateAIMessage(prompt) {
+  try {
+    const result = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 150,
+    });
+
+    return result.choices[0].message.content.trim();
+  } catch (err) {
+    console.error("AI generation failed:", err);
+    return "Thank you so much for your purchase! I truly appreciate your support.";
+  }
+}
+

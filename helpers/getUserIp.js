@@ -1,4 +1,5 @@
 export function getUserIp(req) {
+  // Highest priority: Cloudflare
   let ip =
     req.headers["cf-connecting-ip"] ||
     req.headers["x-forwarded-for"] ||
@@ -7,21 +8,11 @@ export function getUserIp(req) {
 
   if (!ip) return null;
 
-  // Remove IPv6 prefix ::ffff:
-  if (ip.includes("::ffff:")) {
-    ip = ip.split("::ffff:")[1];
-  }
-
-  // Sometimes x-forwarded-for contains multiple IPs
+  // If x-forwarded-for contains multiple, take first — but DO NOT parse IPv4 from IPv6
   if (ip.includes(",")) {
     ip = ip.split(",")[0].trim();
   }
 
-  // If IPv6 but mapped IPv4 exists (most ISPs do)
-  const ipv4Match = ip.match(/(\d+\.\d+\.\d+\.\d+)/);
-  if (ipv4Match) {
-    return ipv4Match[1];
-  }
 
-  return ip; // fallback IPv6 if no IPv4 found
+  return ip.trim(); // return exact raw IP (IPv4 or IPv6)
 }
