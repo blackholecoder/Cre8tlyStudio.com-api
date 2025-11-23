@@ -289,27 +289,43 @@ export async function saveLeadMagnetPdf(
 
   ;
 }
-export async function getPromptMemory(userId) {
+export async function getPromptMemory(userId, page, limit) {
   const db = connect();
+
+  const offset = (page - 1) * limit;
 
   try {
     const [rows] = await db.query(
       `
-      SELECT 
-        id, 
-        prompt, 
-        created_at, 
-        created_at_prompt
+      SELECT id, prompt, created_at, created_at_prompt
       FROM lead_magnets
       WHERE user_id = ?
-        AND prompt IS NOT NULL 
+        AND prompt IS NOT NULL
         AND prompt != ''
       ORDER BY COALESCE(created_at_prompt, created_at) DESC
+      LIMIT ? OFFSET ?
+      `,
+      [userId, limit, offset]
+    );
+
+    const [[{ total }]] = await db.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM lead_magnets
+      WHERE user_id = ?
+        AND prompt IS NOT NULL
+        AND prompt != ''
       `,
       [userId]
     );
 
-    return rows;
+        return {
+      prompts: rows,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
   } catch (err) {
     console.error("❌ Error fetching prompt memory:", err);
     throw err;

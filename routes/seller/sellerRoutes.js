@@ -12,6 +12,7 @@ import {
   getSellerPayouts,
   getSellerSales,
   getSellerStripeAccountId,
+  markThankYouSent,
   saveSellerStripeAccountId,
 } from "../../db/seller/dbSeller.js";
 import { getUserById } from "../../db/dbUser.js";
@@ -126,11 +127,15 @@ router.get("/sales/:userId", authenticateToken, async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    const result = await getSellerSales(userId);
+    const page = parseInt(req.query.page) || 1;     // default page 1
+    const limit = parseInt(req.query.limit) || 20;  // default 20 per page
+
+    const result = await getSellerSales(userId, page, limit);
     return res.json(result);
+
   } catch (err) {
     console.error("❌ seller sales API error:", err);
-    res.json({ success: false, sales: [] });
+    res.json({ success: false, sales: [], total: 0 });
   }
 });
 
@@ -176,6 +181,29 @@ router.post("/generate-thank-you", authenticateToken, async (req, res) => {
     return res.json({ success: false, message: "AI failed" });
   }
 });
+
+router.post("/mark-thank-you-sent", authenticateToken, async (req, res) => {
+  try {
+    const { saleId } = req.body;
+
+    if (!saleId) {
+      return res.json({ success: false, message: "Missing saleId" });
+    }
+
+    const success = await markThankYouSent(saleId);
+    if (!success) {
+      return res.json({ success: false, message: "Failed to update record" });
+    }
+
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error("❌ mark-thank-you-sent error:", err);
+    return res.json({ success: false, message: "Server error" });
+  }
+});
+
+
 
 
 

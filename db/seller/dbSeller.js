@@ -97,10 +97,21 @@ export async function createSellerDashboardLink(accountId) {
   }
 }
 
-export async function getSellerSales(userId) {
+export async function getSellerSales(userId, page = 1, limit = 20) {
   const db = connect();
 
+  const offset = (page - 1) * limit;
+
   try {
+    // 1️⃣ Count total records
+    const [[countRow]] = await db.query(
+      `SELECT COUNT(*) AS total FROM deliveries WHERE user_id = ?`,
+      [userId]
+    );
+
+    const total = countRow.total;
+
+    // 2️⃣ Fetch paginated results
     const [rows] = await db.query(
       `
       SELECT 
@@ -109,20 +120,30 @@ export async function getSellerSales(userId) {
         product_name,
         buyer_email,
         download_url,
-        delivered_at
+        delivered_at,
+        thank_you_sent
       FROM deliveries
       WHERE user_id = ?
       ORDER BY delivered_at DESC
+      LIMIT ? OFFSET ?
       `,
-      [userId]
+      [userId, limit, offset]
     );
 
-    return { success: true, sales: rows };
+    return {
+      success: true,
+      sales: rows,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    };
+
   } catch (err) {
     console.error("❌ getSellerSales error:", err);
-    return { success: false, sales: [] };
+    return { success: false, sales: [], total: 0, page, pages: 0 };
   }
 }
+
 
 export async function generateAIMessage(prompt) {
   try {
@@ -136,6 +157,20 @@ export async function generateAIMessage(prompt) {
   } catch (err) {
     console.error("AI generation failed:", err);
     return "Thank you so much for your purchase! I truly appreciate your support.";
+  }
+}
+
+export async function markThankYouSent(saleId) {
+  const db = connect();
+  try {
+    await db.query(
+    `UPDATE deliveries SET thank_you_sent = 1 WHERE id = ? LIMIT 1`,
+    [saleId]
+  );
+    return true;
+  } catch (err) {
+    console.error("❌ markThankYouSent error:", err);
+    return false;
   }
 }
 

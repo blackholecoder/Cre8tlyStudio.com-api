@@ -254,7 +254,10 @@ Do not include preamble or commentary — only output the generated GPT prompt t
 router.get("/prompt-memory/:userId", authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
-    const data = await getPromptMemory(userId);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const data = await getPromptMemory(userId, page, limit);
     res.json(data);
   } catch (err) {
     console.error("Error fetching prompt memory:", err);
