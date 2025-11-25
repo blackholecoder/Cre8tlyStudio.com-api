@@ -1,10 +1,10 @@
 import express from "express";
-import { authenticateToken, requireAdmin } from "../../middleware/authMiddleware.js";
+import { authenticateAdminToken, requireAdmin } from "../../middleware/authMiddleware.js";
 import { createAdminMessage, getAllAdminMessages, getUnreadMessageCount, markMessageAsRead, softDeleteAdminMessage, softDeleteUserMessage } from "../../db/dbAdminMessages.js";
 
 const router = express.Router();
 
-router.post("/", authenticateToken, requireAdmin, async (req, res) => {
+router.post("/", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const { title, message } = req.body;
     const adminId = req.user.id;
@@ -22,7 +22,7 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
 });
 
 
-router.get("/", authenticateToken, async (req, res) => {
+router.get("/", authenticateAdminToken, async (req, res) => {
   const { offset = 0, limit = 20 } = req.query;
   try {
     const userId = req.user.id;
@@ -35,7 +35,7 @@ router.get("/", authenticateToken, async (req, res) => {
 });
 
 
-router.delete("/:id", authenticateToken, async (req, res) => {
+router.delete("/:id", authenticateAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     await softDeleteAdminMessage(id);
@@ -47,7 +47,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 });
 
 
-router.delete("/user/:id", authenticateToken, async (req, res) => {
+router.delete("/user/:id", authenticateAdminToken, async (req, res) => {
   try {
     await softDeleteUserMessage(req.user.id, req.params.id);
     res.json({ success: true });
@@ -57,7 +57,7 @@ router.delete("/user/:id", authenticateToken, async (req, res) => {
 });
 
 
-router.get("/count", authenticateToken, async (req, res) => {
+router.get("/count", authenticateAdminToken, async (req, res) => {
   try {
     const count = await getUnreadMessageCount(req.user.id);
     res.json({ count });
@@ -67,7 +67,7 @@ router.get("/count", authenticateToken, async (req, res) => {
 });
 
 // ✅ Mark as read
-router.post("/:id/read", authenticateToken, async (req, res) => {
+router.post("/:id/read", authenticateAdminToken, async (req, res) => {
   try {
     await markMessageAsRead(req.user.id, req.params.id);
     res.json({ success: true });

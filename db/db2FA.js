@@ -22,7 +22,6 @@ export async function generateTwoFA(userId) {
 
   return { qr, secret: secret.base32 };
 }
-
 /**
  * Verify a submitted 2FA code.
  */
@@ -109,4 +108,43 @@ export async function enableUserTwoFA(userId) {
     throw new Error("Failed to enable 2FA");
   } 
 }
+
+
+// ADMIN
+
+export async function verifyAdminTwoFA(userId, token) {
+  try {
+    const db = connect();
+
+    const [[user]] = await db.query(
+      "SELECT id, email, name, role, twofa_secret FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+
+    if (!user || !user.twofa_secret) {
+      throw new Error("2FA not enabled for this user");
+    }
+
+    // Only admin + marketer allowed
+    if (user.role !== "admin" && user.role !== "marketer") {
+      throw new Error("Unauthorized: Not an admin");
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twofa_secret,
+      encoding: "base32",
+      token,
+    });
+
+    if (!verified) throw new Error("Invalid 2FA code");
+
+    return user;
+
+  } catch (err) {
+    console.error("verifyAdminTwoFA error:", err);
+    throw err;
+  }
+}
+
+
 

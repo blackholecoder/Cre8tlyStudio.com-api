@@ -1,11 +1,11 @@
 import express from "express";
 import { getAllLeads } from "../../db/dbGetAllLeads.js";
-import { authenticateToken, requireAdmin } from "../../middleware/authMiddleware.js";
+import { authenticateAdminToken, requireAdmin } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 // GET /api/admin/leads
-router.get("/", authenticateToken, requireAdmin, async (req, res) => {
+router.get("/", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const leads = await getAllLeads();
     res.json({ success: true, leads });

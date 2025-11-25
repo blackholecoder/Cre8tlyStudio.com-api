@@ -1,12 +1,12 @@
 
 import express from "express";
 import { getVisitorsOverTime, getVisitorsByLocation, getDevices, getPageViews, getUniqueReturning, getOnlineVisitors } from "../../../db/admin/dbWebsiteAnalytics.js";
-import { authenticateToken, requireAdmin } from "../../../middleware/authMiddleware.js";
+import { authenticateAdminToken, requireAdmin } from "../../../middleware/authMiddleware.js";
 const router = express.Router();
 
 
 
-router.get("/visitors-over-time", authenticateToken, requireAdmin, async (req, res) => {
+router.get("/visitors-over-time", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const rows = await getVisitorsOverTime();
     res.json(rows);
@@ -18,7 +18,7 @@ router.get("/visitors-over-time", authenticateToken, requireAdmin, async (req, r
 
 
 // Visitors by country / state / region / city
-router.get("/visitors-by-location", authenticateToken, requireAdmin, async (req, res) => {
+router.get("/visitors-by-location", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const rows = await getVisitorsByLocation();
     res.json(rows);
@@ -30,7 +30,7 @@ router.get("/visitors-by-location", authenticateToken, requireAdmin, async (req,
 
 
 // Devices (iPhone, Android, Desktop)
-router.get("/devices", authenticateToken, requireAdmin, async (req, res) => {
+router.get("/devices", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const rows = await getDevices();
     res.json(rows);
@@ -42,7 +42,7 @@ router.get("/devices", authenticateToken, requireAdmin, async (req, res) => {
 
 
 // Page views
-router.get("/page-views", authenticateToken, requireAdmin, async (req, res) => {
+router.get("/page-views", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const rows = await getPageViews();
     res.json(rows);
@@ -54,7 +54,7 @@ router.get("/page-views", authenticateToken, requireAdmin, async (req, res) => {
 
 
 // Unique vs returning visitors
-router.get("/unique-vs-returning",authenticateToken, requireAdmin, async (req, res) => {
+router.get("/unique-vs-returning", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const data = await getUniqueReturning();
     res.json(data);
@@ -66,7 +66,7 @@ router.get("/unique-vs-returning",authenticateToken, requireAdmin, async (req, r
 
 
 // Real-time online visitors (updated_at > 2 min)
-router.get("/online", authenticateToken, requireAdmin, async (req, res) => {
+router.get("/online", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const data = await getOnlineVisitors();
     res.json(data);

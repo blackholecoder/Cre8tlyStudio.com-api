@@ -84,3 +84,32 @@ export function authOptional(req, res, next) {
     next();
   });
 }
+
+export function authenticateAdminToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
+  jwt.verify(token, process.env.ADMIN_JWT_SECRET, (err, user) => {
+    if (err) {
+      if (err.name === "TokenExpiredError") {
+        res.setHeader("X-Auth-Status", "expired");
+        return res.status(401).json({ message: "Access token expired" });
+      }
+      if (err.name === "JsonWebTokenError") {
+        res.setHeader("X-Auth-Status", "malformed");
+        return res.status(401).json({ message: "Malformed or missing token" });
+      }
+
+      console.error("Admin JWT verification error:", err);
+      res.setHeader("X-Auth-Status", "invalid");
+      return res.status(403).json({ message: "Invalid admin token" });
+    }
+
+    req.user = user;
+    next();
+  });
+}

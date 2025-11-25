@@ -1,10 +1,10 @@
 import express from "express";
 import { giveFreeBooks } from "../../db/book/dbFreeBooks.js";
-import { authenticateToken, requireAdmin, requireMarketerOrAdmin } from "../../middleware/authMiddleware.js";
+import { authenticateAdminToken, requireAdmin, requireMarketerOrAdmin } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/give-free-books", authenticateToken, requireAdmin, requireMarketerOrAdmin, async (req, res) => {
+router.post("/give-free-books", authenticateAdminToken, requireAdmin, requireMarketerOrAdmin, async (req, res) => {
   try {
     const { userId, count = 5 } = req.body;
 

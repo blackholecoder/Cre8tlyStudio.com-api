@@ -1,10 +1,10 @@
 import express from "express";
-import { authenticateToken, requireAdmin } from "../../middleware/authMiddleware.js";
+import { authenticateAdminToken, requireAdmin } from "../../middleware/authMiddleware.js";
 import { getAllUsers, deleteUserById } from "../../db/dbGetAllUsers.js";
 
 const router = express.Router();
 
-router.get("/", authenticateToken, requireAdmin, async (req, res) => {
+router.get("/", authenticateAdminToken, requireAdmin, async (req, res) => {
 
   try {
     
@@ -16,7 +16,7 @@ router.get("/", authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-router.delete("/users/:id", authenticateToken, requireAdmin, async (req, res) => {
+router.delete("/users/:id", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 

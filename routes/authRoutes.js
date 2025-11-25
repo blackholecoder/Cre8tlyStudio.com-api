@@ -16,13 +16,14 @@ import {
   updateWebAuthnChallenge,
   updateWebAuthnCounter,
 } from "../db/dbUser.js";
-import { authenticateToken } from "../middleware/authMiddleware.js";
+import { authenticateAdminToken, authenticateToken } from "../middleware/authMiddleware.js";
 import { loginAdmin } from "../db/dbAdminAuth.js";
 import { updateAdminSettings } from "../db/dbAdminSettings.js";
 import {
   enableUserTwoFA,
   generateTwoFA,
   generateUserTwoFA,
+  verifyAdminTwoFA,
   verifyTwoFA,
   verifyUserTwoFA,
 } from "../db/db2FA.js";
@@ -358,6 +359,42 @@ router.post("/admin/login", async (req, res) => {
   }
 });
 
+// router.post("/admin/verify-login-2fa", async (req, res) => {
+//   try {
+//     const { token, twofaToken } = req.body;
+
+//     if (!token || !twofaToken) {
+//       return res.status(400).json({ message: "Missing 2FA data" });
+//     }
+//     // Decode temporary login token
+//     const jwtPayload = jwt.verify(twofaToken, process.env.JWT_SECRET);
+//     if (!jwtPayload?.id) {
+//       return res.status(401).json({ message: "Invalid temporary token" });
+//     }
+
+//     // Verify code
+//     await verifyTwoFA(jwtPayload.id, token);
+
+//     // Fetch user info to include role + email
+//     const user = await getUserById(jwtPayload.id);
+
+//     // ✅ Issue final access token for the session
+//     const accessToken = jwt.sign(
+//       { id: user.id, email: user.email, role: user.role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "2h" }
+//     );
+
+//     return res.json({
+//       success: true,
+//       message: "2FA verified successfully",
+//       accessToken,
+//     });
+//   } catch (err) {
+//     console.error("2FA login verify error:", err);
+//     res.status(401).json({ message: err.message || "Invalid 2FA code" });
+//   }
+// });
 router.post("/admin/verify-login-2fa", async (req, res) => {
   try {
     const { token, twofaToken } = req.body;
@@ -365,29 +402,44 @@ router.post("/admin/verify-login-2fa", async (req, res) => {
     if (!token || !twofaToken) {
       return res.status(400).json({ message: "Missing 2FA data" });
     }
+
     // Decode temporary login token
     const jwtPayload = jwt.verify(twofaToken, process.env.JWT_SECRET);
     if (!jwtPayload?.id) {
       return res.status(401).json({ message: "Invalid temporary token" });
     }
 
-    // Verify code
-    await verifyTwoFA(jwtPayload.id, token);
+    // Verify 2FA
+    const user = await verifyAdminTwoFA(jwtPayload.id, token);
 
-    // Fetch user info to include role + email
-    const user = await getUserById(jwtPayload.id);
-
-    // ✅ Issue final access token for the session
+    // Issue final ADMIN access token
     const accessToken = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "2h" }
+      process.env.ADMIN_JWT_SECRET,
+      { expiresIn: "15m" }
     );
+
+    // Issue ADMIN refresh token
+    const refreshToken = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.ADMIN_JWT_REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // Save refresh token in DB
+    await saveRefreshToken(user.id, refreshToken);
 
     return res.json({
       success: true,
       message: "2FA verified successfully",
       accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      }
     });
   } catch (err) {
     console.error("2FA login verify error:", err);
@@ -395,7 +447,7 @@ router.post("/admin/verify-login-2fa", async (req, res) => {
   }
 });
 
-router.put("/admin/update", authenticateToken, async (req, res) => {
+router.put("/admin/update", authenticateAdminToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const result = await updateAdminSettings(userId, req.body);
@@ -408,7 +460,7 @@ router.put("/admin/update", authenticateToken, async (req, res) => {
   }
 });
 
-router.post("/admin/enable-2fa", authenticateToken, async (req, res) => {
+router.post("/admin/enable-2fa", authenticateAdminToken, async (req, res) => {
   try {
     const result = await generateTwoFA(req.user.id);
     res.json(result);
@@ -419,7 +471,7 @@ router.post("/admin/enable-2fa", authenticateToken, async (req, res) => {
 });
 
 // Verify 2FA token
-router.post("/admin/verify-2fa", authenticateToken, async (req, res) => {
+router.post("/admin/verify-2fa", authenticateAdminToken, async (req, res) => {
   try {
     const { token } = req.body;
     const result = await verifyTwoFA(req.user.id, token);
@@ -446,7 +498,7 @@ router.post("/admin/verify-2fa", authenticateToken, async (req, res) => {
   }
 });
 
-router.put("/admin/upload-image", authenticateToken, async (req, res) => {
+router.put("/admin/upload-image", authenticateAdminToken, async (req, res) => {
   console.log("🟢 /admin/upload-image hit");
   try {
     const userId = req.user.id;
@@ -816,8 +868,6 @@ router.post("/webauthn/login-verify", async (req, res) => {
     );
 
     await saveRefreshToken(user.id, refreshToken);
-
-    console.log("➡️ Calling logUserActivity for:", user.id);
 
     await logUserActivity({
   userId: user.id,

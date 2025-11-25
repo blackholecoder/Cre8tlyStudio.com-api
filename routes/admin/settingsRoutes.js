@@ -1,6 +1,6 @@
 import express from "express";
 import { getMaintenanceStatus, setMaintenanceStatus } from "../../db/settings/dbSettings.js";
-import { authenticateToken, requireAdmin } from "../../middleware/authMiddleware.js";
+import { authenticateAdminToken, requireAdmin } from "../../middleware/authMiddleware.js";
 
 
 const router = express.Router();
@@ -24,7 +24,7 @@ router.get("/maintenance", async (req, res) => {
 });
 
 
-router.post("/maintenance", authenticateToken, requireAdmin, async (req, res) => {
+router.post("/maintenance", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const { enabled } = req.body;
     const adminId = req.user?.id;

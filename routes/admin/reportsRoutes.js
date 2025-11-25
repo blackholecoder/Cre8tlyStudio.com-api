@@ -1,11 +1,11 @@
 import express from "express";
-import { authenticateToken, requireAdmin } from "../../middleware/authMiddleware.js";
+import { authenticateAdminToken, requireAdmin } from "../../middleware/authMiddleware.js";
 import { getAllReports } from "../../db/dbGetAllReports.js";
 
 
 const router = express.Router();
 
-router.get("/", authenticateToken, requireAdmin, async (req, res) => {
+router.get("/", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const reports = await getAllReports();
 

@@ -39,6 +39,7 @@ import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 import settingsRoutes from "./routes/admin/settingsRoutes.js";
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
 import adminAnalyticsRoutes from "./routes/admin/analytics/adminAnalyticsRoutes.js";
+import authAdminRoutes from "./routes/admin/authAdminRoutes.js";
 
 
 
@@ -216,6 +217,7 @@ app.use("/api/upload-data", uploadRoutes);
 app.use("/api/unsplash", unsplashRoutes);
 app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/admin/web-analytics", adminAnalyticsRoutes);
+app.use("/api/admin/auth", authAdminRoutes);
 
 
 

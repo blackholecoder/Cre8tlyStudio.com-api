@@ -1,10 +1,10 @@
 import express from "express";
-import { authenticateToken, requireAdmin, requireMarketerOrAdmin } from "../../middleware/authMiddleware.js";
+import { authenticateAdminToken, requireAdmin, requireMarketerOrAdmin } from "../../middleware/authMiddleware.js";
 import { createUserAndGiveFreeSlots, giveFreeLeadMagnets } from "../../db/dbAddUser.js";
 
 const router = express.Router();
 
-router.post("/create-user-with-slots", authenticateToken, requireAdmin, async (req, res) => {
+router.post("/create-user-with-slots", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const { name, email, password, slots = 5 } = req.body;
     if (!name || !email) {
@@ -21,7 +21,7 @@ router.post("/create-user-with-slots", authenticateToken, requireAdmin, async (r
 
 router.post(
   "/give-free-magnets",
-  authenticateToken,
+  authenticateAdminToken,
   requireMarketerOrAdmin, // you don't need requireAdmin here; this covers both
   async (req, res) => {
     try {
