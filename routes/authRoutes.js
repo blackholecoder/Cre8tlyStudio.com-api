@@ -38,6 +38,7 @@ import { decodeBase64URL, encodeBase64URL } from "../utils/base64url.js";
 import { getStripeConnectStatus } from "../helpers/stripeHelper.js";
 import { getUserIp } from "../helpers/getUserIp.js";
 
+
 const router = express.Router();
 
 // SIGN UP
@@ -902,5 +903,9 @@ router.post("/webauthn/remove-passkey", authenticateToken, async (req, res) => {
     });
   }
 });
+
+// TRACK IP FOR WEBSITE
+
+
 
 export default router;

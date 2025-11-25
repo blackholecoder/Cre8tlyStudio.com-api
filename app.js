@@ -38,6 +38,11 @@ import ebooksRoutes from "./routes/admin/ebookRoutes.js";
 import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 import settingsRoutes from "./routes/admin/settingsRoutes.js";
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
+import adminAnalyticsRoutes from "./routes/admin/analytics/adminAnalyticsRoutes.js";
+
+
+
+
 import landingPageRoutes from "./routes/landing/landingPageRoutes.js";
 import landingAnalyticsRoutes from "./routes/analytics/landingAnalyticsRoutes.js";
 import sellerRoutes from "./routes/seller/sellerRoutes.js";
@@ -50,6 +55,7 @@ import communityPosts from "./routes/community/postsRoutes.js";
 import communityComments from "./routes/community/commentsRoutes.js";
 import notificationsRoutes from "./routes/community/notifications/notificationsRoutes.js";
 import careersRoutes from "./routes/careers/careeersRoutes.js";
+import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js";
 
 
 
@@ -181,6 +187,7 @@ app.use("/api/vip", leadVipRoutes);
 
 app.use("/api/landing", landingPageRoutes);
 app.use("/api/landing-analytics", landingAnalyticsRoutes);
+app.use("/api/web-analytics", websiteAnalyticsRoutes);
 app.use("/", landingPageRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/seller-checkout", sellerCheckoutRoutes);
@@ -208,6 +215,7 @@ app.use("/api/books", bookRoutes);
 app.use("/api/upload-data", uploadRoutes);
 app.use("/api/unsplash", unsplashRoutes);
 app.use("/api/admin/settings", settingsRoutes);
+app.use("/api/admin/web-analytics", adminAnalyticsRoutes);
 
 
 

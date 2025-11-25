@@ -447,8 +447,6 @@ export async function logUserActivity({
         `http://ip-api.com/json/${ipAddress}`
       );
 
-      console.log("🌎 Geo response:", geo);
-
       if (geo?.status === "success") {
         // keep IPv6 even if they return IPv4 format
         city = geo.city || null;
