@@ -5,7 +5,7 @@ import {
   getPostById 
 } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
-import { getTopicById } from "../../db/community/dbtopics.js";
+import { getTopicById, getViewedTopics, markTopicViewed } from "../../db/community/dbtopics.js";
 
 const router = express.Router();
 
@@ -67,6 +67,26 @@ router.get("/posts/:postId", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("GET /community/posts/:id error:", error);
     res.status(500).json({ success: false, message: "Failed to load post" });
+  }
+});
+
+router.post("/:topicId/mark-viewed", authenticateToken, async (req, res) => {
+  try {
+    await markTopicViewed(req.user.id, req.params.topicId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("POST /community/topic/:topicId/mark-viewed error:", error);
+    res.status(500).json({ success: false, message: "Failed to update view" });
+  }
+});
+
+router.get("/views", authenticateToken, async (req, res) => {
+  try {
+    const viewedTopics = await getViewedTopics(req.user.id);
+    res.json({ success: true, viewedTopics });
+  } catch (err) {
+    console.error("GET /community/views error:", err);
+    res.status(500).json({ success: false });
   }
 });
 

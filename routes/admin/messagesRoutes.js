@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticateAdminToken, requireAdmin } from "../../middleware/authMiddleware.js";
+import { authenticateAdminToken, authenticateToken, requireAdmin } from "../../middleware/authMiddleware.js";
 import { createAdminMessage, getAllAdminMessages, getUnreadMessageCount, markMessageAsRead, softDeleteAdminMessage, softDeleteUserMessage } from "../../db/dbAdminMessages.js";
 
 const router = express.Router();
@@ -18,6 +18,19 @@ router.post("/", authenticateAdminToken, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("❌ Error creating admin message:", err.message);
     res.status(500).json({ message: "Failed to create admin message" });
+  }
+});
+
+
+router.get("/user-messages", authenticateToken, async (req, res) => {
+  const { offset = 0, limit = 20 } = req.query;
+  try {
+    const userId = req.user.id;
+    const rows = await getAllAdminMessages(userId, Number(offset), Number(limit));
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching admin messages:", err);
+    res.status(500).json({ error: "Failed to fetch messages" });
   }
 });
 

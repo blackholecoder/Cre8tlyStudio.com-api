@@ -1,0 +1,67 @@
+import express from "express";
+
+import { authenticateToken } from "../middleware/authMiddleware.js";
+import { getAllAdminMessages, getUnreadMessageCount, markMessageAsRead, softDeleteAdminMessage, softDeleteUserMessage } from "../db/dbAdminMessages.js";
+
+const router = express.Router();
+
+
+router.get("/", authenticateToken, async (req, res) => {
+  const { offset = 0, limit = 20 } = req.query;
+  try {
+    const userId = req.user.id;
+    const rows = await getAllAdminMessages(userId, Number(offset), Number(limit));
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching admin messages:", err);
+    res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+
+router.delete("/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await softDeleteAdminMessage(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Error deleting admin message:", err.message);
+    res.status(500).json({ message: "Failed to delete message" });
+  }
+});
+
+
+router.delete("/user/:id", authenticateToken, async (req, res) => {
+  try {
+    await softDeleteUserMessage(req.user.id, req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+router.get("/count", authenticateToken, async (req, res) => {
+  try {
+    const count = await getUnreadMessageCount(req.user.id);
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ✅ Mark as read
+router.post("/:id/read", authenticateToken, async (req, res) => {
+  try {
+    await markMessageAsRead(req.user.id, req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+
+
+
+export default router;

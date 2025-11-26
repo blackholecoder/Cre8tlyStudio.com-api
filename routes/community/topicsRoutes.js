@@ -7,7 +7,7 @@ const router = express.Router();
 // GET all topics
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const topics = await getTopics();
+    const topics = await getTopics(req.user.id);
     res.json({ success: true, topics });
   } catch (error) {
     console.error("GET /community/topics error:", error);
@@ -19,7 +19,9 @@ router.get("/:topicId", authenticateToken, async (req, res) => {
   try {
     const { topicId } = req.params;
 
-    const topic = await getTopicById(topicId);
+    // ⭐ FIX: pass req.user.id
+    const topic = await getTopicById(topicId, req.user.id);
+
     if (!topic) {
       return res.status(404).json({ success: false, message: "Topic not found" });
     }
@@ -53,5 +55,7 @@ router.post("/", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to create topic" });
   }
 });
+
+
 
 export default router;

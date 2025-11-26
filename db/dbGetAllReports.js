@@ -9,6 +9,8 @@ export async function getAllReports() {
       u.name AS user_name,
       u.email AS user_email,
       u.magnet_slots AS purchased_slots,
+      lp.custom_domain AS landing_custom_domain,
+      lp.username AS landing_username,
       COUNT(lm.id) AS total_reports,
       SUM(CASE WHEN lm.status = 'completed' THEN 1 ELSE 0 END) AS completed_reports,
       SUM(CASE WHEN lm.status = 'pending' THEN 1 ELSE 0 END) AS pending_reports,
@@ -39,29 +41,40 @@ export async function getAllReports() {
     LEFT JOIN lead_magnets lm 
       ON lm.user_id = u.id 
       AND lm.deleted_at IS NULL
-    GROUP BY u.id, u.name, u.email, u.magnet_slots
+      LEFT JOIN user_landing_pages lp 
+  ON lp.user_id = u.id
+    GROUP BY u.id, u.name, u.email, u.magnet_slots, lp.custom_domain, lp.username
     ORDER BY last_created_at DESC;
   `);
 
   return rows.map((r) => {
-  let leadMagnets = [];
+    let leadMagnets = [];
+    let landing_url = null;
 
-  try {
-    if (typeof r.lead_magnets === "string") {
-      leadMagnets = JSON.parse(r.lead_magnets);
-    } else if (Array.isArray(r.lead_magnets)) {
-      leadMagnets = r.lead_magnets;
-    } else if (r.lead_magnets && typeof r.lead_magnets === "object") {
-      leadMagnets = [r.lead_magnets];
+    if (r.landing_custom_domain) {
+      // If user has a custom domain configured
+      landing_url = `https://${r.landing_custom_domain}`;
+    } else if (r.landing_username) {
+      // Default Cre8tly subdomain
+      landing_url = `https://${r.landing_username}.cre8tlystudio.com`;
     }
-  } catch (err) {
-    console.warn("⚠️ Failed to parse lead_magnets for user:", r.user_email);
-  }
 
-  return {
-    ...r,
-    lead_magnets: leadMagnets,
-  };
-});
+    try {
+      if (typeof r.lead_magnets === "string") {
+        leadMagnets = JSON.parse(r.lead_magnets);
+      } else if (Array.isArray(r.lead_magnets)) {
+        leadMagnets = r.lead_magnets;
+      } else if (r.lead_magnets && typeof r.lead_magnets === "object") {
+        leadMagnets = [r.lead_magnets];
+      }
+    } catch (err) {
+      console.warn("⚠️ Failed to parse lead_magnets for user:", r.user_email);
+    }
+
+    return {
+      ...r,
+      lead_magnets: leadMagnets,
+      landing_url,
+    };
+  });
 }
-
