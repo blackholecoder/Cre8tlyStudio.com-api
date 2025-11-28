@@ -93,7 +93,7 @@ export async function handleCheckoutCompleted(session) {
           </p>
           <div style="text-align:center;margin-top:30px;">
             <a href="${pdfUrl}" target="_blank"
-              style="background:linear-gradient(90deg,#7bed9f,#670fe7);color:#000;padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">
+              style="background:linear-gradient(90deg,#7bed9f,#670fe7);color:#fff;padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">
               Download Your PDF
             </a>
           </div>

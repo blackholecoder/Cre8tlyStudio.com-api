@@ -59,7 +59,7 @@ router.get(
   requireAdmin,
   async (req, res) => {
     try {
-      const topics = await getTopics();
+      const topics = await getTopics(req.user.id);
       res.json({ success: true, topics });
     } catch (err) {
       console.error("GET /admin/community/topics error:", err);
@@ -93,7 +93,6 @@ router.delete(
     }
   }
 );
-
 // COMMENTS
 router.get("/comments", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
@@ -107,7 +106,6 @@ router.get("/comments", authenticateAdminToken, requireAdmin, async (req, res) =
     res.status(500).json({ error: "Failed to load comments" });
   }
 });
-
 
 router.post(
   "/post/:postId/mark-seen",
@@ -123,7 +121,6 @@ router.post(
   }
 );
 
-
 router.get("/unseen-count", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     const count = await getUnseenCommentCount();
@@ -134,7 +131,6 @@ router.get("/unseen-count", authenticateAdminToken, requireAdmin, async (req, re
 });
 
 // POST 
-
 router.put("/posts/mark-seen", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
     await markAllPostsSeen();
@@ -143,7 +139,6 @@ router.put("/posts/mark-seen", authenticateAdminToken, requireAdmin, async (req,
     res.status(500).json({ error: "Failed to mark posts seen" });
   }
 });
-
 
 router.get("/posts/unseen-count", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
@@ -166,7 +161,6 @@ router.get("/all-posts", authenticateAdminToken, requireAdmin, async (req, res) 
     res.status(500).json({ error: "Failed to load posts" });
   }
 });
-
 // ===============================
 // GET POSTS BY TOPIC
 // ===============================
@@ -184,7 +178,6 @@ router.get(
     }
   }
 );
-
 // ===============================
 // GET COMMENTS FOR A POST
 // ===============================
@@ -202,7 +195,6 @@ router.get(
     }
   }
 );
-
 // ===============================
 // ADMIN REPLY TO A POST
 // ===============================
@@ -229,7 +221,6 @@ router.post(
     }
   }
 );
-
 // ===============================
 // UNSEEN COMMENTS BY TOPIC
 // ===============================
@@ -247,7 +238,6 @@ router.get(
     }
   }
 );
-
 // ===============================
 // UNSEEN COMMENTS BY TOPIC TOTAL
 // ===============================
@@ -265,7 +255,6 @@ router.get(
     }
   }
 );
-
 
 router.get(
   "/post/:postId/comments",
@@ -352,7 +341,6 @@ router.delete(
     }
   }
 );
-
 
 router.put("/comments/:commentId", async (req, res) => {
   try {

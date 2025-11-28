@@ -18,15 +18,15 @@ router.post("/contact", async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.MAIL_FROM_ADDRESS,  // e.g. support@cre8tlystudio.com
+        user: process.env.MAIL_FROM_ADDRESS_NEW,  // e.g. support@cre8tlystudio.com
         pass: process.env.GMAIL_APP_PASSWORD, // your Gmail App Password
       },
     });
 
     // 📨 Send the message
     await transporter.sendMail({
-      from: `"Cre8tly Studio Support" <${process.env.MAIL_FROM_ADDRESS}>`,
-      to: process.env.MAIL_FROM_ADDRESS, // send to your support inbox
+      from: `"Cre8tly Studio Support" <${process.env.MAIL_FROM_ADDRESS_NEW}>`,
+      to: process.env.MAIL_FROM_ADDRESS_NEW, // send to your support inbox
       subject: `📬 Support Request: ${subject || "No Subject"}`,
       html: `
   <div style="

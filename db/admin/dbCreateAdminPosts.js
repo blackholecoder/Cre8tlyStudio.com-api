@@ -59,7 +59,6 @@ export async function getAdminCommunityPosts(offset, limit) {
   }
 }
 
-
 export async function getAllComments(offset = 0, limit = 20) {
   try {
     const db = connect();
@@ -88,7 +87,6 @@ export async function getAllComments(offset = 0, limit = 20) {
     throw err;
   }
 }
-
 
 export async function markAllCommentsSeen(postId) {
   try {
@@ -121,7 +119,6 @@ export async function getUnseenCommentCount() {
   }
 }
 
-
 export async function markAllPostsSeen() {
   try {
     const db = connect();
@@ -131,7 +128,6 @@ export async function markAllPostsSeen() {
     throw err;
   }
 }
-
 
 export async function getUnseenPostCount() {
   try {
@@ -177,7 +173,6 @@ export async function getAllPosts(offset = 0, limit = 20) {
   }
 }
 
-
 export async function getPostsByTopic(topicId) {
   try {
     const db = connect();
@@ -204,7 +199,6 @@ export async function getPostsByTopic(topicId) {
     throw err;
   }
 }
-
 
 export async function getCommentsForAdminPost(postId) {
   try {
@@ -244,9 +238,6 @@ export async function getCommentsForAdminPost(postId) {
   }
 }
 
-
-
-
 export async function createAdminComment({ postId, adminId, body, parent_id }) {
   try {
     const db = connect();
@@ -270,7 +261,6 @@ export async function createAdminComment({ postId, adminId, body, parent_id }) {
     throw err;
   }
 }
-
 
 export async function getUnseenCommentMapByPost(topicId) {
   try {
@@ -328,7 +318,6 @@ export async function getUnseenCommentCountByTopic() {
     throw err;
   }
 }
-
 
 export async function deleteAdminComment(commentId) {
   try {

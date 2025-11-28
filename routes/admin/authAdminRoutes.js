@@ -1,9 +1,9 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import {
+  getAdminByRefreshToken,
   getUserById,
-  getUserByRefreshToken,
-  saveRefreshToken,
+  saveAdminRefreshToken,
 } from "../../db/dbUser.js";
 import { authenticateAdminToken } from "../../middleware/authMiddleware.js";
 
@@ -18,11 +18,11 @@ router.post("/refresh", async (req, res) => {
       return res.status(401).json({ message: "No refresh token" });
     }
 
-    const user = await getUserByRefreshToken(token);
+    const user = await getAdminByRefreshToken(token);
 
     // Must exist AND must be an admin-level user
-    if (!user || (user.role !== "admin" && user.role !== "marketer")) {
-      return res.status(403).json({ message: "Invalid refresh token" });
+    if (!user || !["admin", "marketer", "superadmin"].includes(user.role)) {
+      return res.status(401).json({ message: "Invalid refresh token" });
     }
 
     jwt.verify(token, process.env.ADMIN_JWT_REFRESH_SECRET, async (err) => {
@@ -44,7 +44,7 @@ router.post("/refresh", async (req, res) => {
           { expiresIn: "7d" }
         );
 
-        await saveRefreshToken(user.id, newRefreshToken);
+        await saveAdminRefreshToken(user.id, newRefreshToken);
 
         return res.json({
           accessToken: newAccessToken,

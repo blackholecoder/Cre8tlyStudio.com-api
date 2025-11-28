@@ -39,6 +39,7 @@ import ebooksRoutes from "./routes/admin/ebookRoutes.js";
 import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 import settingsRoutes from "./routes/admin/settingsRoutes.js";
 import adminCommunityRoutes from "./routes/admin/communityRoutes.js";
+import deliveriesRoutes from "./routes/admin/deliveriesRoutes.js";
 
 
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
@@ -166,7 +167,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-admin-refresh"],
 };
 
 app.use(cors(corsOptions));
@@ -208,6 +209,7 @@ app.use("/api/notifications", notificationsRoutes);
 
 
 // Admin
+app.use("/api/admin/auth", authAdminRoutes);
 app.use("/api/admin/users", usersRoutes);
 app.use("/api/admin/stats", statsRoutes);
 app.use("/api/admin/leads", leadsRoutes);
@@ -215,6 +217,7 @@ app.use("/api/admin/reports", reportsRoutes);
 app.use("/api/admin/messages", messagesRoutes);
 app.use("/api/admin", addAdminRoutes);
 app.use("/api/admin", freeBookRoutes);
+app.use("/api/admin/deliveries", deliveriesRoutes);
 app.use("/api/ebooks", ebooksRoutes);
 app.use("/api/ebooks/checkout", ebookCheckoutRoutes);
 app.use("/api/books", bookRoutes);
@@ -222,7 +225,7 @@ app.use("/api/upload-data", uploadRoutes);
 app.use("/api/unsplash", unsplashRoutes);
 app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/admin/web-analytics", adminAnalyticsRoutes);
-app.use("/api/admin/auth", authAdminRoutes);
+
 app.use("/api/admin/community", adminCommunityRoutes);
 
 

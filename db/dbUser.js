@@ -483,6 +483,34 @@ export async function getUserByRefreshToken(refreshToken) {
   return rows[0] || null;
 }
 
+export async function getAdminByRefreshToken(refreshToken) {
+  try {
+    const db = connect();
+    const [rows] = await db.query(
+      "SELECT * FROM users WHERE admin_refresh_token = ? LIMIT 1",
+      [refreshToken]
+    );
+    return rows[0] || null;
+  } catch (err) {
+    console.error("❌ getAdminByRefreshToken error:", err);
+    throw err;
+  }
+}
+
+export async function saveAdminRefreshToken(userId, token) {
+  try {
+    const db = connect();
+    await db.query(
+      "UPDATE users SET admin_refresh_token = ? WHERE id = ?",
+      [token, userId]
+    );
+  } catch (err) {
+    console.error("❌ saveAdminRefreshToken error:", err);
+    throw err;
+  }
+}
+
+
 export async function updateUserRole(userId, role) {
   const db = connect();
   await db.query("UPDATE users SET role=? WHERE id=?", [role, userId]);

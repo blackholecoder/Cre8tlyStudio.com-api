@@ -111,13 +111,12 @@ export async function enableUserTwoFA(userId) {
 
 
 // ADMIN
-
 export async function verifyAdminTwoFA(userId, token) {
   try {
     const db = connect();
 
     const [[user]] = await db.query(
-      "SELECT id, email, name, role, twofa_secret FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, email, name, role, twofa_secret, failed_2fa_attempts, locked_until FROM users WHERE id = ? LIMIT 1",
       [userId]
     );
 
@@ -125,18 +124,46 @@ export async function verifyAdminTwoFA(userId, token) {
       throw new Error("2FA not enabled for this user");
     }
 
-    // Only admin + marketer allowed
-    if (user.role !== "admin" && user.role !== "marketer") {
-      throw new Error("Unauthorized: Not an admin");
+    const now = new Date();
+
+    if (user.locked_until && now < new Date(user.locked_until)) {
+      throw new Error(`Account locked. Try again later.`);
     }
 
     const verified = speakeasy.totp.verify({
       secret: user.twofa_secret,
       encoding: "base32",
       token,
+      window: 1,
     });
 
-    if (!verified) throw new Error("Invalid 2FA code");
+    if (!verified) {
+      const attempts = (user.failed_2fa_attempts || 0) + 1;
+
+      if (attempts >= 5) {
+        const lockUntil = new Date(Date.now() + 10 * 60000); // 10 minutes lockout
+
+        await db.query(
+          "UPDATE users SET failed_2fa_attempts = ?, locked_until = ? WHERE id = ?",
+          [attempts, lockUntil, userId]
+        );
+
+        throw new Error("Too many failed attempts. Locked for 10 minutes.");
+      }
+
+      await db.query(
+        "UPDATE users SET failed_2fa_attempts = ? WHERE id = ?",
+        [attempts, userId]
+      );
+
+      throw new Error("Invalid 2FA code");
+    }
+
+    // Reset on success
+    await db.query(
+      "UPDATE users SET failed_2fa_attempts = 0, locked_until = NULL WHERE id = ?",
+      [userId]
+    );
 
     return user;
 
@@ -145,6 +172,5 @@ export async function verifyAdminTwoFA(userId, token) {
     throw err;
   }
 }
-
 
 
