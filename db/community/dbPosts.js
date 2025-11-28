@@ -61,11 +61,24 @@ export async function getPostById(postId) {
       `
       SELECT 
         p.*,
-        u.name AS author,
-        u.role AS author_role,
-        u.profile_image_url AS author_image 
+
+        CASE 
+          WHEN p.is_admin_post = 1 THEN 'Cre8tly Studio'
+          ELSE u.name
+        END AS author,
+
+        CASE 
+          WHEN p.is_admin_post = 1 THEN 'admin'
+          ELSE u.role
+        END AS author_role,
+
+        CASE 
+          WHEN p.is_admin_post = 1 THEN '/cre8tly-logo-white.png'
+          ELSE u.profile_image_url
+        END AS author_image
+
       FROM community_posts p
-      JOIN users u ON p.user_id = u.id
+      LEFT JOIN users u ON p.user_id = u.id
       WHERE p.id = ?
       LIMIT 1
       `,
@@ -78,6 +91,8 @@ export async function getPostById(postId) {
     throw error;
   }
 }
+
+
 
 
 export async function pinPost(postId, state = 1) {

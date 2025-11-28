@@ -20,8 +20,8 @@ export async function addComment(postId, userId, body) {
 
     // 2️⃣ Save comment
     await db.query(
-      `INSERT INTO community_comments (id, post_id, user_id, body)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO community_comments (id, post_id, user_id, body, admin_seen)
+       VALUES (?, ?, ?, ?, 0)`,
       [commentId, postId, userId, body.trim()]
     );
 
