@@ -67,10 +67,29 @@ font_file = font_file || "/fonts/Montserrat-Regular.ttf";
   await page.evaluateHandle("document.fonts.ready");
 
   let content;
+  let cleanedPrompt = prompt;
+
+const lastStrongIndex = cleanedPrompt.lastIndexOf("<strong>");
+const lastBoldIndex = cleanedPrompt.lastIndexOf("<b>");
+const cutoffIndex = Math.max(lastStrongIndex, lastBoldIndex);
+
+if (cutoffIndex !== -1) {
+  const endOfStrong = cleanedPrompt.indexOf("</strong>", cutoffIndex);
+  const endOfBold = cleanedPrompt.indexOf("</b>", cutoffIndex);
+
+  let endIndex = -1;
+  if (endOfStrong !== -1) endIndex = endOfStrong + "</strong>".length;
+  if (endOfBold !== -1) endIndex = endOfBold + "</b>".length;
+
+  if (endIndex !== -1) {
+    cleanedPrompt = cleanedPrompt.slice(0, endIndex);
+  }
+}
+
   if (isHtml) {
-    content = prompt;
+    content = cleanedPrompt;
   } else {
-    const paragraphs = prompt
+    const paragraphs = cleanedPrompt
       .split(/\n+/)
       .map((line) => `<p>${line}</p>`)
       .join("");
@@ -78,7 +97,10 @@ font_file = font_file || "/fonts/Montserrat-Regular.ttf";
   }
 
   const sections = content.split(/<!--PAGEBREAK-->/g);
-  const lastSection = sections.pop();
+  while (sections.length > 0 && sections[sections.length - 1].trim().length === 0) {
+  sections.pop();
+}
+  const lastSection = sections.pop() || "";
 
   content = [
     ...sections.map(
