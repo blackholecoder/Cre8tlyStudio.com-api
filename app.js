@@ -40,6 +40,7 @@ import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 import settingsRoutes from "./routes/admin/settingsRoutes.js";
 import adminCommunityRoutes from "./routes/admin/communityRoutes.js";
 import deliveriesRoutes from "./routes/admin/deliveriesRoutes.js";
+import latestMagnetsRoutes from "./routes/admin/latestMagnetsRoutes.js";
 
 
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
@@ -225,6 +226,7 @@ app.use("/api/upload-data", uploadRoutes);
 app.use("/api/unsplash", unsplashRoutes);
 app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/admin/web-analytics", adminAnalyticsRoutes);
+app.use("/api/admin/lead-magnets", latestMagnetsRoutes);
 
 app.use("/api/admin/community", adminCommunityRoutes);
 

@@ -573,31 +573,72 @@ router.get("/", async (req, res) => {
             }
 
             case "verified_reviews": {
-              const landingPageId = landingPage.id;
-              const productId = landingPage.pdf_url || "";
+  const landingPageId = landingPage.id;
+  const productId = landingPage.pdf_url || "";
+  const title = block.title || "Verified Buyer Reviews";
 
-              const title = block.title || "Verified Buyer Reviews";
-              const textColor = block.text_color || "#FFFFFF";
-              const bgColor = block.bg_color || "rgba(0,0,0,0.3)";
-              const useGlass = block.use_glass ? true : false;
-              const alignment = block.alignment || "center";
+  
 
-              const bgStyle = useGlass
-                ? "rgba(255,255,255,0.08);backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.3);"
-                : `${bgColor};box-shadow:0 8px 25px rgba(0,0,0,0.25);`;
+  function getLuminance(color) {
+    if (color.startsWith("rgb")) {
+      const nums = color
+        .replace(/rgba?\(/, "")
+        .replace(")", "")
+        .split(",")
+        .map((n) => parseFloat(n.trim()));
 
-              return `
+      const r = nums[0];
+      const g = nums[1];
+      const b = nums[2];
+
+      return r * 0.299 + g * 0.587 + b * 0.114;
+    }
+
+    if (color.startsWith("#")) {
+      const c = color.replace("#", "");
+      const r = parseInt(c.substr(0, 2), 16);
+      const g = parseInt(c.substr(2, 2), 16);
+      const b = parseInt(c.substr(4, 2), 16);
+
+      return r * 0.299 + g * 0.587 + b * 0.114;
+    }
+
+    return 255;
+  }
+
+  function autoTextColor(bg) {
+    const lum = getLuminance(bg);
+    return lum < 150 ? "#FFFFFF" : "#000000";
+  }
+
+  const bgColor = block.bg_color || "rgba(0,0,0,0.3)";
+  const textColor = block.text_color || autoTextColor(bgColor);
+  const useGlass = block.use_glass ? true : false;
+  const alignment = block.alignment || "center";
+
+  const bgStyle = useGlass
+    ? "rgba(255,255,255,0.08);backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.3);"
+    : `${bgColor};box-shadow:0 8px 25px rgba(0,0,0,0.25);`;
+
+  return `
+  <!-- Scoped color override so landing page global colors don't overwrite -->
+  <style>
+    #reviews-section, #reviews-section * {
+      color: ${textColor} !important;
+    }
+  </style>
+
   <div id="reviews-section" 
        style="margin-top:80px;padding:40px;text-align:${alignment};
        background:${bgStyle};
        border-radius:20px;max-width:1000px;margin-left:auto;margin-right:auto;">
-       <style>
+
+    <style>
       @media (max-width: 600px) {
         #reviews-section {
           padding: 20px !important;
           border-radius: 0 !important;
           max-width: 100% !important;
-          border-radius: 20px !important;
         }
         #reviews-container {
           max-width: 100% !important;
@@ -612,7 +653,8 @@ router.get("/", async (req, res) => {
         }
       }
     </style>
-    <h2 style="color:${textColor};font-size:2rem;font-weight:700;margin-bottom:30px;">
+
+    <h2 style="font-size:2rem;font-weight:700;margin-bottom:30px;">
       ${title}
     </h2>
 
@@ -620,7 +662,6 @@ router.get("/", async (req, res) => {
          style="display:grid;gap:20px;text-align:left;
          max-width:900px;margin:0 auto 40px;"></div>
 
-    <!-- Unified Review Box -->
     <div id="review-box" style="
       width:100%;
       max-width:460px;
@@ -636,46 +677,36 @@ router.get("/", async (req, res) => {
       <button 
         id="review-btn"
         style="width:100%;padding:12px 26px;border:none;border-radius:10px;
-               background:#7bed9f;color:#000;font-weight:600;font-size:1rem;
+               background:#7bed9f;color:#000 !important;font-weight:600;font-size:1rem;
                cursor:pointer;transition:all 0.25s ease;
                box-shadow:0 4px 12px rgba(0,0,0,0.3);">
         Leave a Review
       </button>
 
-      <!-- Verify Email -->
       <div id="verify-box" style="display:none;width:100%;flex-direction:column;align-items:center;
-  justify-content:center;
-  gap:12px;
-  text-align:center;">
+        justify-content:center;gap:12px;text-align:center;">
         <input id="verify-email" type="email" placeholder="Enter your purchase email"
                style="width:100%;padding:12px 16px;background:#0c0c0c;
                       border:1px solid rgba(255,255,255,0.08);border-radius:10px;
-                      color:#fff;font-size:0.95rem;outline:none;transition:all 0.25s ease;"
-               onfocus="this.style.border='1px solid #7bed9f'"
-               onblur="this.style.border='1px solid rgba(255,255,255,0.08)'"/>
+                      color:#fff;font-size:0.95rem;outline:none;transition:all 0.25s ease;" />
         <button id="verify-btn"
                 style="width:100%;padding:12px 26px;border:none;border-radius:10px;
-                       background:#7bed9f;color:#000;font-weight:600;font-size:1rem;
-                       cursor:pointer;transition:all 0.25s ease;
-                       box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                       background:#7bed9f;color:#000 !important;font-weight:600;font-size:1rem;
+                       cursor:pointer;transition:all 0.25s ease;">
           Verify Purchase
         </button>
       </div>
 
-      <!-- Review Form -->
       <div id="submit-box" style="display:none;width:100%;flex-direction:column;gap:14px;">
         <input id="review-username" placeholder="Your name"
                style="width:100%;padding:12px 16px;background:#0c0c0c;
                       border:1px solid rgba(255,255,255,0.08);border-radius:10px;
-                      color:#fff;font-size:0.95rem;outline:none;transition:all 0.25s ease;"
-               onfocus="this.style.border='1px solid #7bed9f'"
-               onblur="this.style.border='1px solid rgba(255,255,255,0.08)'"/>
+                      color:#fff;font-size:0.95rem;outline:none;" />
 
         <select id="review-rating"
                 style="width:100%;padding:12px 16px;background:#0c0c0c;
                        border:1px solid rgba(255,255,255,0.08);border-radius:10px;
-                       color:#facc15;font-size:1rem;outline:none;cursor:pointer;
-                       transition:all 0.25s ease;">
+                       color:#facc15;font-size:1rem;cursor:pointer;">
           <option value="">Select rating ⭐</option>
           <option value="5">⭐⭐⭐⭐⭐</option>
           <option value="4">⭐⭐⭐⭐</option>
@@ -687,16 +718,12 @@ router.get("/", async (req, res) => {
         <textarea id="review-text" placeholder="Share your experience..."
                   style="width:100%;padding:14px 16px;height:100px;background:#0c0c0c;
                          border:1px solid rgba(255,255,255,0.08);border-radius:10px;
-                         color:#fff;font-size:0.95rem;resize:none;outline:none;
-                         transition:all 0.25s ease;"
-                  onfocus="this.style.border='1px solid #7bed9f'"
-                  onblur="this.style.border='1px solid rgba(255,255,255,0.08)'"></textarea>
+                         color:#fff;font-size:0.95rem;resize:none;outline:none;"></textarea>
 
         <button id="submit-review"
-                style="width:100%;padding:12px 26px;background:#7bed9f;color:#000;
-                       font-weight:600;border:none;border-radius:10px;cursor:pointer;
-                       font-size:1rem;transition:all 0.25s ease;
-                       box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                style="width:100%;padding:12px 26px;background:#7bed9f;
+                       color:#000 !important;font-weight:600;border:none;border-radius:10px;
+                       cursor:pointer;font-size:1rem;">
           Submit Review
         </button>
       </div>
@@ -715,7 +742,7 @@ router.get("/", async (req, res) => {
           container.innerHTML = "";
 
           if (!data.reviews || data.reviews.length === 0) {
-            container.innerHTML = '<p style="color:#ccc;text-align:center;">No reviews yet. Be the first verified buyer!</p>';
+            container.innerHTML = '<p style="text-align:center;">No reviews yet. Be the first verified buyer!</p>';
             return;
           }
 
@@ -726,11 +753,11 @@ router.get("/", async (req, res) => {
             div.style.borderRadius = '12px';
             div.innerHTML = \`
               <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:#7bed9f;font-weight:600;">\${r.username}</span>
-                <span style="color:#facc15;">\${'⭐'.repeat(r.rating)}</span>
+                <span style="color:#7bed9f !important;font-weight:600;">\${r.username}</span>
+                <span style="color:#facc15 !important;">\${'⭐'.repeat(r.rating)}</span>
               </div>
-              <p style="color:#ddd;margin-top:8px;">\${r.review_text}</p>
-              <p style="color:#888;font-size:0.85rem;margin-top:6px;">
+              <p style="margin-top:8px;">\${r.review_text}</p>
+              <p style="font-size:0.85rem;margin-top:6px;opacity:0.8;">
                 Verified Buyer • \${new Date(r.created_at).toLocaleDateString()}
               </p>
             \`;
@@ -771,7 +798,6 @@ router.get("/", async (req, res) => {
               alert("Purchase not found. Only verified buyers can leave reviews.");
             }
           } catch (err) {
-            console.error("Verification error:", err);
             alert("Server error verifying purchase.");
           }
         });
@@ -790,13 +816,12 @@ router.get("/", async (req, res) => {
             });
             const data = await res.json();
             if (data.success) {
-              alert("✅ Review submitted!");
+              alert("Review submitted!");
               submitBox.style.display = "none";
               reviewBtn.style.display = "block";
               fetchReviews();
             } else alert(data.message || "Error submitting review.");
           } catch (err) {
-            console.error("Submit review error:", err);
             alert("Server error submitting review.");
           }
         });
@@ -804,6 +829,110 @@ router.get("/", async (req, res) => {
     </script>
   </div>
   `;
+}
+
+
+            case "faq": {
+              const items = Array.isArray(block.items) ? block.items : [];
+
+              const bg = block.use_no_bg
+                ? "transparent"
+                : block.use_gradient
+                ? `linear-gradient(${block.gradient_direction || "90deg"}, ${
+                    block.gradient_start || "#F285C3"
+                  }, ${block.gradient_end || "#7bed9f"})`
+                : block.match_main_bg
+                ? mainOverlayColor
+                : block.bg_color || "rgba(0,0,0,0.3)";
+
+              const textColor = block.text_color || "#ffffff";
+              const align = block.alignment || "left";
+
+              return `
+<div style="
+  background:${bg};
+  color:${textColor};
+  padding:40px;
+  border-radius:${block.use_no_bg ? "0px" : "12px"};
+  margin-top:40px;
+  text-align:${align};
+  max-width:700px;
+  margin-left:auto;
+  margin-right:auto;
+  box-shadow:${block.use_no_bg ? "none" : "0 8px 25px rgba(0,0,0,0.25)"};
+">
+  <h2 style="
+    font-size:1.8rem;
+    font-weight:700;
+    margin-bottom:20px;
+    text-align:${align};
+    color:${textColor};
+  ">
+    ${block.title || "Frequently Asked Questions"}
+  </h2>
+
+  ${items
+    .map((item, i) => {
+      const id = `faq-${i}-${Math.random().toString(36).substring(2, 8)}`;
+
+      return `
+    <div style="
+      margin-bottom:20px;
+      border-bottom:1px solid ${
+        block.use_no_bg ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.15)"
+      };
+      padding-bottom:16px;
+      cursor:pointer;
+    " onclick="toggleFaq('${id}')">
+
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        font-weight:700;
+        font-size:1.1rem;
+      ">
+        <span>${item.q || ""}</span>
+        <span class="faq-icon" style="margin-left:12px;">+</span>
+      </div>
+
+      <div id="${id}" style="
+        height:0px;
+        overflow:hidden;
+        transition:height 0.4s ease;
+      ">
+        <p style="
+          color:${textColor}CC;
+          font-size:0.95rem;
+          margin-top:12px;
+        ">
+          ${item.a || ""}
+        </p>
+      </div>
+    </div>
+  `;
+    })
+    .join("")}
+</div>
+
+<script>
+function toggleFaq(id){
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const icon = el.parentElement.querySelector('.faq-icon');
+
+  const isOpen = el.style.height && el.style.height !== "0px";
+
+  if (isOpen) {
+    el.style.height = "0px";
+    if (icon) icon.textContent = "+";
+  } else {
+    el.style.height = el.scrollHeight + "px";
+    if (icon) icon.textContent = "−";
+  }
+}
+</script>
+`;
             }
 
             default:
@@ -1734,7 +1863,6 @@ router.get("/leads", authenticateToken, async (req, res) => {
   }
 });
 
-
 // SAVE TEMPLATES
 
 router.post("/save-template/:id", authenticateToken, async (req, res) => {
@@ -1747,7 +1875,7 @@ router.post("/save-template/:id", authenticateToken, async (req, res) => {
     if (!snapshot) {
       return res.json({
         success: false,
-        message: "Snapshot missing from request"
+        message: "Snapshot missing from request",
       });
     }
 
@@ -1755,7 +1883,7 @@ router.post("/save-template/:id", authenticateToken, async (req, res) => {
       userId,
       landingPageId,
       name,
-      snapshot
+      snapshot,
     });
 
     return res.json(response);
@@ -1764,7 +1892,6 @@ router.post("/save-template/:id", authenticateToken, async (req, res) => {
     res.json({ success: false, message: "Server error" });
   }
 });
-
 
 router.get("/templates/:id", authenticateToken, async (req, res) => {
   try {
@@ -1814,7 +1941,5 @@ router.delete("/delete-template/:id", authenticateToken, async (req, res) => {
     return res.json({ success: false, message: "Server error" });
   }
 });
-
-
 
 export default router;
