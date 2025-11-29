@@ -21,15 +21,14 @@ router.post("/create-user-with-slots", authenticateAdminToken, requireAdmin, asy
 
 router.post(
   "/give-free-magnets",
-  authenticateAdminToken,
-  requireMarketerOrAdmin, // you don't need requireAdmin here; this covers both
+  authenticateAdminToken, 
   async (req, res) => {
     try {
       const { count = 1 } = req.body;
       let targetUserId;
 
       // ✅ If admin → allow target any userId
-      if (req.user.role === "admin") {
+      if (["admin", "superadmin"].includes(req.user.role)) {
   // Allow admin to target themselves if no userId is provided
   targetUserId = req.body.userId || req.user.id;
 } 
