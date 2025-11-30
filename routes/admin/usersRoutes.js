@@ -58,18 +58,6 @@ router.delete(
 );
 
 
-router.get("/recent", authenticateAdminToken, requireAdmin, async (req, res) => {
-  try {
-    const magnets = await getRecentLeadMagnets(10);
 
-    res.json({
-      success: true,
-      magnets,
-    });
-  } catch (err) {
-    console.error("Error fetching recent magnets:", err);
-    res.status(500).json({ message: "Failed to get magnets" });
-  }
-});
 
 export default router;

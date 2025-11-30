@@ -20,6 +20,7 @@ import { authenticateToken } from "../../middleware/authMiddleware.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { isSafeUrl } from "../../utils/isSafeUrl.js";
 import { blendColors } from "../../utils/blendColors.js";
+import { optimizeImageUpload } from "../../helpers/optimizeImageUpload.js";
 
 const router = express.Router();
 
@@ -55,7 +56,6 @@ router.get("/", async (req, res) => {
       ? landingPage.content_blocks
       : [];
 
-    const hasBanner = blocks.some((b) => b.type === "offer_banner");
 
     // --- 4️⃣ Build HTML from parsed blocks
     try {
@@ -831,7 +831,6 @@ router.get("/", async (req, res) => {
   `;
 }
 
-
             case "faq": {
               const items = Array.isArray(block.items) ? block.items : [];
 
@@ -934,6 +933,68 @@ function toggleFaq(id){
 </script>
 `;
             }
+
+            case "image": {
+  const {
+    image_url,
+    caption = "",
+    padding = 20,
+    alignment = "center",
+    full_width = false,
+    shadow = false,
+    shadow_color = "rgba(0,0,0,0.5)",
+    shadow_depth = 25,
+    shadow_offset = 10,
+    shadow_angle = 135,
+  } = block;
+
+  if (!image_url) return "";
+
+  // ✅ Calculate shadow offsets
+  const angleRad = (shadow_angle * Math.PI) / 180;
+  const offsetX = Math.round(Math.cos(angleRad) * shadow_offset);
+  const offsetY = Math.round(Math.sin(angleRad) * shadow_offset);
+
+  return `
+    <div style="
+      text-align:${alignment};
+      padding:${padding}px 0;
+      margin:40px 0;
+    ">
+      <img 
+        src="${image_url}" 
+        alt="Landing Image"
+        style="
+          max-width:${full_width ? "100%" : "500px"};
+          width:100%;
+          height:auto;
+          display:block;
+          margin:0 auto;
+          border-radius:12px;
+          box-shadow:${
+            shadow
+              ? `${offsetX}px ${offsetY}px ${shadow_depth}px ${shadow_color}`
+              : "none"
+          };
+          transition:box-shadow 0.3s ease;
+        "
+      />
+      ${
+        caption
+          ? `<p style="
+              margin-top:12px;
+              color:#ccc;
+              font-size:0.95rem;
+              font-style:italic;
+              text-align:${alignment};
+            ">${caption}</p>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+
 
             default:
               return "";
@@ -1829,6 +1890,45 @@ router.post("/upload-logo", async (req, res) => {
     });
   }
 });
+
+router.post("/upload-image-block", async (req, res) => {
+  try {
+    const { landingId, blockId } = req.body;
+    const image = req.files?.image;
+
+    if (!landingId || !blockId || !image) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing landingId, blockId, or image file",
+      });
+    }
+
+    const { optimizedBuffer, mimetype } = await optimizeImageUpload(
+      image.data,
+      image.mimetype
+    );
+
+    const ext = mimetype.split("/")[1];
+    const fileName = `landing_blocks/${landingId}-${blockId}-${Date.now()}.${ext}`;
+     const result = await uploadFileToSpaces(optimizedBuffer, fileName, mimetype);
+
+    // ✅ Instead of updating a single DB column, we just return the URL
+    // The frontend already injects it into the JSON block
+    res.json({ success: true, url: result.Location });
+
+  } catch (err) {
+    console.error("❌ Error uploading image block:", err);
+
+    if (err.message?.includes("File too large")) {
+      return res
+        .status(413)
+        .json({ success: false, message: "File exceeds 5 MB limit" });
+    }
+
+    res.status(500).json({ success: false, message: "Upload failed" });
+  }
+});
+
 
 router.get("/lead-magnets/cover", async (req, res) => {
   try {
