@@ -8,9 +8,11 @@ export async function getVisitorsOverTime() {
   try {
     const db = connect();
     const [rows] = await db.query(`
-      SELECT DATE(created_at) AS date, COUNT(*) AS visitors
+      SELECT 
+        DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
+        COUNT(*) AS visitors
       FROM website_visitors
-      GROUP BY DATE(created_at)
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
       ORDER BY date ASC
     `);
     return rows;
@@ -19,6 +21,7 @@ export async function getVisitorsOverTime() {
     return [];
   }
 }
+
 
 
 export async function getVisitorsByLocation() {

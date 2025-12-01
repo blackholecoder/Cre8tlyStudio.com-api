@@ -69,22 +69,32 @@ font_file = font_file || "/fonts/Montserrat-Regular.ttf";
   let content;
   let cleanedPrompt = prompt;
 
-const lastStrongIndex = cleanedPrompt.lastIndexOf("<strong>");
-const lastBoldIndex = cleanedPrompt.lastIndexOf("<b>");
-const cutoffIndex = Math.max(lastStrongIndex, lastBoldIndex);
 
-if (cutoffIndex !== -1) {
-  const endOfStrong = cleanedPrompt.indexOf("</strong>", cutoffIndex);
-  const endOfBold = cleanedPrompt.indexOf("</b>", cutoffIndex);
+  // Remove AI-generated CTA inside prompt
+if (cta) {
+  const ctaText = cta.trim();
 
-  let endIndex = -1;
-  if (endOfStrong !== -1) endIndex = endOfStrong + "</strong>".length;
-  if (endOfBold !== -1) endIndex = endOfBold + "</b>".length;
+  // Remove exact CTA text if appears inside the prompt
+  cleanedPrompt = cleanedPrompt.replace(ctaText, "");
 
-  if (endIndex !== -1) {
-    cleanedPrompt = cleanedPrompt.slice(0, endIndex);
-  }
+  // Remove any leftover empty paragraphs or breaks left behind
+  cleanedPrompt = cleanedPrompt.replace(/<p>\s*<\/p>/g, "");
+  cleanedPrompt = cleanedPrompt.replace(/\n{2,}/g, "\n");
 }
+
+// Remove link if AI added its own "Visit..." or URL section
+if (link) {
+  const domain = new URL(link).hostname.replace(/^www\./, "");
+
+  // Remove patterns like "Visit example.com"
+  const regexVisit = new RegExp(`Visit\\s+${domain}[\\s\\S]*?$`, "gi");
+  cleanedPrompt = cleanedPrompt.replace(regexVisit, "");
+
+  // Remove raw URL if AI inserted it inside the guide
+  const regexUrl = new RegExp(link.replace(/\//g, "\\/"), "gi");
+  cleanedPrompt = cleanedPrompt.replace(regexUrl, "");
+}
+
 
   if (isHtml) {
     content = cleanedPrompt;
