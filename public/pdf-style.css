@@ -144,8 +144,10 @@ p {
 
 /* ✅ only apply break before cta or later pages */
 .final-cta-page {
-  page-break-before: always;
-  page-break-after: avoid;
+  page-break-before: auto !important;
+  page-break-after: auto !important;
+  break-before: auto !important;
+  break-after: auto !important;
 }
 
 
