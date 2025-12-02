@@ -4,6 +4,7 @@ import {
   requireAdmin,
 } from "../../middleware/authMiddleware.js";
 import { getAllUsers, deleteUserById } from "../../db/dbGetAllUsers.js";
+import { createReferralSlug } from "../../db/referrals/dbReferrals.js";
 
 const router = express.Router();
 
@@ -56,6 +57,35 @@ router.delete(
     }
   }
 );
+
+
+router.post("/create-referral", authenticateAdminToken, async (req, res) => {
+  try {
+    const { employeeId, slug } = req.body;
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: "employeeId is required",
+      });
+    }
+
+    const result = await createReferralSlug(employeeId, slug);
+
+    return res.json({
+      success: true,
+      slug: result.slug,
+      link: `https://cre8tlystudio.com/r/${result.slug}`
+    });
+
+  } catch (err) {
+    console.error("❌ create-referral error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to create referral link",
+    });
+  }
+});
 
 
 

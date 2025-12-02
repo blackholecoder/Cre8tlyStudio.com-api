@@ -27,7 +27,7 @@ export async function sendOutLookMail({ to, subject, html, attachments = [], cc 
     console.log(`✅ Email sent successfully to: ${to}`);
     return true;
   } catch (err) {
-    console.error("❌ sendMail error:", err);
+    console.error("❌ send Outlook Mail error:", err);
     throw new Error("Failed to send email");
   }
 }

@@ -51,8 +51,6 @@ export async function getUserNotifications(userId, limit = 50, offset = 0) {
   }
 }
 
-
-
 export async function markNotificationRead(id, userId) {
   const db = connect();
 
@@ -100,6 +98,7 @@ export async function saveNotification({
   postId,
   parentId = null,
   commentId,
+  referenceId, 
   message
 }) {
   try {
@@ -109,8 +108,8 @@ export async function saveNotification({
     await db.query(
       `
       INSERT INTO user_notifications
-      (id, user_id, actor_id, type, message, post_id, parent_id, comment_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (id, user_id, actor_id, type, message, reference_id, post_id, parent_id, comment_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         id,
@@ -118,6 +117,7 @@ export async function saveNotification({
         actorId,
         type,
         message,
+        referenceId, 
         postId,
         parentId,
         commentId

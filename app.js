@@ -1,4 +1,5 @@
 import express from "express";
+import connect from "./db/connect.js";
 import dotenv from "dotenv";
 import path from "path";
 import fileUpload from "express-fileupload";
@@ -72,9 +73,13 @@ import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js
 import cors from "cors";
 import { detectSubdomain } from "./middleware/detectSubdomain.js";
 
+
 const app = express();
 app.set("trust proxy", 1);
 const port = 3001;
+
+
+
 
 
 
@@ -100,32 +105,7 @@ app.use(
 );
 
 
-// const corsOptions = {
-//   origin: function (origin, callback) {
-//     const allowedOrigins = [
-//       "https://cre8tlystudio.com",
-//       "https://www.cre8tlystudio.com",
-//       "https://vip.cre8tlystudio.com",
-//       "https://admin.cre8tlystudio.com",
-//       "http://localhost:5173",
-//       "http://localhost:3000",
-//       "http://localhost:3001",
-//        "http://localhost:3002",
-//       "tauri://localhost",
-//       "https://cre8tlystudio.nyc3.digitaloceanspaces.com", 
-//       "https://cre8tlystudio.nyc3.cdn.digitaloceanspaces.com",
-//     ];
-//     if (!origin || allowedOrigins.includes(origin)) {
-//       callback(null, true);
-//     } else {
-//       console.log("Blocked by CORS:", origin);
-//       callback(new Error("Not allowed by CORS"));
-//     }
-//   },
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//   allowedHeaders: ["Content-Type", "Authorization"],
-// };
+
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
@@ -180,6 +160,37 @@ app.use("/api/static", express.static(path.join(__dirname, "public")));
 
 
 
+app.get("/r/:slug", async (req, res) => {
+  const { slug } = req.params;
+
+  try {
+    const db = connect();
+    const [rows] = await db.query(
+      "SELECT employee_id FROM referral_slugs WHERE slug = ? LIMIT 1",
+      [slug]
+    );
+
+    if (!rows.length) {
+      // Slug not found → redirect to generic signup
+      return res.redirect("https://cre8tlystudio.com/sign-up");
+    }
+
+    const employeeId = rows[0].employee_id;
+
+    // Redirect to your existing referral link logic
+    return res.redirect(
+      `https://cre8tlystudio.com/sign-up?ref_employee=${employeeId}`
+    );
+  } catch (err) {
+    console.error("Shortlink error:", err);
+    return res.redirect("https://cre8tlystudio.com/sign-up");
+  }
+});
+
+
+
+
+
 
 app.use("/api", indexRoutes);
 app.use("/api/checkout", checkoutRoutes);
@@ -193,9 +204,14 @@ app.use("/api/edit", editorRoutes);
 app.use("/api/vip", leadVipRoutes);
 app.use("/api/messages/user", messagesUserRoutes);
 
+
+
 app.use("/api/landing", landingPageRoutes);
 app.use("/api/landing-analytics", landingAnalyticsRoutes);
 app.use("/api/web-analytics", websiteAnalyticsRoutes);
+
+
+
 app.use("/", landingPageRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/seller-checkout", sellerCheckoutRoutes);
@@ -229,7 +245,6 @@ app.use("/api/admin/web-analytics", adminAnalyticsRoutes);
 app.use("/api/admin/lead-magnets", latestMagnetsRoutes);
 
 app.use("/api/admin/community", adminCommunityRoutes);
-
 
 
 

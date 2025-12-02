@@ -25,9 +25,15 @@ import { optimizeImageUpload } from "../../helpers/optimizeImageUpload.js";
 const router = express.Router();
 
 // Capture root requests for each subdomain
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
+  
   const { subdomain } = req;
-  if (!subdomain) return res.status(404).send("Landing page not found");
+
+   if (!subdomain) {
+    return next(); // passes to the next route → /r/:slug will now work
+  }
+
+  // if (!subdomain) return res.status(404).send("Landing page not found");
 
   try {
     const landingPage = await getLandingPageByUser(subdomain);
