@@ -27,10 +27,9 @@ const router = express.Router();
 
 // Capture root requests for each subdomain
 router.get("/", async (req, res, next) => {
-  
   const { subdomain } = req;
 
-   if (!subdomain) {
+  if (!subdomain) {
     return next(); // passes to the next route → /r/:slug will now work
   }
 
@@ -62,7 +61,6 @@ router.get("/", async (req, res, next) => {
     const blocks = Array.isArray(landingPage.content_blocks)
       ? landingPage.content_blocks
       : [];
-
 
     // --- 4️⃣ Build HTML from parsed blocks
     try {
@@ -271,7 +269,9 @@ router.get("/", async (req, res, next) => {
                   ? `
         <button 
           class="btn"
-          style="background:${bannerBg};color:${block.button_text_color || "#fff"};font-weight:700;padding:14px 36px;border-radius:10px;"
+          style="background:${bannerBg};color:${
+                      block.button_text_color || "#fff"
+                    };font-weight:700;padding:14px 36px;border-radius:10px;"
           onclick="document.getElementById('buy-now').scrollIntoView({ behavior: 'smooth' })"
         >
           ${buttonText}
@@ -280,7 +280,9 @@ router.get("/", async (req, res, next) => {
                   : `
         <button 
           class="btn"
-          style="background:${bannerBg};color:${block.button_text_color || "#fff"};font-weight:700;padding:14px 36px;border-radius:10px;"
+          style="background:${bannerBg};color:${
+                      block.button_text_color || "#fff"
+                    };font-weight:700;padding:14px 36px;border-radius:10px;"
           onclick="showEmailDownloadForm()"
         >
           ${buttonText}
@@ -580,54 +582,52 @@ router.get("/", async (req, res, next) => {
             }
 
             case "verified_reviews": {
-  const landingPageId = landingPage.id;
-  const productId = landingPage.pdf_url || "";
-  const title = block.title || "Verified Buyer Reviews";
+              const landingPageId = landingPage.id;
+              const productId = landingPage.pdf_url || "";
+              const title = block.title || "Verified Buyer Reviews";
 
-  
+              function getLuminance(color) {
+                if (color.startsWith("rgb")) {
+                  const nums = color
+                    .replace(/rgba?\(/, "")
+                    .replace(")", "")
+                    .split(",")
+                    .map((n) => parseFloat(n.trim()));
 
-  function getLuminance(color) {
-    if (color.startsWith("rgb")) {
-      const nums = color
-        .replace(/rgba?\(/, "")
-        .replace(")", "")
-        .split(",")
-        .map((n) => parseFloat(n.trim()));
+                  const r = nums[0];
+                  const g = nums[1];
+                  const b = nums[2];
 
-      const r = nums[0];
-      const g = nums[1];
-      const b = nums[2];
+                  return r * 0.299 + g * 0.587 + b * 0.114;
+                }
 
-      return r * 0.299 + g * 0.587 + b * 0.114;
-    }
+                if (color.startsWith("#")) {
+                  const c = color.replace("#", "");
+                  const r = parseInt(c.substr(0, 2), 16);
+                  const g = parseInt(c.substr(2, 2), 16);
+                  const b = parseInt(c.substr(4, 2), 16);
 
-    if (color.startsWith("#")) {
-      const c = color.replace("#", "");
-      const r = parseInt(c.substr(0, 2), 16);
-      const g = parseInt(c.substr(2, 2), 16);
-      const b = parseInt(c.substr(4, 2), 16);
+                  return r * 0.299 + g * 0.587 + b * 0.114;
+                }
 
-      return r * 0.299 + g * 0.587 + b * 0.114;
-    }
+                return 255;
+              }
 
-    return 255;
-  }
+              function autoTextColor(bg) {
+                const lum = getLuminance(bg);
+                return lum < 150 ? "#FFFFFF" : "#000000";
+              }
 
-  function autoTextColor(bg) {
-    const lum = getLuminance(bg);
-    return lum < 150 ? "#FFFFFF" : "#000000";
-  }
+              const bgColor = block.bg_color || "rgba(0,0,0,0.3)";
+              const textColor = block.text_color || autoTextColor(bgColor);
+              const useGlass = block.use_glass ? true : false;
+              const alignment = block.alignment || "center";
 
-  const bgColor = block.bg_color || "rgba(0,0,0,0.3)";
-  const textColor = block.text_color || autoTextColor(bgColor);
-  const useGlass = block.use_glass ? true : false;
-  const alignment = block.alignment || "center";
+              const bgStyle = useGlass
+                ? "rgba(255,255,255,0.08);backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.3);"
+                : `${bgColor};box-shadow:0 8px 25px rgba(0,0,0,0.25);`;
 
-  const bgStyle = useGlass
-    ? "rgba(255,255,255,0.08);backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.3);"
-    : `${bgColor};box-shadow:0 8px 25px rgba(0,0,0,0.25);`;
-
-  return `
+              return `
   <!-- Scoped color override so landing page global colors don't overwrite -->
   <style>
     #reviews-section, #reviews-section * {
@@ -836,7 +836,7 @@ router.get("/", async (req, res, next) => {
     </script>
   </div>
   `;
-}
+            }
 
             case "faq": {
               const items = Array.isArray(block.items) ? block.items : [];
@@ -942,27 +942,29 @@ function toggleFaq(id){
             }
 
             case "image": {
-  const {
-    image_url,
-    caption = "",
-    padding = 20,
-    alignment = "center",
-    full_width = false,
-    shadow = false,
-    shadow_color = "rgba(0,0,0,0.5)",
-    shadow_depth = 25,
-    shadow_offset = 10,
-    shadow_angle = 135,
-  } = block;
+              const {
+                image_url,
+                caption = "",
+                padding = 20,
+                alignment = "center",
+                full_width = false,
+                width = 100, // ✅ NEW
+                radius = 0, // ✅ NEW
+                shadow = false,
+                shadow_color = "rgba(0,0,0,0.5)",
+                shadow_depth = 25,
+                shadow_offset = 10,
+                shadow_angle = 135,
+              } = block;
 
-  if (!image_url) return "";
+              if (!image_url) return "";
 
-  // ✅ Calculate shadow offsets
-  const angleRad = (shadow_angle * Math.PI) / 180;
-  const offsetX = Math.round(Math.cos(angleRad) * shadow_offset);
-  const offsetY = Math.round(Math.sin(angleRad) * shadow_offset);
+              // ✅ Calculate shadow offsets
+              const angleRad = (shadow_angle * Math.PI) / 180;
+              const offsetX = Math.round(Math.cos(angleRad) * shadow_offset);
+              const offsetY = Math.round(Math.sin(angleRad) * shadow_offset);
 
-  return `
+              return `
     <div style="
       text-align:${alignment};
       padding:${padding}px 0;
@@ -972,12 +974,12 @@ function toggleFaq(id){
         src="${image_url}" 
         alt="Landing Image"
         style="
-          max-width:${full_width ? "100%" : "500px"};
+          max-width:${full_width ? "100%" : width + "%"};
           width:100%;
           height:auto;
           display:block;
           margin:0 auto;
-          border-radius:12px;
+          border-radius:${radius}px;   /* ✅ Updated */
           box-shadow:${
             shadow
               ? `${offsetX}px ${offsetY}px ${shadow_depth}px ${shadow_color}`
@@ -999,9 +1001,172 @@ function toggleFaq(id){
       }
     </div>
   `;
+            }
+
+            case "feature_offers_3": {
+              const bg = block.use_no_bg
+                ? "transparent"
+                : block.use_gradient
+                ? `linear-gradient(${block.gradient_direction || "90deg"}, ${
+                    block.gradient_start || "#F285C3"
+                  }, ${block.gradient_end || "#7bed9f"})`
+                : block.match_main_bg
+                ? mainOverlayColor
+                : block.bg_color || "rgba(0,0,0,0.3)";
+
+              const buttonTextColor = block.button_text_color || "#000000";
+
+              const cardsHTML = (block.items || [])
+                .map((item) => {
+                  const price = Number(item.price || 0);
+                  const priceCents = Math.round(price * 100);
+
+                  // PRIORITY: PDF cover → uploaded image → nothing
+                  let imageSrc = "";
+
+                  if (item.use_pdf_cover && item.cover_url) {
+                    imageSrc = item.cover_url;
+                  } else if (item.image_url) {
+                    imageSrc = item.image_url;
+                  } else if (item.cover_url) {
+                    imageSrc = item.cover_url;
+                  }
+
+                  let imageHTML = "";
+
+                  if (imageSrc) {
+  imageHTML = `
+    <div style="
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+      flex: 0 0 auto;
+    ">
+      <img src="${imageSrc}" style="
+        width: 100%;
+        max-width: 350px;
+        border-radius: 12px;
+      " />
+    </div>
+  `;
+} else {
+  imageHTML = `
+    <div style="
+      width:100%;
+      height:160px;
+      background:rgba(255,255,255,0.05);
+      border-radius:12px;
+      margin-bottom:16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:rgba(255,255,255,0.4);
+      font-size:0.85rem;
+    ">
+      No Image
+    </div>
+  `;
 }
 
 
+                  const pdfUrl = item.pdf_url || "";
+
+                  return `
+  <div style="
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 28px 28px 36px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+  ">
+
+    ${imageHTML}
+
+    <div style="
+      flex: 1 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    ">
+      <h3 style="
+        color:white;
+        font-size:1.25rem;
+        font-weight:700;
+      ">
+        ${item.title || "Offer Title"}
+      </h3>
+
+      <p style="
+        color:rgba(255,255,255,0.75);
+        font-size:0.95rem;
+      ">
+        ${item.text || ""}
+      </p>
+
+      ${
+        price
+          ? `<p style="
+               color:white;
+               font-weight:800;
+               font-size:1.3rem;
+             ">$${price.toFixed(2)}</p>`
+          : ""
+      }
+    </div>
+
+    <button 
+      onclick="startSellerCheckout(
+        '${landingPage.id}',
+        '${landingPage.user_id}',
+        '${pdfUrl}',
+        ${priceCents}
+      )"
+      style="
+        margin-top: 18px;
+        align-self: center;
+        padding:12px 30px;
+        border-radius:8px;
+        font-weight:700;
+        border:none;
+        cursor:pointer;
+        background:${item.button_color || "#22c55e"};
+        color:${buttonTextColor};
+        font-size:1rem;
+      "
+    >
+      ${item.button_text || "Buy Now"}
+    </button>
+  </div>
+`;
+
+                })
+                .join("");
+
+              return `
+    <div style="
+      background:${bg};
+      padding:40px 40px;
+      border-radius:20px;
+      margin-top:40px;
+      max-width:1100px;
+      margin-left:auto;
+      margin-right:auto;
+    ">
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+        gap:24px;
+      ">
+        ${cardsHTML}
+      </div>
+    </div>
+  `;
+            }
 
             default:
               return "";
@@ -1917,12 +2082,15 @@ router.post("/upload-image-block", async (req, res) => {
 
     const ext = mimetype.split("/")[1];
     const fileName = `landing_blocks/${landingId}-${blockId}-${Date.now()}.${ext}`;
-     const result = await uploadFileToSpaces(optimizedBuffer, fileName, mimetype);
+    const result = await uploadFileToSpaces(
+      optimizedBuffer,
+      fileName,
+      mimetype
+    );
 
     // ✅ Instead of updating a single DB column, we just return the URL
     // The frontend already injects it into the JSON block
     res.json({ success: true, url: result.Location });
-
   } catch (err) {
     console.error("❌ Error uploading image block:", err);
 
@@ -1935,7 +2103,6 @@ router.post("/upload-image-block", async (req, res) => {
     res.status(500).json({ success: false, message: "Upload failed" });
   }
 });
-
 
 router.get("/lead-magnets/cover", async (req, res) => {
   try {
@@ -2011,8 +2178,6 @@ router.get("/templates/:id", authenticateToken, async (req, res) => {
   }
 });
 
-
-
 router.get("/load-template/:versionId", authenticateToken, async (req, res) => {
   try {
     const { versionId } = req.params;
@@ -2054,7 +2219,6 @@ router.put("/update-template/:versionId", async (req, res) => {
     return res.status(500).json({ success: false });
   }
 });
-
 
 router.delete("/delete-template/:id", authenticateToken, async (req, res) => {
   try {
