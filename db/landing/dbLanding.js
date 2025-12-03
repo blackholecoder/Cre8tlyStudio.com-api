@@ -272,7 +272,7 @@ export async function getLandingTemplatesByPage(landingPageId) {
   try {
     const [rows] = await db.query(
       `
-        SELECT id, name, created_at 
+        SELECT id, name, created_at, updated_at 
         FROM landing_page_templates
         WHERE landing_page_id = ?
         ORDER BY created_at DESC
@@ -676,6 +676,31 @@ export async function getUserLeads(userId, page = 1, limit = 20) {
   };
 }
 
+
+export async function updateTemplateVersion(versionId, name, snapshot) {
+  try {
+    const db = connect();
+
+    const jsonSnapshot =
+      typeof snapshot === "string"
+        ? snapshot
+        : JSON.stringify(snapshot, null, 2);
+
+    const [result] = await db.query(
+      `
+      UPDATE landing_page_templates
+      SET name = ?, snapshot = ?, updated_at = NOW()
+      WHERE id = ?
+    `,
+      [name, jsonSnapshot, versionId]
+    );
+
+    return { success: result.affectedRows > 0 };
+  } catch (err) {
+    console.error("❌ updateTemplateVersion error:", err);
+    return { success: false };
+  }
+}
 
 
 

@@ -17,7 +17,7 @@ async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {
           <td align="center" style="padding:35px 40px 10px 40px;">
             <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="95" style="opacity:0.95;" />
             <h2 style="color:#7bed9f;font-size:26px;margin:20px 0 5px 0;">
-              New Free Trial Signup
+              New Free Trial Sign Up
             </h2>
             <p style="font-size:14px;color:#ccc;margin:0;">A new user just joined Cre8tly Studio</p>
           </td>

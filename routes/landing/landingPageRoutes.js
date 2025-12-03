@@ -14,6 +14,7 @@ import {
   saveLandingTemplate,
   updateLandingLogo,
   updateLandingPage,
+  updateTemplateVersion,
 } from "../../db/landing/dbLanding.js";
 import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
@@ -270,7 +271,7 @@ router.get("/", async (req, res, next) => {
                   ? `
         <button 
           class="btn"
-          style="background:${bannerBg};color:#fff;font-weight:700;padding:14px 36px;border-radius:10px;"
+          style="background:${bannerBg};color:${block.button_text_color || "#fff"};font-weight:700;padding:14px 36px;border-radius:10px;"
           onclick="document.getElementById('buy-now').scrollIntoView({ behavior: 'smooth' })"
         >
           ${buttonText}
@@ -279,7 +280,7 @@ router.get("/", async (req, res, next) => {
                   : `
         <button 
           class="btn"
-          style="background:${bannerBg};color:#fff;font-weight:700;padding:14px 36px;border-radius:10px;"
+          style="background:${bannerBg};color:${block.button_text_color || "#fff"};font-weight:700;padding:14px 36px;border-radius:10px;"
           onclick="showEmailDownloadForm()"
         >
           ${buttonText}
@@ -1076,7 +1077,7 @@ function toggleFaq(id){
           }, ${b.gradient_end || "#7bed9f"})`
         : b.button_color || b.bg_color || "#F285C3"
     };
-    color:${b.text_color || "#fff"};
+    color:${b.button_text_color || b.text_color || "#fff"};
     padding:14px 32px;
     border-radius:10px;
     font-weight:700;
@@ -2010,6 +2011,8 @@ router.get("/templates/:id", authenticateToken, async (req, res) => {
   }
 });
 
+
+
 router.get("/load-template/:versionId", authenticateToken, async (req, res) => {
   try {
     const { versionId } = req.params;
@@ -2033,6 +2036,25 @@ router.put("/restore-template/:id", authenticateToken, async (req, res) => {
     res.json({ success: false, message: "Server error" });
   }
 });
+
+router.put("/update-template/:versionId", async (req, res) => {
+  try {
+    const { versionId } = req.params;
+    const { name, snapshot } = req.body;
+
+    const result = await updateTemplateVersion(versionId, name, snapshot);
+
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Error updating template version:", err);
+    return res.status(500).json({ success: false });
+  }
+});
+
 
 router.delete("/delete-template/:id", authenticateToken, async (req, res) => {
   try {
