@@ -11,27 +11,39 @@ import sharp from "sharp";
 export async function optimizeImageUpload(buffer, mimetype, maxWidth = 1800) {
   try {
     const isJpeg = mimetype.includes("jpeg") || mimetype.includes("jpg");
-    const isPng = mimetype.includes("png");
+    const isPng  = mimetype.includes("png");
     const isWebp = mimetype.includes("webp");
 
-    const format = isWebp ? "webp" : "jpeg"; // prefer WebP output
+    // PNGs → keep full quality + transparency
+    if (isPng) {
+      const optimizedBuffer = await sharp(buffer)
+        .trim()
+        .resize({ width: maxWidth, withoutEnlargement: true })
+        .png({
+          compressionLevel: 0,   // ✨ KEEP SHARPNESS
+          adaptiveFiltering: false
+        })
+        .toBuffer();
+
+      return { optimizedBuffer, format: "png", mimetype: "image/png" };
+    }
+
+    // JPG / WEBP optimization
+    const format = isWebp ? "webp" : "jpeg";
     const optimizedBuffer = await sharp(buffer)
       .resize({ width: maxWidth, withoutEnlargement: true })
       [format]({ quality: 80 })
       .toBuffer();
 
     const outputMime =
-      format === "webp"
-        ? "image/webp"
-        : isJpeg
-        ? "image/jpeg"
-        : isPng
-        ? "image/png"
-        : "image/webp";
+      format === "webp" ? "image/webp" : "image/jpeg";
 
     return { optimizedBuffer, format, mimetype: outputMime };
+
   } catch (err) {
     console.error("❌ Sharp optimization failed:", err);
     return { optimizedBuffer: buffer, format: "original", mimetype };
   }
 }
+
+

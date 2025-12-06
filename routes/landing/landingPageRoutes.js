@@ -49,7 +49,9 @@ router.get("/", async (req, res, next) => {
 
     // --- 2️⃣ Extract core properties
 
-    const title = landingPage.username || landingPage.title || "Cre8tly Studio";
+    const titleBase =
+      landingPage.username || landingPage.title || "Cre8tly Studio";
+    const title = `${titleBase} | Cre8tly Studio`;
 
     const font = landingPage.font || "Montserrat";
     const bg =
@@ -73,19 +75,31 @@ router.get("/", async (req, res, next) => {
 
           switch (block.type) {
             case "heading":
-              return `<h1 style="padding-bottom:${padding}px">${
-                block.text || ""
-              }</h1>`;
+              return `<h1 style="
+    padding-bottom:${padding}px;
+    user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
+  ">
+    ${block.text || ""}
+  </h1>`;
 
             case "subheading":
-              return `<h2 style="padding-bottom:${padding}px">${
-                block.text || ""
-              }</h2>`;
+              return `<h2 style="
+              padding-bottom:${padding}px;
+              user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
+
+              ">${block.text || ""}</h2>`;
 
             case "subsubheading":
-              return `<h3 style="padding-bottom:${padding}px">${
-                block.text || ""
-              }</h3>`;
+              return `<h3 style="
+              padding-bottom:${padding}px;
+              user-select:none;
+              -webkit-user-select:none;
+              -ms-user-select:none;
+              ">${block.text || ""}</h3>`;
 
             case "list_heading":
               return `<p style="
@@ -96,6 +110,9 @@ router.get("/", async (req, res, next) => {
                 color:${landingPage.font_color_p || "#FFFFFF"};
                 max-width:700px;
                 margin:0 auto;
+                user-select:none;
+                -webkit-user-select:none;
+                -ms-user-select:none;
               ">${block.text || ""}</p>`;
 
             case "paragraph":
@@ -124,6 +141,10 @@ router.get("/", async (req, res, next) => {
         max-width:700px;
         margin:0 auto;
         padding-bottom:${padding}px;
+        user-select:none;
+        -webkit-user-select:none;
+        -ms-user-select:none;
+
       ">
         ${listItems}
       </ul>
@@ -133,7 +154,19 @@ router.get("/", async (req, res, next) => {
               // 🟡 Fallback: auto-detect existing bullet style (old data)
               if (hasBullets) {
                 return `
-      <div style="padding-bottom:${padding}px; max-width:700px; margin:0 auto; text-align:left; line-height:1.8;">
+      <div style="
+      padding-bottom:${padding}px; 
+      max-width:700px; 
+      margin:0 auto; 
+      text-align:left; 
+      line-height:1.8;
+      user-select:none;
+      -webkit-user-select:none;
+      -ms-user-select:none;
+
+      "
+
+      >
         ${
           labelLine
             ? `<p style="
@@ -141,6 +174,10 @@ router.get("/", async (req, res, next) => {
                 font-size:1.15rem;
                 margin-bottom:6px;
                 color:${landingPage.font_color_p || "#FFFFFF"};
+                user-select:none;
+                -webkit-user-select:none;
+                -ms-user-select:none;
+
               ">${labelLine}</p>`
             : ""
         }
@@ -167,6 +204,10 @@ router.get("/", async (req, res, next) => {
     margin:0 auto;
     line-height:1.8;
     color:${landingPage.font_color_p || "#FFFFFF"};
+    user-select:none;
+-webkit-user-select:none;
+-ms-user-select:none;
+
   ">${block.text}</p>`;
 
             case "video":
@@ -299,23 +340,7 @@ router.get("/", async (req, res, next) => {
       ${buttonHTML}
     </div>
 
-    <script>
-      async function startStripeCheckout(landingPageId, sellerId, pdfUrl, price_in_cents) {
-        try {
-          const res = await fetch('https://cre8tlystudio.com/api/seller-checkout/create-checkout-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ landingPageId, sellerId, pdfUrl, price_in_cents })
-          });
-          const data = await res.json();
-          if (data?.url) window.location.href = data.url;
-          else alert("Unable to start checkout. Please try again.");
-        } catch (err) {
-          console.error("Stripe Checkout Error:", err);
-          alert("Error connecting to Stripe. Please try again later.");
-        }
-      }
-    </script>
+    
   `;
             }
             case "calendly":
@@ -378,6 +403,8 @@ router.get("/", async (req, res, next) => {
                   "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/facebook.svg",
                 tiktok:
                   "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg",
+                pinterest:
+                  "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/pinterest.svg",
               };
 
               const renderedIcons = Object.entries(links)
@@ -517,7 +544,16 @@ router.get("/", async (req, res, next) => {
         onclick="startSellerCheckout('${landingPage.id}', '${
                 landingPage.user_id
               }', '${pdfUrl}', ${Math.round(price * 100)})"
-        style="background:${buttonColor};color:${textColor};font-weight:700;padding:14px 36px;border-radius:8px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);"
+        style="
+        background:${buttonColor};
+        color:${textColor};
+        font-weight:700;
+        padding:22px 36px;
+        width:80%;
+        max-width:340px;
+        border-radius:8px;
+        cursor:pointer;
+        box-shadow:0 4px 12px rgba(0,0,0,0.3);"
       >
         ${buttonText}
       </button>
@@ -528,7 +564,10 @@ router.get("/", async (req, res, next) => {
   font-size:0.9rem;
   text-align:${alignment};
 ">
-  Price: <span style="font-weight:700;">$${price.toFixed(2)}</span>
+  Price: <span style="font-weight:700;">$${(Number(price) || 10).toFixed(
+    2
+  )}</span>
+
 </p>
     </div>
   `;
@@ -662,9 +701,17 @@ router.get("/", async (req, res, next) => {
       }
     </style>
 
-    <h2 style="font-size:2rem;font-weight:700;margin-bottom:30px;">
-      ${title}
-    </h2>
+    <div style="margin-bottom:10px;font-size:1.7rem;text-align:center;">
+  <span style="color:#facc15;">⭐</span>
+  <span style="color:#facc15;">⭐</span>
+  <span style="color:#facc15;">⭐</span>
+  <span style="color:#facc15;">⭐</span>
+  <span style="color:#facc15;">⭐</span>
+</div>
+
+<h2 style="font-size:2rem;font-weight:700;margin-bottom:30px;">
+  ${title}
+</h2>
 
     <div id="reviews-container" 
          style="display:grid;gap:20px;text-align:left;
@@ -685,7 +732,7 @@ router.get("/", async (req, res, next) => {
       <button 
         id="review-btn"
         style="width:100%;padding:12px 26px;border:none;border-radius:10px;
-               background:#7bed9f;color:#000 !important;font-weight:600;font-size:1rem;
+               background:#fff200;color:#000 !important;font-weight:600;font-size:1rem;
                cursor:pointer;transition:all 0.25s ease;
                box-shadow:0 4px 12px rgba(0,0,0,0.3);">
         Leave a Review
@@ -867,6 +914,9 @@ router.get("/", async (req, res, next) => {
   margin-left:auto;
   margin-right:auto;
   box-shadow:${block.use_no_bg ? "none" : "0 8px 25px rgba(0,0,0,0.25)"};
+   user-select:none;        /* 🚫 DISABLE TEXT SELECTION */
+  -webkit-user-select:none; /* Safari */
+  -ms-user-select:none;     /* IE/Edge */
 ">
   <h2 style="
     font-size:1.8rem;
@@ -890,6 +940,7 @@ router.get("/", async (req, res, next) => {
       };
       padding-bottom:16px;
       cursor:pointer;
+      user-select:none;
     " onclick="toggleFaq('${id}')">
 
       <div style="
@@ -911,6 +962,7 @@ router.get("/", async (req, res, next) => {
           color:${textColor}CC;
           font-size:0.95rem;
           margin-top:12px;
+          user-select:none;
         ">
           ${item.a || ""}
         </p>
@@ -949,8 +1001,8 @@ function toggleFaq(id){
                 padding = 20,
                 alignment = "center",
                 full_width = false,
-                width = 100, // ✅ NEW
-                radius = 0, // ✅ NEW
+                width = 100,
+                radius = 0,
                 shadow = false,
                 shadow_color = "rgba(0,0,0,0.5)",
                 shadow_depth = 25,
@@ -960,48 +1012,66 @@ function toggleFaq(id){
 
               if (!image_url) return "";
 
-              // ✅ Calculate shadow offsets
               const angleRad = (shadow_angle * Math.PI) / 180;
               const offsetX = Math.round(Math.cos(angleRad) * shadow_offset);
               const offsetY = Math.round(Math.sin(angleRad) * shadow_offset);
 
               return `
+  <div style="
+    text-align:${alignment};
+    padding:${padding}px 0;
+    margin:40px 0;
+    position:relative;
+    user-select:none;
+  " oncontextmenu="return false">
+
+    <!-- 🔒 Anti-save overlay -->
     <div style="
-      text-align:${alignment};
-      padding:${padding}px 0;
-      margin:40px 0;
-    ">
-      <img 
-        src="${image_url}" 
-        alt="Landing Image"
-        style="
-          max-width:${full_width ? "100%" : width + "%"};
-          width:100%;
-          height:auto;
-          display:block;
-          margin:0 auto;
-          border-radius:${radius}px;   /* ✅ Updated */
-          box-shadow:${
-            shadow
-              ? `${offsetX}px ${offsetY}px ${shadow_depth}px ${shadow_color}`
-              : "none"
-          };
-          transition:box-shadow 0.3s ease;
-        "
-      />
-      ${
-        caption
-          ? `<p style="
-              margin-top:12px;
-              color:#ccc;
-              font-size:0.95rem;
-              font-style:italic;
-              text-align:${alignment};
-            ">${caption}</p>`
-          : ""
-      }
-    </div>
-  `;
+      position:absolute;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      z-index:3;
+      background:rgba(0,0,0,0);
+      pointer-events:none;
+    "></div>
+
+    <img 
+      src="${image_url}" 
+      alt="Landing Image"
+      draggable="false"
+      style="
+        max-width:${full_width ? "100%" : width + "%"};
+        width:100%;
+        height:auto;
+        display:block;
+        margin:0 auto;
+        border-radius:${radius}px;
+        box-shadow:${
+          shadow
+            ? `${offsetX}px ${offsetY}px ${shadow_depth}px ${shadow_color}`
+            : "none"
+        };
+        transition:box-shadow 0.3s ease;
+        pointer-events:none; /* 🔒 Prevent drag → save */
+      "
+    />
+
+    ${
+      caption
+        ? `<p style="
+            margin-top:12px;
+            color:#ccc;
+            font-size:0.95rem;
+            font-style:italic;
+            text-align:${alignment};
+            user-select:none;
+          ">${caption}</p>`
+        : ""
+    }
+  </div>
+`;
             }
 
             case "feature_offers_3": {
@@ -1036,7 +1106,7 @@ function toggleFaq(id){
                   let imageHTML = "";
 
                   if (imageSrc) {
-  imageHTML = `
+                    imageHTML = `
     <div style="
       width: 100%;
       display: flex;
@@ -1051,8 +1121,8 @@ function toggleFaq(id){
       " />
     </div>
   `;
-} else {
-  imageHTML = `
+                  } else {
+                    imageHTML = `
     <div style="
       width:100%;
       height:160px;
@@ -1068,8 +1138,7 @@ function toggleFaq(id){
       No Image
     </div>
   `;
-}
-
+                  }
 
                   const pdfUrl = item.pdf_url || "";
 
@@ -1144,7 +1213,6 @@ function toggleFaq(id){
     </button>
   </div>
 `;
-
                 })
                 .join("");
 
@@ -1170,15 +1238,15 @@ function toggleFaq(id){
             }
 
             case "secure_checkout": {
-  const title = block.title || "Secure Checkout";
-  const subtext = block.subtext || "";
-  const trust = block.trust_items || [];
-  const guarantee = block.guarantee || "";
-  const badge = block.payment_badge || "";
+              const title = block.title || "Secure Checkout";
+              const subtext = block.subtext || "";
+              const trust = block.trust_items || [];
+              const guarantee = block.guarantee || "";
+              const badge = block.payment_badge || "";
 
-  const trustHTML = trust
-    .map((item) => {
-      return `
+              const trustHTML = trust
+                .map((item) => {
+                  return `
         <li style="
           display:flex;
           align-items:center;
@@ -1188,15 +1256,18 @@ function toggleFaq(id){
           color:#ffffff;
           font-size:1rem;
           list-style:none;
+          user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
         ">
           <span style="color:#22c55e;font-weight:700;">✔</span>
           <span>${item}</span>
         </li>
       `;
-    })
-    .join("");
+                })
+                .join("");
 
-  return `
+              return `
     <div style="
       width:100%;
       text-align:center;
@@ -1213,6 +1284,9 @@ function toggleFaq(id){
         justify-content:center;
         align-items:center;
         gap:10px;
+        user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
       ">
         <span style="color:#f1c40f;">🔒</span>
         ${title}
@@ -1228,6 +1302,9 @@ function toggleFaq(id){
           max-width:600px;
           margin:0 auto 14px auto;
           line-height:1.5;
+          user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
         ">
           ${subtext}
         </p>
@@ -1239,7 +1316,11 @@ function toggleFaq(id){
       ${
         trust.length
           ? `
-      <ul style="margin:14px auto; padding:0; max-width:400px;">
+      <ul style="margin:14px auto; padding:0; max-width:400px;
+      user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
+      ">
         ${trustHTML}
       </ul>
       `
@@ -1254,6 +1335,9 @@ function toggleFaq(id){
         margin-top:8px;
         color:rgba(255,255,255,0.7);
         font-size:0.9rem;
+        user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
       ">
         ${guarantee}
       </p>
@@ -1268,7 +1352,11 @@ function toggleFaq(id){
       <div style="margin-top:16px;">
         <img 
           src="${badge}" 
-          style="width:150px;opacity:0.85;"
+          style="width:150px;opacity:0.85;
+          user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
+          "
         />
       </div>
       `
@@ -1277,9 +1365,7 @@ function toggleFaq(id){
 
     </div>
   `;
-}
-
-
+            }
 
             default:
               return "";
@@ -1330,7 +1416,7 @@ function toggleFaq(id){
         line-height:1.5;
         margin:0 -30px 40px;
         border-radius: 24px 24px 0 0;
-        box-shadow:0 6px 24px rgba(0,0,0,0.3);
+        box-shadow:none;
       ">
         <div style="max-width:800px;margin:0 auto;">
           <p style="
@@ -1347,7 +1433,7 @@ function toggleFaq(id){
           <button
   onclick="document.getElementById('buy-now').scrollIntoView({ behavior: 'smooth' })"
   style="
-    display:inline-block;
+    display:block;
     background:${
       b.use_gradient
         ? `linear-gradient(${b.gradient_direction || "90deg"}, ${
@@ -1356,13 +1442,16 @@ function toggleFaq(id){
         : b.button_color || b.bg_color || "#F285C3"
     };
     color:${b.button_text_color || b.text_color || "#fff"};
-    padding:14px 32px;
-    border-radius:10px;
+    padding:22px 36px;             
+    border-radius:8px;             
     font-weight:700;
     font-size:1rem;
     cursor:pointer;
     border:none;
-    box-shadow:0 4px 15px rgba(0,0,0,0.3);
+    width:100%;                    
+    max-width:340px;                
+    margin:16px auto 0 auto;        
+    box-shadow:0 4px 12px rgba(0,0,0,0.3);
     transition:transform 0.25s ease;
   "
   onmouseover="this.style.transform='scale(1.05)'"
@@ -1370,6 +1459,7 @@ function toggleFaq(id){
 >
   ${buttonText}
 </button>
+
 
 
         </div>
@@ -1692,9 +1782,31 @@ button {
 ${
   landingPage.cover_image_url
     ? `
-      <div class="cover-wrapper">
-        <img src="${landingPage.cover_image_url}" alt="Cover" class="cover-image" />
-      </div>
+      <div class="cover-wrapper" 
+     style="position:relative; user-select:none;" 
+     oncontextmenu="return false">
+
+  <!-- 🔒 Invisible blocking layer -->
+  <div style="
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    z-index:3;
+    pointer-events:none;
+    background:rgba(0,0,0,0);
+  "></div>
+
+  <img 
+    src="${landingPage.cover_image_url}" 
+    alt="Cover" 
+    class="cover-image"
+    draggable="false"
+    style="pointer-events:none;"
+  />
+</div>
+
     `
     : ""
 }
