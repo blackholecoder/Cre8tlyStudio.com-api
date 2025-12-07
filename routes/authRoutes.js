@@ -53,7 +53,8 @@ const router = express.Router();
 
 router.post("/signup", async (req, res) => {
   try {
-    const { name, email, password, refEmployee } = req.body;
+    const { name, email, password, refSlug } = req.body;
+
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
     }
@@ -63,15 +64,14 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    // ✅ Create user via helper
+    // Create user
     const user = await createUser({ name, email, password });
 
-    // ✅ Handle referral asynchronously (non-blocking)
-    if (refEmployee) {
-      logEmployeeReferral(refEmployee, email)
+    // Handle referral
+    if (refSlug) {
+      logEmployeeReferral(refSlug, email, user.id)
         .then((logged) => {
-          if (logged)
-            console.log(`👥 Referral logged: ${refEmployee} → ${email}`);
+          if (logged) console.log(`👥 Referral logged via slug ${refSlug} → ${email}`);
         })
         .catch((err) => console.error("Referral logging error:", err.message));
     }
@@ -82,6 +82,7 @@ router.post("/signup", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 router.post("/login", async (req, res) => {
   try {

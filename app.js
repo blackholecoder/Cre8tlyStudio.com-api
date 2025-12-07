@@ -171,21 +171,18 @@ app.get("/r/:slug", async (req, res) => {
     );
 
     if (!rows.length) {
-      // Slug not found → redirect to generic signup
-      return res.redirect("https://cre8tlystudio.com/sign-up");
+      return res.redirect("https://cre8tlystudio.com/");
     }
 
-    const employeeId = rows[0].employee_id;
+    // Redirect to HOME, include referral
+    return res.redirect(`https://cre8tlystudio.com/?ref=${slug}`);
 
-    // Redirect to your existing referral link logic
-    return res.redirect(
-      `https://cre8tlystudio.com/sign-up?ref_employee=${employeeId}`
-    );
   } catch (err) {
     console.error("Shortlink error:", err);
-    return res.redirect("https://cre8tlystudio.com/sign-up");
+    return res.redirect("https://cre8tlystudio.com/");
   }
 });
+
 
 
 

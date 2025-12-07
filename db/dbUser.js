@@ -320,25 +320,45 @@ export async function createUser({ name, email, password }) {
   }
 }
 
-export async function logEmployeeReferral(refEmployee, email) {
+export async function logEmployeeReferral(refSlug, email, referredUserId) {
   const db = connect();
 
-  // Check if this is a valid admin employee
-  const [rows] = await db.query(
-    "SELECT id FROM users WHERE id = ? AND is_admin_employee = 1",
-    [refEmployee]
+  // 1. Look up real employee_id using the slug
+  const [slugRows] = await db.query(
+    "SELECT employee_id FROM referral_slugs WHERE slug = ? LIMIT 1",
+    [refSlug]
   );
 
-  if (rows.length === 0) return false;
+  
 
-  // Log referral
+  if (slugRows.length === 0) {
+    console.warn("⚠ Invalid referral slug:", refSlug);
+    return false;
+  }
+
+  const employeeId = slugRows[0].employee_id;
+
+
+  // 2. Verify employee is an admin employee
+  const [employeeRows] = await db.query(
+    "SELECT id FROM users WHERE id = ? AND is_admin_employee = 1",
+    [employeeId]
+  );
+
+  if (employeeRows.length === 0) {
+    console.warn("⚠ Referral slug belongs to non-admin employee:", refSlug);
+    return false;
+  }
+
+  // 3. Log referral
   await db.query(
-    "INSERT INTO employee_referrals (id, employee_id, referred_email, created_at) VALUES (UUID(), ?, ?, NOW())",
-    [refEmployee, email]
+    "INSERT INTO employee_referrals (id, employee_id, referred_user_id, referred_email, created_at) VALUES (UUID(), ?, ?, ?, NOW())",
+    [employeeId, referredUserId, email]
   );
 
   return true;
 }
+
 
 export async function getReferralsByEmployee(employeeId) {
   const db = connect();
