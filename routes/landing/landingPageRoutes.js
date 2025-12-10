@@ -1042,6 +1042,7 @@ function toggleFaq(id){
       alt="Landing Image"
       draggable="false"
       style="
+      padding-top:20px;
         max-width:${full_width ? "100%" : width + "%"};
         width:100%;
         height:auto;
@@ -1365,6 +1366,618 @@ function toggleFaq(id){
 
     </div>
   `;
+            }
+
+            case "audio_player": {
+              const {
+                audio_url = "",
+                cover_url = "",
+                title = "",
+                alignment = "center",
+                padding = 20,
+                show_cover = true,
+                show_title = true,
+                waveform_color = "#7bed9f",
+                progress_color = "#22c55e",
+                match_main_bg = false,
+                use_gradient = false,
+                bg_color = "",
+                gradient_start = "#F285C3",
+                gradient_end = "#7bed9f",
+                gradient_direction = "90deg",
+                text_color = "#ffffff",
+              } = block;
+
+              // Allow rendering if we have either a main audio OR at least one playlist track
+              if (!audio_url && !(block.playlist && block.playlist.length))
+                return "";
+
+              let containerBackground;
+              if (match_main_bg) {
+                containerBackground =
+                  typeof landing !== "undefined" && landing?.bg_theme
+                    ? landing.bg_theme
+                    : "#0d1117";
+              } else if (use_gradient) {
+                containerBackground = `linear-gradient(${gradient_direction}, ${gradient_start}, ${gradient_end})`;
+              } else if (bg_color) {
+                containerBackground = bg_color;
+              } else {
+                containerBackground = "#0d1117";
+              }
+
+              return `
+<div style="
+  background:${containerBackground};
+  border:1px solid #1f2937;
+  padding:${padding}px;
+  border-radius:16px;
+  max-width:700px;
+  margin:45px auto;
+  color:${text_color};
+  font-family:Inter, sans-serif;
+  box-shadow:0 0 25px rgba(0,0,0,0.35);
+  text-align:${alignment};
+">
+
+  <!-- MAIN ROW -->
+  <div style="display:flex; align-items:center; gap:22px;">
+
+    <!-- COVER (ONLY THIS IMAGE IS EVER UPDATED) -->
+    ${
+      show_cover && cover_url
+        ? `<img id="cover_${block.id}" src="${cover_url}" style="
+            width:70px;
+            height:70px;
+            object-fit:cover;
+            border-radius:8px;
+          "/>`
+        : show_cover
+        ? `<img id="cover_${block.id}" src="" style="
+              width:70px;
+              height:70px;
+              object-fit:cover;
+              border-radius:8px;
+              background:rgba(15,23,42,0.9);
+            "/>`
+        : ""
+    }
+
+    <div style="flex:1; text-align:left;">
+
+      <!-- TITLE + NOW PLAYING -->
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        ${
+          show_title
+            ? `<span id="main_title_${
+                block.id
+              }" style="font-size:1rem; font-weight:600;">
+                ${title || ""}
+              </span>`
+            : ""
+        }
+
+        <div id="np_${block.id}" style="
+          width:16px;
+          height:12px;
+          display:flex;
+          align-items:flex-end;
+          gap:2px;
+          visibility:hidden;
+        ">
+          <span style="width:3px; height:3px; background:${progress_color}; animation:np1 1s infinite;"></span>
+          <span style="width:3px; height:6px; background:${progress_color}; animation:np2 1s infinite;"></span>
+          <span style="width:3px; height:10px; background:${progress_color}; animation:np3 1s infinite;"></span>
+        </div>
+      </div>
+
+      <!-- CONTROLS -->
+      <div style="display:flex; align-items:center; gap:18px;">
+
+        <!-- BACK 10 -->
+        <div id="back_${block.id}" style="
+          width:40px;
+          height:40px;
+          border-radius:8px;
+          background:#1e293b;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          cursor:pointer;
+          box-shadow:0 2px 4px rgba(0,0,0,0.25);
+        ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="${progress_color}">
+            <path d="M15 18V6l-9 6 9 6z" />
+          </svg>
+        </div>
+
+        <!-- PLAY / PAUSE -->
+        <div id="playbtn_${block.id}" style="
+          width:45px;
+          height:45px;
+          border-radius:50%;
+          background:${progress_color};
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          cursor:pointer;
+          box-shadow:0 3px 8px rgba(0,0,0,0.3);
+        ">
+          <svg id="icon_${
+            block.id
+          }" width="26" height="26" fill="#000" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </div>
+
+        <!-- FORWARD 10 -->
+        <div id="fwd_${block.id}" style="
+          width:40px;
+          height:40px;
+          border-radius:8px;
+          background:#1e293b;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          cursor:pointer;
+          box-shadow:0 2px 4px rgba(0,0,0,0.25);
+        ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="${progress_color}">
+            <path d="M9 6v12l9-6-9-6z" />
+          </svg>
+        </div>
+
+        <!-- VOLUME -->
+        <input 
+          id="vol_${block.id}"
+          type="range"
+          min="0"
+          max="100"
+          value="80"
+          style="width:110px; accent-color:${progress_color};"
+        />
+      </div>
+
+      <!-- SCRUBBER -->
+      <input 
+        id="seek_${block.id}"
+        type="range"
+        min="0"
+        max="100"
+        value="0"
+        style="width:100%; margin-top:12px; accent-color:${progress_color};"
+      />
+
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        margin-top:6px;
+        font-size:0.85rem;
+        color:#94a3b8;
+      ">
+        <span id="cur_${block.id}">00:00</span>
+        <span id="dur_${block.id}">00:00</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="wave_${block.id}" style="margin-top:18px; height:50px;"></div>
+  <audio id="audio_${block.id}" src="${audio_url || ""}"></audio>
+
+  <!-- PLAYLIST -->
+${
+  block.playlist && block.playlist.length > 1
+    ? `
+<div style="margin-top:18px;">
+  <div id="plist_header_${block.id}" style="
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    margin-bottom:8px;
+  ">
+    <div id="plist_toggle_${
+      block.id
+    }" style="font-weight:600; font-size:0.95rem;">
+      ▼ Playlist (${block.playlist.length} tracks)
+    </div>
+    <div style="font-size:0.8rem; opacity:0.8;">
+      Click a track to play, double-click to restart
+    </div>
+  </div>
+
+  <ul id="plist_${block.id}" style="
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:block;
+    text-align:left;
+  ">
+    ${block.playlist
+      .map(
+        (track, i) => `
+<li id="track_${block.id}_${i}" data-index="${i}" style="
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:14px;
+  height:56px;
+  padding:8px 14px;
+  background:${
+    track.audio_url === audio_url ? "#22c55e15" : "rgba(15,23,42,0.7)"
+  };
+  border:1px solid ${
+    track.audio_url === audio_url ? "#22c55e" : "rgba(148,163,184,0.35)"
+  };
+  border-radius:8px;
+  cursor:pointer;
+  margin-bottom:10px;
+  overflow:hidden;
+  line-height:1;
+">
+
+  <span style="
+    width:32px;
+    font-size:0.9rem;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    opacity:.75;
+  ">
+    ${(i + 1).toString().padStart(2, "0")}
+  </span>
+
+  ${
+    track.cover_url
+      ? `<div style="
+          width:40px;
+          height:40px;
+          display:flex;
+          flex-shrink:0;
+        ">
+          <img src="${track.cover_url}" style="
+            width:40px;
+            height:40px;
+            border-radius:6px;
+            object-fit:cover;
+            object-position:center;
+            display:block;
+          ">
+       </div>`
+      : ""
+  }
+
+
+  <span style="
+    flex:1;
+    display:flex;
+    align-items:center;
+    font-size:1rem;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  ">${track.title || `Track ${i + 1}`}</span>
+
+  <span id="trkdur_${block.id}_${i}" style="
+    font-size:0.9rem;
+    display:flex;
+    align-items:center;
+    opacity:.7;
+  ">
+    ${track.duration || "--:--"}
+  </span>
+
+</li>
+`
+      )
+      .join("")}
+
+  </ul>
+
+  <div style="display:flex; align-items:center; gap:6px; margin-top:16px;">
+  <button id="rep_${block.id}" style="
+    padding:3px 6px;          /* ↓ tighter padding */
+    border-radius:12px;       /* ↓ smaller radius */
+    border:1px solid #334155;
+    background:#1e293b;
+    color:#e5e7eb;
+    font-size:0.8rem;
+    cursor:pointer;
+    white-space:nowrap;       /* keeps text on one line */
+  ">
+    Repeat Off
+  </button>
+  <button id="shuf_${block.id}" style="
+    padding:3px 6px;
+    border-radius:12px;
+    border:1px solid #334155;
+    background:#1e293b;
+    color:#e5e7eb;
+    font-size:0.8rem;
+    cursor:pointer;
+    white-space:nowrap;
+  ">
+    Shuffle Off
+  </button>
+</div>
+
+</div>
+`
+    : ""
+}
+
+  <style>
+    @keyframes np1 {0%{height:3px;}50%{height:9px;}100%{height:3px;}}
+    @keyframes np2 {0%{height:6px;}50%{height:12px;}100%{height:6px;}}
+    @keyframes np3 {0%{height:10px;}50%{height:4px;}100%{height:10px;}}
+  </style>
+
+  <script>
+(function(){
+  function init(){
+    const playBtn = document.getElementById('playbtn_${block.id}');
+    const icon = document.getElementById('icon_${block.id}');
+    const backBtn = document.getElementById('back_${block.id}');
+    const fwdBtn = document.getElementById('fwd_${block.id}');
+    const vol = document.getElementById('vol_${block.id}');
+    const seek = document.getElementById('seek_${block.id}');
+    const nowPlaying = document.getElementById('np_${block.id}');
+    const container = document.getElementById('wave_${block.id}');
+    const cur = document.getElementById('cur_${block.id}');
+    const dur = document.getElementById('dur_${block.id}');
+    const plist = document.getElementById('plist_${block.id}');
+    const plistHeader = document.getElementById('plist_header_${block.id}');
+    const plistToggle = document.getElementById('plist_toggle_${block.id}');
+    const repBtn = document.getElementById('rep_${block.id}');
+    const shufBtn = document.getElementById('shuf_${block.id}');
+    const mainTitle = document.getElementById('main_title_${block.id}');
+    const coverImg = document.getElementById('cover_${block.id}');
+    const tracks = ${JSON.stringify(block.playlist || [])};
+
+    let playlistOpen = true;
+    let repeatMode = false;
+    let shuffleMode = false;
+    let clickTimeout = null;
+    let currentIndex = 0;
+
+    function fmt(sec){
+      if(!sec || isNaN(sec)) return "00:00";
+      return String(Math.floor(sec/60)).padStart(2,"0") + ":" +
+             String(Math.floor(sec%60)).padStart(2,"0");
+    }
+
+    // Preload durations for playlist items
+    tracks.forEach((t, i) => {
+      if (!t.audio_url) return;
+      const audio = new Audio(t.audio_url);
+      audio.addEventListener('loadedmetadata', () => {
+        const span = document.getElementById('trkdur_${block.id}_' + i);
+        if (span) span.textContent = fmt(audio.duration);
+      });
+    });
+
+    if(!container || typeof WaveSurfer === 'undefined')
+      return setTimeout(init,100);
+
+    const ws = WaveSurfer.create({
+      container,
+      waveColor:'${waveform_color}',
+      progressColor:'${progress_color}',
+      cursorColor:'rgba(255,255,255,0.4)',
+      barWidth:2,
+      barGap:2,
+      height:30,
+      responsive:true,
+    });
+
+    function highlightActive(index) {
+      if (!plist) return;
+      plist.querySelectorAll("li").forEach(li => {
+        li.style.background = "rgba(15,23,42,0.7)";
+        li.style.border = "1px solid rgba(148,163,184,0.35)";
+      });
+      const active = document.getElementById('track_${block.id}_' + index);
+      if (active) {
+        active.style.background = "#22c55e15";
+        active.style.border = "1px solid #22c55e";
+      }
+    }
+
+    function loadTrackByIndex(index, autoPlay){
+      const track = tracks[index] || tracks[0];
+      if (!track || !track.audio_url) return;
+      currentIndex = index;
+
+      ws.load(track.audio_url);
+      cur.textContent = "00:00";
+      dur.textContent = "00:00";
+      seek.value = 0;
+
+      // Update main title (not row titles)
+      if (mainTitle) {
+        mainTitle.textContent = track.title || ("Track " + (index + 1));
+      }
+
+      // Update ONLY this block's cover image
+      if (coverImg && track.cover_url) {
+        coverImg.src = track.cover_url;
+      }
+
+      highlightActive(index);
+
+      ws.once('ready', () => {
+        dur.textContent = fmt(ws.getDuration());
+        if (autoPlay) {
+          ws.play();
+          icon.innerHTML = '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>';
+          nowPlaying.style.visibility = "visible";
+        } else {
+          icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+          nowPlaying.style.visibility = "hidden";
+        }
+      });
+    }
+
+    // Determine initial index (match current audio_url if possible)
+    if (tracks.length > 0) {
+      let idx = tracks.findIndex(t => t.audio_url === '${audio_url}');
+      if (idx < 0) idx = 0;
+      currentIndex = idx;
+      loadTrackByIndex(currentIndex, false);
+    } else if ('${audio_url}') {
+      // fallback single track
+      ws.load('${audio_url}');
+    }
+
+    // PLAY / PAUSE
+    if (playBtn) {
+      playBtn.onclick = () => {
+        if(ws.isPlaying()){
+          ws.pause();
+          icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+          nowPlaying.style.visibility="hidden";
+        } else {
+          ws.play();
+          icon.innerHTML = '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>';
+          nowPlaying.style.visibility="visible";
+        }
+      };
+    }
+
+    // BACK 10
+    if (backBtn) {
+      backBtn.onclick = () => {
+        const t = ws.getCurrentTime() - 10;
+        ws.seekTo(Math.max(0, t) / ws.getDuration());
+      };
+    }
+
+    // FORWARD 10
+    if (fwdBtn) {
+      fwdBtn.onclick = () => {
+        const t = ws.getCurrentTime() + 10;
+        ws.seekTo(Math.min(ws.getDuration(), t) / ws.getDuration());
+      };
+    }
+
+    if (vol) {
+      vol.oninput = () => ws.setVolume(vol.value/100);
+    }
+
+    ws.on('audioprocess', () => {
+      if(ws.isPlaying()){
+        const t = ws.getCurrentTime();
+        cur.textContent = fmt(t);
+        seek.value = (t / ws.getDuration()) * 100;
+      }
+    });
+
+    if (seek) {
+      seek.oninput = () => ws.seekTo(seek.value/100);
+    }
+
+    ws.on('ready', () => {
+      if (!isNaN(ws.getDuration())) {
+        dur.textContent = fmt(ws.getDuration());
+      }
+    });
+
+    ws.on('finish', () => {
+      const count = tracks.length;
+      if (!count) {
+        icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        nowPlaying.style.visibility = "hidden";
+        seek.value = 0;
+        return;
+      }
+
+      let nextIndex = currentIndex;
+
+      if (shuffleMode && count > 1) {
+        do {
+          nextIndex = Math.floor(Math.random() * count);
+        } while (nextIndex === currentIndex);
+      } else if (currentIndex < count - 1) {
+        nextIndex = currentIndex + 1;
+      } else if (repeatMode) {
+        nextIndex = 0;
+      } else {
+        icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        nowPlaying.style.visibility = "hidden";
+        seek.value = 0;
+        return;
+      }
+
+      loadTrackByIndex(nextIndex, true);
+    });
+
+    // Collapsible playlist header
+    if (plistHeader && plist && tracks.length > 1) {
+      plistHeader.onclick = () => {
+        playlistOpen = !playlistOpen;
+        plist.style.display = playlistOpen ? "block" : "none";
+        if (plistToggle) {
+          plistToggle.textContent =
+            (playlistOpen ? "▼" : "▲") + " Playlist (" + tracks.length + " tracks)";
+        }
+      };
+    }
+
+    // Repeat button
+    if (repBtn) {
+      repBtn.onclick = () => {
+        repeatMode = !repeatMode;
+        repBtn.textContent = repeatMode ? "Repeat On" : "Repeat Off";
+        repBtn.style.background = repeatMode ? "${progress_color}" : "#1e293b";
+        repBtn.style.color = repeatMode ? "#000" : "#e5e7eb";
+      };
+    }
+
+    // Shuffle button
+    if (shufBtn) {
+      shufBtn.onclick = () => {
+        shuffleMode = !shuffleMode;
+        shufBtn.textContent = shuffleMode ? "Shuffle On" : "Shuffle Off";
+        shufBtn.style.background = shuffleMode ? "${progress_color}" : "#1e293b";
+        shufBtn.style.color = shuffleMode ? "#000" : "#e5e7eb";
+      };
+    }
+
+    // Playlist item click / double-click
+    if (plist && tracks.length > 1) {
+      plist.querySelectorAll("li").forEach(item => {
+        item.onclick = () => {
+          if (clickTimeout) {
+            // Double-click: restart selected track
+            clearTimeout(clickTimeout);
+            clickTimeout = null;
+            const index = Number(item.dataset.index);
+            loadTrackByIndex(index, true);
+          } else {
+            // Single-click: play selected track
+            clickTimeout = setTimeout(() => {
+              clickTimeout = null;
+              const index = Number(item.dataset.index);
+              loadTrackByIndex(index, true);
+            }, 220);
+          }
+        };
+      });
+    }
+  }
+
+  if(!window._wavesurferLoaded){
+    const s=document.createElement('script');
+    s.src="https://unpkg.com/wavesurfer.js@7";
+    s.onload=()=>{window._wavesurferLoaded=true;init();}
+    document.body.appendChild(s);
+  } else init();
+})();
+  </script>
+
+</div>
+`;
             }
 
             default:
@@ -2288,41 +2901,125 @@ router.post("/upload-logo", async (req, res) => {
   }
 });
 
-router.post("/upload-image-block", async (req, res) => {
+// router.post("/upload-image-block", async (req, res) => {
+//   try {
+//     const { landingId, blockId } = req.body;
+//     const image = req.files?.image;
+
+//     if (!landingId || !blockId || !image) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Missing landingId, blockId, or image file",
+//       });
+//     }
+
+//     const { optimizedBuffer, mimetype } = await optimizeImageUpload(
+//       image.data,
+//       image.mimetype
+//     );
+
+//     const ext = mimetype.split("/")[1];
+//     const fileName = `landing_blocks/${landingId}-${blockId}-${Date.now()}.${ext}`;
+//     const result = await uploadFileToSpaces(
+//       optimizedBuffer,
+//       fileName,
+//       mimetype
+//     );
+
+//     // ✅ Instead of updating a single DB column, we just return the URL
+//     // The frontend already injects it into the JSON block
+//     res.json({ success: true, url: result.Location });
+//   } catch (err) {
+//     console.error("❌ Error uploading image block:", err);
+
+//     if (err.message?.includes("File too large")) {
+//       return res
+//         .status(413)
+//         .json({ success: false, message: "File exceeds 5 MB limit" });
+//     }
+
+//     res.status(500).json({ success: false, message: "Upload failed" });
+//   }
+// });
+
+router.post("/upload-media-block", async (req, res) => {
   try {
     const { landingId, blockId } = req.body;
-    const image = req.files?.image;
+    let file = null;
 
-    if (!landingId || !blockId || !image) {
+    if (req.files?.audio && req.files.audio.size > 0) {
+      file = req.files.audio;
+    } else if (req.files?.image && req.files.image.size > 0) {
+      file = req.files.image;
+    }
+
+    if (!file) {
       return res.status(400).json({
         success: false,
-        message: "Missing landingId, blockId, or image file",
+        message: "No valid media file found (audio or image)",
       });
     }
 
-    const { optimizedBuffer, mimetype } = await optimizeImageUpload(
-      image.data,
-      image.mimetype
-    );
+    if (!landingId || !blockId || !file) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing landingId, blockId, or media file",
+      });
+    }
 
-    const ext = mimetype.split("/")[1];
+    const mimetype = file.mimetype.toLowerCase();
+    const isImage = mimetype.startsWith("image/");
+    const isAudio = mimetype.startsWith("audio/");
+
+    if (!isImage && !isAudio) {
+      return res.status(400).json({
+        success: false,
+        message: "File must be an image or audio type",
+      });
+    }
+
+    let bufferToUpload = file.data;
+
+    // 🖼 If it's an image, optimize first
+    if (isImage) {
+      const { optimizedBuffer } = await optimizeImageUpload(
+        file.data,
+        file.mimetype
+      );
+      bufferToUpload = optimizedBuffer;
+    }
+
+    // 🎧 If audio, no optimization needed — passthrough upload
+
+    // File extension
+    let ext = file.name.split(".").pop().toLowerCase();
+
+    // fallback to mimetype if no real extension
+    if (!ext || ext.length > 5) {
+      ext = mimetype.split("/")[1];
+    }
+
+    // Final filename
     const fileName = `landing_blocks/${landingId}-${blockId}-${Date.now()}.${ext}`;
-    const result = await uploadFileToSpaces(
-      optimizedBuffer,
-      fileName,
-      mimetype
-    );
 
-    // ✅ Instead of updating a single DB column, we just return the URL
-    // The frontend already injects it into the JSON block
-    res.json({ success: true, url: result.Location });
+    // Upload to Spaces
+    const result = await uploadFileToSpaces(bufferToUpload, fileName, mimetype);
+
+    res.json({
+      success: true,
+      url: result.Location.startsWith("http")
+        ? result.Location
+        : `https://${result.Location}`,
+      originalName: file.name,
+      type: isImage ? "image" : "audio",
+    });
   } catch (err) {
-    console.error("❌ Error uploading image block:", err);
+    console.error("❌ Error uploading media block:", err);
 
     if (err.message?.includes("File too large")) {
       return res
         .status(413)
-        .json({ success: false, message: "File exceeds 5 MB limit" });
+        .json({ success: false, message: "File exceeds size limit" });
     }
 
     res.status(500).json({ success: false, message: "Upload failed" });

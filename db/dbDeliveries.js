@@ -6,13 +6,13 @@ import connect from "../db/connect.js";
  * Called after checkout completion inside handleCheckoutCompleted().
  */
 export async function insertDelivery({
-  user_id,              // Seller (user) ID
-  seller_stripe_id,     // Landing page ID or Stripe account ref
-  product_id,           // Lead magnet / eBook ID
-  product_name,         // eBook title
-  download_url,         // PDF link
-  buyer_email,          // Customer’s email
-  stripe_session_id,    // Stripe session reference
+  user_id, // Seller (user) ID
+  seller_stripe_id, // Landing page ID or Stripe account ref
+  product_id, // Lead magnet / eBook ID
+  product_name, // eBook title
+  download_url, // PDF link
+  buyer_email, // Customer’s email
+  stripe_session_id, // Stripe session reference
 }) {
   const db = connect();
   try {

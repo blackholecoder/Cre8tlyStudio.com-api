@@ -14,7 +14,9 @@ router.post("/verify-purchase", async (req, res) => {
   try {
     const { email, productId } = req.body;
     if (!email || !productId) {
-      return res.status(400).json({ verified: false, message: "Missing fields" });
+      return res
+        .status(400)
+        .json({ verified: false, message: "Missing fields" });
     }
 
     const verified = await verifyBuyer(email, productId);
@@ -40,7 +42,6 @@ router.post("/submit", async (req, res) => {
       });
     }
 
-
     const verified = await verifyBuyer(email, productId);
     if (!verified) {
       return res
@@ -58,11 +59,11 @@ router.post("/submit", async (req, res) => {
     });
 
     console.log("🧩 Review Insert Debug:", {
-  landingPageId,
-  productId,
-  username,
-  email,
-});
+      landingPageId,
+      productId,
+      username,
+      email,
+    });
 
     res.json({ success: true, message: "Review submitted successfully" });
   } catch (err) {

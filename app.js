@@ -47,6 +47,7 @@ import latestMagnetsRoutes from "./routes/admin/latestMagnetsRoutes.js";
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
 import adminAnalyticsRoutes from "./routes/admin/analytics/adminAnalyticsRoutes.js";
 import authAdminRoutes from "./routes/admin/authAdminRoutes.js";
+import referralRoutes from "./routes/admin/referralRoutes.js";
 
 
 
@@ -240,6 +241,7 @@ app.use("/api/unsplash", unsplashRoutes);
 app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/admin/web-analytics", adminAnalyticsRoutes);
 app.use("/api/admin/lead-magnets", latestMagnetsRoutes);
+app.use("/api/admin/referral", referralRoutes);
 
 app.use("/api/admin/community", adminCommunityRoutes);
 

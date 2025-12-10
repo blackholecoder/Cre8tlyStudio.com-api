@@ -1,6 +1,5 @@
 import connect from "./connect.js";
 
-
 export async function getAllLeads() {
   const db = connect();
 
@@ -10,6 +9,5 @@ export async function getAllLeads() {
     ORDER BY created_at DESC;
   `);
 
-  ;
   return rows;
 }
