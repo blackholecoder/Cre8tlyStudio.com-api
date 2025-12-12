@@ -1422,7 +1422,7 @@ function toggleFaq(id){
               }
 
               return `
-<div style="
+<div class="audio-player-shell" style="
   background:${containerBackground};
   border:1px solid #1f2937;
   padding:${padding}px;
@@ -1436,17 +1436,15 @@ function toggleFaq(id){
 ">
 
   <!-- MAIN ROW -->
-  <div style="display:flex; align-items:center; gap:22px;">
+  <div class="audio-player-main">
+  <div class="audio-player-stack">
 
-    <!-- COVER (ONLY THIS IMAGE IS EVER UPDATED) -->
+  <div class="audio-main-row" style="display:flex; align-items:center; gap:22px;">
+
+    <!-- COVER -->
     ${
       show_cover && cover_url
-        ? `<img id="cover_${block.id}" src="${cover_url}" style="
-            width:70px;
-            height:70px;
-            object-fit:cover;
-            border-radius:8px;
-          "/>`
+        ? `<img id="cover_${block.id}" src="${cover_url}" class="audio-cover-img"/>`
         : show_cover
         ? `<img id="cover_${block.id}" src="" style="
               width:70px;
@@ -1458,15 +1456,13 @@ function toggleFaq(id){
         : ""
     }
 
-    <div style="flex:1; text-align:left;">
-
-      <!-- TITLE + NOW PLAYING -->
+    <!-- TITLE + NOW PLAYING -->
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
         ${
           show_title
             ? `<span id="main_title_${
                 block.id
-              }" style="font-size:1rem; font-weight:600;">
+              }" style="font-size:1.5rem; font-weight:600;">
                 ${title || ""}
               </span>`
             : ""
@@ -1478,6 +1474,7 @@ function toggleFaq(id){
           display:flex;
           align-items:flex-end;
           gap:2px;
+          transform: translateY(-2px);
           visibility:hidden;
         ">
           <span style="width:3px; height:3px; background:${progress_color}; animation:np1 1s infinite;"></span>
@@ -1486,8 +1483,16 @@ function toggleFaq(id){
         </div>
       </div>
 
-      <!-- CONTROLS -->
-      <div style="display:flex; align-items:center; gap:18px;">
+     
+
+
+
+  </div>
+
+
+  <!-- CONTROLS -->
+    <div class="audio-controls-row">
+      <div class="audio-controls" style="display:flex; align-items:center; gap:18px;">
 
         <!-- BACK 10 -->
         <div id="back_${block.id}" style="
@@ -1542,16 +1547,23 @@ function toggleFaq(id){
           </svg>
         </div>
 
-        <!-- VOLUME -->
-        <input 
-          id="vol_${block.id}"
-          type="range"
-          min="0"
-          max="100"
-          value="80"
-          style="width:110px; accent-color:${progress_color};"
-        />
+        
       </div>
+
+      <div class="audio-volume" style="
+  display:flex;
+  justify-content:center;
+  margin-top:10px;
+">
+  <input 
+    id="vol_${block.id}"
+    type="range"
+    min="0"
+    max="100"
+    value="80"
+    style="width:140px; accent-color:${progress_color};"
+  />
+</div>
 
       <!-- SCRUBBER -->
       <input 
@@ -1563,7 +1575,7 @@ function toggleFaq(id){
         style="width:100%; margin-top:12px; accent-color:${progress_color};"
       />
 
-      <div style="
+      <div class="audio-time" style="
         display:flex;
         justify-content:space-between;
         margin-top:6px;
@@ -1575,6 +1587,7 @@ function toggleFaq(id){
       </div>
 
     </div>
+
   </div>
 
   <div id="preview_notice_${block.id}" style="
@@ -1588,9 +1601,9 @@ function toggleFaq(id){
   font-size:0.9rem;
   font-weight:600;
 ">
-  Preview ended. Purchase to unlock the full track.
+  Buy now to unlock the full track.
 </div>
-
+</div>
 
   <div
   id="wavewrap_${block.id}"
@@ -1606,13 +1619,14 @@ function toggleFaq(id){
   <div id="wave_${block.id}" style="height:50px;"></div>
 </div>
 </div>
+
   <audio id="audio_${block.id}" src="${audio_url || ""}"></audio>
 
   <!-- PLAYLIST -->
 ${
   block.playlist && block.playlist.length > 1
     ? `
-<div style="margin-top:18px;">
+<div class="audio-player-playlist" style="margin-top:18px;">
   <div id="plist_header_${block.id}" style="
     display:flex;
     align-items:center;
@@ -1660,17 +1674,6 @@ ${
   line-height:1;
 ">
 
-  <span style="
-    width:32px;
-    font-size:0.9rem;
-    display:flex;
-    align-items:center;
-    justify-content:flex-end;
-    opacity:.75;
-  ">
-    ${(i + 1).toString().padStart(2, "0")}
-  </span>
-
   ${
     track.cover_url
       ? `<div style="
@@ -1702,14 +1705,7 @@ ${
     text-overflow:ellipsis;
   ">${track.title || `Track ${i + 1}`}</span>
 
-  <span id="trkdur_${block.id}_${i}" style="
-    font-size:0.9rem;
-    display:flex;
-    align-items:center;
-    opacity:.7;
-  ">
-    ${track.duration || "--:--"}
-  </span>
+  
   ${
     block.sell_singles
       ? `<button onclick="startAudioCheckoutSingle('${landingPage.id}', '${
@@ -1816,9 +1812,7 @@ margin:0 auto;
     @keyframes np3 {0%{height:10px;}50%{height:4px;}100%{height:10px;}}
 
     /* Gradient fade AFTER preview limit */
-..ws-preview-mask {
-  position: relative;
-}
+
 
 .ws-preview-mask::after {
   content: "";
@@ -1844,6 +1838,197 @@ margin:0 auto;
   background: #22c55e;
   z-index: 5;
 }
+
+
+@media (min-width: 641px) {
+
+  .audio-player-stack {
+    max-width: 100%;
+  }
+
+  .audio-controls-row {
+    align-items: flex-start;
+  }
+
+  .audio-controls {
+    max-width: 300px;
+    justify-content: space-between;
+  }
+    
+
+}
+
+.audio-cover-img {
+  width: 240px;
+  height: 240px;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+.audio-main-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.audio-player-main img {
+  width: 240px;
+  height: 240px;
+  border-radius: 16px;
+}
+
+.audio-player-stack {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.audio-controls-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.audio-controls {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#playbtn_${block.id} {
+  width: 65px !important;
+    height: 65px !important;
+}
+
+.audio-time {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 260px;
+}
+
+/* mobile styles */
+
+/* MOBILE AUDIO PLAYER LAYOUT */
+@media (max-width: 640px) {
+
+  .audio-player-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* MAIN PLAYER CARD */
+  .audio-player-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .audio-player-main > .audio-main-row > div {
+    text-align: center;
+  }
+
+  .audio-controls {
+  width: 100%;
+  justify-content: space-between;
+}
+
+
+  /* COVER ART */
+  .audio-player-main img {
+    width: 220px !important;
+    height: 220px !important;
+    border-radius: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+  }
+
+  /* TITLE */
+  #main_title_${block.id} {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  
+
+  /* PLAY BUTTON */
+  #playbtn_${block.id} {
+    width: 65px !important;
+    height: 65px !important;
+  }
+
+  /* SCRUBBER */
+  #seek_${block.id} {
+    margin-top: 14px;
+  }
+
+  /* TIME ROW */
+  .audio-time {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 260px;
+}
+
+  /* PLAYLIST SECTION */
+  .audio-player-playlist {
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(148,163,184,0.25);
+  }
+
+  /* PLAYLIST ROWS */
+  .audio-player-playlist li {
+    height: 64px;
+    border-radius: 12px;
+  }
+
+  /* BUY ALBUM BUTTON */
+  .audio-player-playlist button {
+    width: 100%;
+    border-radius: 14px;
+    font-size: 1rem;
+    padding: 16px 0;
+  }
+    .audio-main-row {
+  flex-direction: column;
+  align-items: center;
+}
+
+.audio-cover {
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    margin: 0 auto 18px;
+  }
+
+  .audio-cover img {
+    width: 100%;
+    height: 100%;
+    border-radius: 22px;
+  }
+}
+
+
+
 
   </style>
 
