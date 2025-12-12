@@ -13,6 +13,7 @@ export async function insertDelivery({
   download_url, // PDF link
   buyer_email, // Customer’s email
   stripe_session_id, // Stripe session reference
+  cover_url = null,
 }) {
   const db = connect();
   try {
@@ -22,8 +23,8 @@ export async function insertDelivery({
       `
       INSERT INTO deliveries
         (id, user_id, seller_stripe_id, product_id, product_name,
-         download_url, buyer_email, stripe_session_id, delivered_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+         download_url, buyer_email, stripe_session_id, cover_url, delivered_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
       `,
       [
         id,
@@ -34,6 +35,7 @@ export async function insertDelivery({
         download_url,
         buyer_email,
         stripe_session_id,
+        cover_url,
       ]
     );
 
@@ -42,5 +44,40 @@ export async function insertDelivery({
   } catch (err) {
     console.error("❌ insertDelivery error:", err);
     throw err;
+  }
+}
+
+export async function getDeliveryBySessionId(sessionId) {
+  const db = connect();
+
+  try {
+    if (!sessionId) {
+      console.warn("⚠️ getDeliveryBySessionId called with no sessionId");
+      return null;
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT 
+        product_name,
+        download_url,
+        cover_url
+      FROM deliveries
+      WHERE stripe_session_id = ?
+      LIMIT 1
+      `,
+      [sessionId]
+    );
+
+    if (!rows.length) {
+      console.warn(`⚠️ No delivery found for session: ${sessionId}`);
+      return null;
+    }
+
+    // Normal return
+    return rows[0];
+  } catch (err) {
+    console.error("❌ Error in getDeliveryBySessionId:", err);
+    return null; // Return safe fallback instead of crashing
   }
 }

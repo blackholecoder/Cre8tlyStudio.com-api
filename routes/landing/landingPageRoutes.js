@@ -22,8 +22,24 @@ import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { isSafeUrl } from "../../utils/isSafeUrl.js";
 import { blendColors } from "../../utils/blendColors.js";
 import { optimizeImageUpload } from "../../helpers/optimizeImageUpload.js";
+import { exec } from "child_process";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 const router = express.Router();
+
+function getAudioDuration(filePath) {
+  return new Promise((resolve, reject) => {
+    exec(
+      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`,
+      (err, stdout) => {
+        if (err) return reject(err);
+        resolve(Math.floor(Number(stdout)));
+      }
+    );
+  });
+}
 
 // Capture root requests for each subdomain
 router.get("/", async (req, res, next) => {
@@ -1394,10 +1410,9 @@ function toggleFaq(id){
 
               let containerBackground;
               if (match_main_bg) {
-                containerBackground =
-                  typeof landing !== "undefined" && landing?.bg_theme
-                    ? landing.bg_theme
-                    : "#0d1117";
+                containerBackground = landingPage?.bg_theme
+                  ? landingPage.bg_theme
+                  : "#0d1117";
               } else if (use_gradient) {
                 containerBackground = `linear-gradient(${gradient_direction}, ${gradient_start}, ${gradient_end})`;
               } else if (bg_color) {
@@ -1562,7 +1577,35 @@ function toggleFaq(id){
     </div>
   </div>
 
-  <div id="wave_${block.id}" style="margin-top:18px; height:50px;"></div>
+  <div id="preview_notice_${block.id}" style="
+  display:none;
+  margin-top:12px;
+  padding:10px 14px;
+  border-radius:10px;
+  background:rgba(34,197,94,0.15);
+  border:1px solid #22c55e;
+  color:#22c55e;
+  font-size:0.9rem;
+  font-weight:600;
+">
+  Preview ended. Purchase to unlock the full track.
+</div>
+
+
+  <div
+  id="wavewrap_${block.id}"
+  style="
+    margin-top:18px;
+    padding:0;
+    overflow:hidden;
+    position:relative;
+    height:50px;
+  "
+>
+  <div style="margin-top:10px; padding:0 20px;">
+  <div id="wave_${block.id}" style="height:50px;"></div>
+</div>
+</div>
   <audio id="audio_${block.id}" src="${audio_url || ""}"></audio>
 
   <!-- PLAYLIST -->
@@ -1667,7 +1710,30 @@ ${
   ">
     ${track.duration || "--:--"}
   </span>
-
+  ${
+    block.sell_singles
+      ? `<button onclick="startAudioCheckoutSingle('${landingPage.id}', '${
+          landingPage.user_id
+        }', '${block.id}', '${track.audio_url}', '${track.title}', ${Math.round(
+          (track.price || block.single_price || 0) * 100
+        )}, '${
+          track.cover_url || block.cover_url || ""
+        }'); event.stopPropagation();" 
+         style="
+           margin-left:12px;
+           padding:6px 12px;
+           width:90px;
+           background:#22c55e;
+           color:#000;
+           border-radius:6px;
+           font-size:0.8rem;
+           font-weight:600;
+           cursor:pointer;
+         ">
+         ${block.single_button_text || "Buy"}
+       </button>`
+      : ""
+  }
 </li>
 `
       )
@@ -1679,18 +1745,20 @@ ${
   <button id="rep_${block.id}" style="
     padding:3px 6px;          /* ↓ tighter padding */
     border-radius:12px;       /* ↓ smaller radius */
+    width: 90px;
     border:1px solid #334155;
     background:#1e293b;
     color:#e5e7eb;
     font-size:0.8rem;
     cursor:pointer;
-    white-space:nowrap;       /* keeps text on one line */
+    white-space:nowrap;       
   ">
     Repeat Off
   </button>
   <button id="shuf_${block.id}" style="
     padding:3px 6px;
     border-radius:12px;
+    width: 90px;
     border:1px solid #334155;
     background:#1e293b;
     color:#e5e7eb;
@@ -1701,6 +1769,41 @@ ${
     Shuffle Off
   </button>
 </div>
+${
+  block.sell_album && block.playlist && block.playlist.length > 0
+    ? `
+<div style="margin-top:20px;
+  margin-top:20px;
+  width:100%;
+  padding-left:0;
+  padding-right:0;">
+  <button 
+    onclick="startAudioCheckoutAlbum('${landingPage.id}', '${
+        landingPage.user_id
+      }', '${block.id}', ${Math.round((block.album_price || 0) * 100)});"
+    style="
+    flex: 1;
+      width:100% !important;
+      max-width:100% !important;
+      padding:14px 0;
+      background:#22c55e;
+      color:#000;
+      font-size:1rem;
+      font-weight:700;
+      border-radius:10px;
+      cursor:pointer;
+      display:block;
+      
+margin:0 auto;
+    "
+  >
+    ${block.album_button_text || "Buy Album"}
+  </button>
+</div>
+    `
+    : ""
+}
+
 
 </div>
 `
@@ -1711,9 +1814,43 @@ ${
     @keyframes np1 {0%{height:3px;}50%{height:9px;}100%{height:3px;}}
     @keyframes np2 {0%{height:6px;}50%{height:12px;}100%{height:6px;}}
     @keyframes np3 {0%{height:10px;}50%{height:4px;}100%{height:10px;}}
+
+    /* Gradient fade AFTER preview limit */
+..ws-preview-mask {
+  position: relative;
+}
+
+.ws-preview-mask::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: calc(100% - var(--preview-stop));
+  background: rgba(10, 10, 10, 0.85);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* hard vertical cutoff line */
+.ws-preview-mask::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--preview-stop);
+  transform: translateX(-1px);
+  width: 2px;
+  height: 100%;
+  background: #22c55e;
+  z-index: 5;
+}
+
   </style>
 
   <script>
+  const PREVIEW_ENABLED = ${block.preview_enabled ? "true" : "false"};
+const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
+
 (function(){
   function init(){
     const playBtn = document.getElementById('playbtn_${block.id}');
@@ -1734,6 +1871,8 @@ ${
     const mainTitle = document.getElementById('main_title_${block.id}');
     const coverImg = document.getElementById('cover_${block.id}');
     const tracks = ${JSON.stringify(block.playlist || [])};
+    const previewNotice = document.getElementById('preview_notice_${block.id}');
+
 
     let playlistOpen = true;
     let repeatMode = false;
@@ -1790,6 +1929,10 @@ ${
       currentIndex = index;
 
       ws.load(track.audio_url);
+
+       ws._previewAlertShown = false;
+  if (previewNotice) previewNotice.style.display = "none";
+
       cur.textContent = "00:00";
       dur.textContent = "00:00";
       seek.value = 0;
@@ -1855,33 +1998,99 @@ ${
 
     // FORWARD 10
     if (fwdBtn) {
-      fwdBtn.onclick = () => {
-        const t = ws.getCurrentTime() + 10;
-        ws.seekTo(Math.min(ws.getDuration(), t) / ws.getDuration());
-      };
+  fwdBtn.onclick = () => {
+    const d = ws.getDuration() || 1;
+    let t = ws.getCurrentTime() + 10;
+
+    if (
+      PREVIEW_ENABLED &&
+      PREVIEW_DURATION > 0 &&
+      t >= Math.min(PREVIEW_DURATION, d)
+    ) {
+      t = PREVIEW_DURATION;
     }
+
+    ws.seekTo(t / d);
+  };
+}
 
     if (vol) {
       vol.oninput = () => ws.setVolume(vol.value/100);
     }
 
     ws.on('audioprocess', () => {
-      if(ws.isPlaying()){
-        const t = ws.getCurrentTime();
-        cur.textContent = fmt(t);
-        seek.value = (t / ws.getDuration()) * 100;
-      }
-    });
+  if (!ws.isPlaying()) return;
+
+  const t = ws.getCurrentTime();
+  const d = ws.getDuration() || 1;
+
+
+  // 🔒 PREVIEW HARD STOP
+  if (
+    PREVIEW_ENABLED &&
+    PREVIEW_DURATION > 0 &&
+    t >= Math.min(PREVIEW_DURATION, d)
+  ) {
+    ws.pause();
+    ws.seekTo(0);
+
+    icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    nowPlaying.style.visibility = "hidden";
+    seek.value = 0;
+    cur.textContent = "00:00";
+
+   if (!ws._previewAlertShown) {
+  ws._previewAlertShown = true;
+  if (previewNotice) previewNotice.style.display = "block";
+}
+    return;
+  }
+
+  cur.textContent = fmt(t);
+  seek.value = (t / d) * 100;
+});
+
 
     if (seek) {
-      seek.oninput = () => ws.seekTo(seek.value/100);
+  seek.oninput = () => {
+    const d = ws.getDuration() || 1;
+    const pct = seek.value / 100;
+    const newTime = pct * d;
+
+    if (
+      PREVIEW_ENABLED &&
+      PREVIEW_DURATION > 0 &&
+      newTime >= Math.min(PREVIEW_DURATION, d)
+    ) {
+      const limitPct = PREVIEW_DURATION / d;
+      ws.seekTo(limitPct);
+      seek.value = limitPct * 100;
+      cur.textContent = fmt(PREVIEW_DURATION);
+      return;
     }
 
+    ws.seekTo(pct);
+  };
+}
+
+
     ws.on('ready', () => {
-      if (!isNaN(ws.getDuration())) {
-        dur.textContent = fmt(ws.getDuration());
-      }
-    });
+  const duration = ws.getDuration();
+
+  dur.textContent = fmt(duration);
+
+  if (PREVIEW_ENABLED && PREVIEW_DURATION > 0) {
+    const limit = Math.min(PREVIEW_DURATION, duration);
+    const pct = (limit / duration) * 100;
+
+    // Apply CSS variable
+    container.style.setProperty("--preview-stop", pct + "%");
+
+    // Add mask class
+    container.classList.add("ws-preview-mask");
+
+  }
+});
 
     ws.on('finish', () => {
       const count = tracks.length;
@@ -1974,7 +2183,69 @@ ${
     document.body.appendChild(s);
   } else init();
 })();
+
+window.startAudioCheckoutSingle = async function(landingId, sellerId, blockId, audioUrl, title, price, coverUrl){
+  try {
+    const body = {
+      audio_type: "single",
+      landingPageId: landingId,
+      blockId,
+      sellerId,
+      audio_urls: [audioUrl], 
+      product_name: title || "Audio Track",
+      price_in_cents: price,
+      cover_url: coverUrl,
+    };
+
+    const res = await fetch("https://cre8tlystudio.com/api/seller-checkout/create-audio-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+  } catch (err) {
+    console.error("Checkout error:", err);
+  }
+};
+
+
+window.startAudioCheckoutAlbum = async function(landingId, sellerId, blockId, price){
+  try {
+    const playlist = ${JSON.stringify(block.playlist || [])};
+
+    const body = {
+      audio_type: "album",
+      landingPageId: landingId,
+      blockId,
+      sellerId,
+      audio_urls: playlist.map(t => t.audio_url),
+      product_name: "${block.album_button_text || "Full Album"}",
+      price_in_cents: price,
+      cover_url: (playlist[0] && playlist[0].cover_url) || "${
+        block.cover_url
+      }" || "",
+    };
+
+    const res = await fetch("https://cre8tlystudio.com/api/seller-checkout/create-audio-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+  } catch (err) {
+    console.error("Checkout error:", err);
+  }
+};
+
+
+
   </script>
+
+
 
 </div>
 `;
@@ -2987,6 +3258,36 @@ router.post("/upload-media-block", async (req, res) => {
         file.mimetype
       );
       bufferToUpload = optimizedBuffer;
+    }
+
+    // 🎧 AUDIO DURATION LIMIT (3 HOURS MAX)
+    if (isAudio) {
+      const tempPath = path.join(
+        os.tmpdir(),
+        `audio-check-${Date.now()}-${file.name}`
+      );
+
+      fs.writeFileSync(tempPath, file.data);
+
+      try {
+        const duration = await getAudioDuration(tempPath);
+
+        if (duration > MAX_AUDIO_SECONDS) {
+          fs.unlinkSync(tempPath);
+
+          return res.status(400).json({
+            success: false,
+            message: "Audio exceeds maximum length of 3 hours",
+            max_seconds: MAX_AUDIO_SECONDS,
+            actual_seconds: duration,
+          });
+        }
+      } catch (err) {
+        fs.unlinkSync(tempPath);
+        throw err;
+      }
+
+      fs.unlinkSync(tempPath);
     }
 
     // 🎧 If audio, no optimization needed — passthrough upload
