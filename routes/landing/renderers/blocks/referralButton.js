@@ -4,7 +4,9 @@ export function renderReferralButtonBlock(block, landingPage) {
   const textColor = block.text_color || "#000";
   const alignment = block.alignment || "center";
 
-  const referralUrl = `https://cre8tlystudio.com/r/${landingPage.slug}`;
+  const referralUrl = landingPage.referral_slug
+    ? `https://cre8tlystudio.com/r/${landingPage.referral_slug}`
+    : "https://cre8tlystudio.com/sign-up";
 
   return `
 <div style="

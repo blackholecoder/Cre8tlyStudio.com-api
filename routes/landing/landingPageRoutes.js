@@ -7,6 +7,7 @@ import {
   getLandingPageByUser,
   getLandingTemplatesByPage,
   getOrCreateLandingPage,
+  getReferralSlugByUserId,
   getUserLeads,
   loadLandingTemplate,
   restoreLandingTemplate,
@@ -69,6 +70,10 @@ router.get("/", async (req, res, next) => {
     if (!landingPage) {
       return res.send("<h1>Coming soon</h1>");
     }
+
+    landingPage.referral_slug = await getReferralSlugByUserId(
+      landingPage.user_id
+    );
 
     const mainOverlayColor = blendColors(
       landingPage.bg_theme.includes("#") ? landingPage.bg_theme : "#1e0033" // fallback if using gradient

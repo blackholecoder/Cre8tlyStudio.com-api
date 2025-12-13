@@ -1,6 +1,6 @@
 export function renderParagraphBlock(block, landingPage) {
   const padding = block.padding || 20;
-
+  const alignment = block.alignment || "left";
   const lines = (block.text || "").split(/\n/);
   const hasBullets = lines.some((line) => line.trim().startsWith("•"));
 
@@ -9,29 +9,47 @@ export function renderParagraphBlock(block, landingPage) {
 
   const contentLines = labelLine ? lines.slice(1) : lines;
 
+  const containerStyle =
+    alignment === "center"
+      ? "margin:0 auto;"
+      : alignment === "right"
+      ? "margin:0 0 0 auto;"
+      : "margin:0 auto 0 0;";
+
   // ✅ Explicit bullet list
   if (block.bulleted) {
     const listItems = lines
       .filter((line) => line.trim() !== "")
-      .map((line) => `<li>${line.replace(/^•\s*/, "")}</li>`)
+      .map(
+        (line) =>
+          `<li style="margin-bottom:0.35rem;">
+      ${line.replace(/^•\s*/, "")}
+    </li>`
+      )
       .join("");
 
     return `
-<ul style="
-  list-style: disc;
-  padding-left:1.5rem;
-  text-align:${block.alignment || "left"};
-  color:${landingPage.font_color_p || "#FFFFFF"};
-  line-height:1.8;
+<div style="
   max-width:700px;
-  margin:0 auto;
+  ${containerStyle}
   padding-bottom:${padding}px;
-  user-select:none;
-  -webkit-user-select:none;
-  -ms-user-select:none;
+  line-height:1.8;
+
 ">
-  ${listItems}
-</ul>
+  <ul style="
+    list-style: disc;
+    padding-left:1.25rem;
+    margin:0;
+    text-align:left;
+    color:${landingPage.font_color_p || rgba(255, 255, 255, 0.92)};
+    line-height:1.8;
+    user-select:none;
+    -webkit-user-select:none;
+    -ms-user-select:none;
+  ">
+    ${listItems}
+  </ul>
+</div>
 `;
   }
 
@@ -39,10 +57,10 @@ export function renderParagraphBlock(block, landingPage) {
   if (hasBullets) {
     return `
 <div style="
-  padding-bottom:${padding}px; 
-  max-width:700px; 
-  margin:0 auto; 
-  text-align:left; 
+  max-width:700px;
+  ${containerStyle}
+  padding-bottom:${padding}px;
+  text-align:left;
   line-height:1.8;
   user-select:none;
   -webkit-user-select:none;
@@ -54,7 +72,7 @@ export function renderParagraphBlock(block, landingPage) {
           font-weight:${landingPage.font_weight_label || 600};
           font-size:1.15rem;
           margin-bottom:6px;
-          color:${landingPage.font_color_p || "#FFFFFF"};
+          color:${landingPage.font_color_p || rgba(255, 255, 255, 0.92)};
           user-select:none;
           -webkit-user-select:none;
           -ms-user-select:none;
@@ -64,7 +82,7 @@ export function renderParagraphBlock(block, landingPage) {
   <ul style="
     list-style: disc;
     padding-left:1.5rem;
-    color:${landingPage.font_color_p || "#FFFFFF"};
+    color:${landingPage.font_color_p || rgba(255, 255, 255, 0.92)};
   ">
     ${contentLines
       .map((line) =>
@@ -86,7 +104,7 @@ export function renderParagraphBlock(block, landingPage) {
     max-width:700px;
     margin:0 auto;
     line-height:1.8;
-    color:${landingPage.font_color_p || "#FFFFFF"};
+    color:${landingPage.font_color_p || rgba(255, 255, 255, 0.92)};
     user-select:none;
     -webkit-user-select:none;
     -ms-user-select:none;

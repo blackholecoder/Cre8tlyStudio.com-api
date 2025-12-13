@@ -67,8 +67,6 @@ export async function getLandingPageById(id) {
   }
 }
 
-
-
 export async function getLandingPageByUserId(userId) {
   const db = connect();
   try {
@@ -142,7 +140,9 @@ export async function updateLandingPage(id, fields) {
       try {
         parsedBlocks = JSON.parse(content_blocks);
       } catch {
-        console.warn(`⚠️ Invalid JSON for content_blocks, keeping old data for ID ${id}`);
+        console.warn(
+          `⚠️ Invalid JSON for content_blocks, keeping old data for ID ${id}`
+        );
         const [oldRows] = await db.query(
           "SELECT content_blocks FROM user_landing_pages WHERE id = ?",
           [id]
@@ -178,9 +178,9 @@ export async function updateLandingPage(id, fields) {
         }
       }
       parsedBlocks = parsedBlocks.map((b) => ({
-  ...b,
-  collapsed: b.collapsed ?? true, // ensure this field exists
-}));
+        ...b,
+        collapsed: b.collapsed ?? true, // ensure this field exists
+      }));
       contentBlocksJSON = JSON.stringify(parsedBlocks);
     }
 
@@ -240,15 +240,20 @@ export async function updateLandingPage(id, fields) {
   }
 }
 
+// SAVE TEMPLATES
 
-// SAVE TEMPLATES 
-
-export async function saveLandingTemplate({ userId, landingPageId, name, snapshot }) {
+export async function saveLandingTemplate({
+  userId,
+  landingPageId,
+  name,
+  snapshot,
+}) {
   const db = connect();
 
   try {
     const versionId = crypto.randomUUID();
-    const versionName = name?.trim() || `Version ${new Date().toLocaleString()}`;
+    const versionName =
+      name?.trim() || `Version ${new Date().toLocaleString()}`;
 
     await db.query(
       `
@@ -286,7 +291,6 @@ export async function getLandingTemplatesByPage(landingPageId) {
     return { success: false, message: err.message || "Server error" };
   }
 }
-
 
 export async function loadLandingTemplate(versionId) {
   const db = connect();
@@ -336,7 +340,6 @@ export async function loadLandingTemplate(versionId) {
   }
 }
 
-
 export async function restoreLandingTemplate(landingPageId, snapshot) {
   const db = connect();
 
@@ -357,7 +360,7 @@ export async function restoreLandingTemplate(landingPageId, snapshot) {
       pdf_url,
       cover_image_url,
       logo_url,
-      show_download_button
+      show_download_button,
     } = snapshot;
 
     await db.query(
@@ -397,7 +400,7 @@ export async function restoreLandingTemplate(landingPageId, snapshot) {
         cover_image_url,
         logo_url,
         show_download_button,
-        landingPageId
+        landingPageId,
       ]
     );
 
@@ -423,7 +426,7 @@ export async function deleteLandingTemplate(versionId, userId) {
     if (rows.affectedRows === 0) {
       return {
         success: false,
-        message: "Version not found or unauthorized"
+        message: "Version not found or unauthorized",
       };
     }
 
@@ -433,7 +436,6 @@ export async function deleteLandingTemplate(versionId, userId) {
     return { success: false, message: err.message || "DB error" };
   }
 }
-
 
 export async function getOrCreateLandingPage(userId) {
   const db = connect();
@@ -575,7 +577,6 @@ export async function getOrCreateLandingPage(userId) {
   }
 }
 
-
 export async function checkUsernameAvailability(username) {
   const db = connect();
   try {
@@ -593,10 +594,10 @@ export async function checkUsernameAvailability(username) {
 export async function updateLandingLogo(landingId, logoUrl) {
   const db = connect();
   try {
-    await db.query(
-      "UPDATE user_landing_pages SET logo_url = ? WHERE id = ?",
-      [logoUrl, landingId]
-    );
+    await db.query("UPDATE user_landing_pages SET logo_url = ? WHERE id = ?", [
+      logoUrl,
+      landingId,
+    ]);
     console.log(`✅ Logo updated for landing page ID: ${landingId}`);
   } catch (err) {
     console.error("❌ Error in updateLandingLogo helper:", err);
@@ -666,7 +667,6 @@ export async function getUserLeads(userId, page = 1, limit = 20) {
     [userId]
   );
 
-
   return {
     leads: rows,
     total,
@@ -675,7 +675,6 @@ export async function getUserLeads(userId, page = 1, limit = 20) {
     totalPages: Math.ceil(total / limit),
   };
 }
-
 
 export async function updateTemplateVersion(versionId, name, snapshot) {
   try {
@@ -702,13 +701,11 @@ export async function updateTemplateVersion(versionId, name, snapshot) {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
+export async function getReferralSlugByUserId(userId) {
+  const db = connect();
+  const [rows] = await db.query(
+    "SELECT slug FROM referral_slugs WHERE employee_id = ? LIMIT 1",
+    [userId]
+  );
+  return rows.length ? rows[0].slug : null;
+}
