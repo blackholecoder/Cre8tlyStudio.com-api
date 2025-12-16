@@ -5,6 +5,8 @@ import {
   upgradeUserToBooks,
   activateBusinessBuilder,
   deactivateBusinessBuilder,
+  activateBusinessBasicBuilder,
+  deactivateBusinessBasicBuilder,
 } from "../db/dbUser.js"; // ✅ make sure these two new helpers are exported there
 
 const router = express.Router();
@@ -43,7 +45,6 @@ router.post("/", async (req, res) => {
       let handledUpgrade = false;
 
       switch (product) {
-
         case "author":
           console.log(`📚 Author’s Assistant upgrade for: ${email}`);
           await upgradeUserToBooks(email);
@@ -55,6 +56,12 @@ router.post("/", async (req, res) => {
             `🏗️ Business Builder Pack (${billingCycle}) for: ${email}`
           );
           await activateBusinessBuilder(email, billingCycle);
+          handledUpgrade = true;
+          break;
+
+        case "business_basic_builder":
+          console.log(`🧱 Business Basic Builder (annual) for: ${email}`);
+          await activateBusinessBasicBuilder(email);
           handledUpgrade = true;
           break;
 
@@ -87,6 +94,11 @@ router.post("/", async (req, res) => {
             await activateBusinessBuilder(email);
             console.log(`✅ Business Builder payment succeeded for ${email}`);
           }
+
+          if (productType.includes("business_basic_builder")) {
+            await activateBusinessBasicBuilder(email);
+            console.log(`✅ Business Basic payment succeeded for ${email}`);
+          }
         } catch (err) {
           console.error(
             `❌ Failed to activate after invoice success: ${err.message}`
@@ -110,7 +122,13 @@ router.post("/", async (req, res) => {
           if (productType.includes("business_builder_pack")) {
             await deactivateBusinessBuilder(email);
           }
-          console.log(`🚫 Subscription canceled or payment failed for ${email}`);
+          console.log(
+            `🚫 Subscription canceled or payment failed for ${email}`
+          );
+
+          if (productType.includes("business_basic_builder")) {
+            await deactivateBusinessBasicBuilder(email);
+          }
         } catch (err) {
           console.error(
             `❌ Failed to deactivate after payment failure: ${err.message}`

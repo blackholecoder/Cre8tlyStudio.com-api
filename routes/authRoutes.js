@@ -71,7 +71,8 @@ router.post("/signup", async (req, res) => {
     if (refSlug) {
       logEmployeeReferral(refSlug, email, user.id)
         .then((logged) => {
-          if (logged) console.log(`👥 Referral logged via slug ${refSlug} → ${email}`);
+          if (logged)
+            console.log(`👥 Referral logged via slug ${refSlug} → ${email}`);
         })
         .catch((err) => console.error("Referral logging error:", err.message));
     }
@@ -82,7 +83,6 @@ router.post("/signup", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 router.post("/login", async (req, res) => {
   try {
@@ -164,6 +164,7 @@ router.post("/login", async (req, res) => {
         is_admin_employee: user.is_admin_employee,
         has_passkey: user.has_passkey,
         plan: user.plan,
+        basic_annual: user.basic_annual,
       },
       accessToken,
       refreshToken,
@@ -263,6 +264,7 @@ router.get("/me", authenticateToken, async (req, res) => {
       stripe_account_type: stripeStatus.account_type || null,
       is_admin_employee: user.is_admin_employee,
       plan: user.plan,
+      basic_annual: user.basic_annual,
     });
   } catch (err) {
     console.error("❌ Error in /me:", err);
@@ -389,10 +391,8 @@ router.post(
   admin2FALimiter,
   admin2faLockout,
   async (req, res) => {
-
     try {
       const { token, twofaToken } = req.body;
-
 
       if (!token || !twofaToken) {
         return res.status(400).json({ message: "Missing 2FA data" });
@@ -437,22 +437,20 @@ router.post(
         },
       });
     } catch (err) {
-  console.error("2FA login verify error:", err);
+      console.error("2FA login verify error:", err);
 
-  let message = "Invalid 2FA code";
+      let message = "Invalid 2FA code";
 
-  if (err.message?.includes("expired"))
-    message = "Your login session expired. Please log in again.";
-  else if (err.message?.includes("Locked")) 
-    message = err.message;
-  else if (err.message) 
-    message = err.message;
+      if (err.message?.includes("expired"))
+        message = "Your login session expired. Please log in again.";
+      else if (err.message?.includes("Locked")) message = err.message;
+      else if (err.message) message = err.message;
 
-  return res
-    .status(401)
-    .set("Content-Type", "application/json")   // 🔥 THE FIX
-    .json({ success: false, message });
-}
+      return res
+        .status(401)
+        .set("Content-Type", "application/json") // 🔥 THE FIX
+        .json({ success: false, message });
+    }
   }
 );
 
@@ -929,6 +927,7 @@ router.post("/webauthn/login-verify", async (req, res) => {
         stripe_details_submitted: stripeStatus.details_submitted,
         stripe_account_type: stripeStatus.account_type || null,
         plan: user.plan,
+        basic_annual: user.basic_annual,
         passkey: creds
           ? {
               id: creds.credentialID,
@@ -968,9 +967,6 @@ router.post("/webauthn/remove-passkey", authenticateToken, async (req, res) => {
     });
   }
 });
-
-
-
 
 // TRACK IP FOR WEBSITE
 

@@ -18,6 +18,9 @@ export function renderAudioPlayerBlock(block, landingPage) {
     text_color = "#ffffff",
   } = block;
 
+  const formatPrice = (p) =>
+    p && Number(p) > 0 ? `$${Number(p).toFixed(2)}` : "";
+
   // Allow rendering if we have either a main audio OR at least one playlist track
   if (!audio_url && !(block.playlist && block.playlist.length)) return "";
 
@@ -87,11 +90,13 @@ export function renderAudioPlayerBlock(block, landingPage) {
       
         ${
           show_title
-            ? `<span id="main_title_${
-                block.id
-              }" style="font-size:1.5rem; font-weight:600;">
-                ${title || ""}
-              </span>`
+            ? `<div style="display:flex; align-items:center; gap:10px;">
+      <span id="main_title_${
+        block.id
+      }" style="font-size:1.5rem; font-weight:600;">
+        ${title || ""}
+      </span>
+    </div>`
             : ""
         }
 
@@ -253,7 +258,9 @@ flex-shrink: 0;
 line-height: 1.2;
     "
   >
-    ${block.single_button_text || "Buy Now"}
+    ${block.single_button_text || "Buy Now"}${
+        block.single_price ? ` • ${formatPrice(block.single_price)}` : ""
+      }
   </button>
 </div>
 `
@@ -353,14 +360,33 @@ ${
 
 
   <span style="
-    flex:1;
-    display:flex;
-    align-items:center;
-    font-size:1rem;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+">
+  <span style="
+    font-size:0.95rem;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
-  ">${track.title || `Track ${i + 1}`}</span>
+  ">
+    ${track.title || `Track ${i + 1}`}
+  </span>
+
+  ${
+    block.sell_singles && (track.price || block.single_price)
+      ? `<span style="
+          font-size:0.75rem;
+          font-weight:600;
+          color:#22c55e;
+        ">
+          $${Number(track.price || block.single_price).toFixed(2)}
+        </span>`
+      : ""
+  }
+</span>
+
 
   
   ${
@@ -450,7 +476,10 @@ ${
 margin:0 auto;
     "
   >
-    ${block.album_button_text || "Buy Album"}
+    ${block.album_button_text || "Buy Album"}${
+        block.album_price ? ` • ${formatPrice(block.album_price)}` : ""
+      }
+
   </button>
 </div>
     `

@@ -233,26 +233,41 @@ export async function createUser({ name, email, password }) {
     // 🔹 1. Create base user (standard insert)
     await db.query(
       `INSERT INTO users 
-       (
-         id,
-         name,
-         email,
-         password_hash,
-         role,
-         profile_image_url, 
-         has_magnet,
-         magnet_slots,
-         has_book,
-         book_slots,
-         has_memory,
-         has_completed_book_onboarding,
-         pro_covers,
-         pro_status,
-         billing_type,
-         pro_expiration,
-         created_at
-       )
-       VALUES (?, ?, ?, ?, 'customer', NULL, 0, 0, 0, 0, 0, 0, 0, 'inactive', NULL, NULL, NOW())`,
+   (
+     id,
+     name,
+     email,
+     password_hash,
+     role,
+     profile_image_url,
+     has_magnet,
+     magnet_slots,
+     has_book,
+     book_slots,
+     has_memory,
+     has_completed_book_onboarding,
+     pro_covers,
+     plan,
+     basic_annual,
+     pro_status,
+     billing_type,
+     pro_expiration,
+     created_at
+   )
+   VALUES (
+     ?, ?, ?, ?, 'customer',
+     NULL,
+     0, 0,
+     0, 0,
+     0, 0,
+     0,
+     NULL,        -- plan
+     0,           -- basic_annual
+     'inactive',
+     NULL,
+     NULL,
+     NOW()
+   )`,
       [id, name, email, hashedPassword]
     );
 
@@ -307,6 +322,9 @@ export async function createUser({ name, email, password }) {
       has_memory: 0,
       has_completed_book_onboarding: 0,
       pro_covers: 0,
+      plan: null,
+      basic_annual: 0,
+      billing_type: null,
       pro_status: "inactive",
       billing_type: null,
       pro_expiration: null,
@@ -329,15 +347,12 @@ export async function logEmployeeReferral(refSlug, email, referredUserId) {
     [refSlug]
   );
 
-  
-
   if (slugRows.length === 0) {
     console.warn("⚠ Invalid referral slug:", refSlug);
     return false;
   }
 
   const employeeId = slugRows[0].employee_id;
-
 
   // 2. Verify employee is an admin employee
   const [employeeRows] = await db.query(
@@ -358,7 +373,6 @@ export async function logEmployeeReferral(refSlug, email, referredUserId) {
 
   return true;
 }
-
 
 export async function getReferralsByEmployee(employeeId) {
   const db = connect();
@@ -426,7 +440,8 @@ export async function getUserByEmail(email) {
          stripe_connect_account_id,
          has_passkey,
          is_admin_employee,
-         plan
+         plan,
+         basic_annual
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -493,7 +508,6 @@ export async function logUserActivity({
   }
 }
 
-
 export async function getUserByRefreshToken(refreshToken) {
   const db = connect();
   const [rows] = await db.query(
@@ -520,16 +534,15 @@ export async function getAdminByRefreshToken(refreshToken) {
 export async function saveAdminRefreshToken(userId, token) {
   try {
     const db = connect();
-    await db.query(
-      "UPDATE users SET admin_refresh_token = ? WHERE id = ?",
-      [token, userId]
-    );
+    await db.query("UPDATE users SET admin_refresh_token = ? WHERE id = ?", [
+      token,
+      userId,
+    ]);
   } catch (err) {
     console.error("❌ saveAdminRefreshToken error:", err);
     throw err;
   }
 }
-
 
 export async function updateUserRole(userId, role) {
   const db = connect();
@@ -567,7 +580,8 @@ export async function getUserById(id) {
         stripe_connect_account_id,
         has_passkey,
         is_admin_employee,
-        plan
+        plan,
+        basic_annual
        FROM users 
        WHERE id = ?`,
       [id]
@@ -668,7 +682,7 @@ export async function activatePromptMemory(email) {
   }
 }
 
-export async function upgradeUserToMagnets(email) {
+export async function upgradeUserToMagnets(email, slotLimit = 15) {
   const db = connect();
   try {
     const [rows] = await db.query(
@@ -682,21 +696,22 @@ export async function upgradeUserToMagnets(email) {
     }
 
     const user = rows[0];
-    const newSlots = (user.magnet_slots || 0) + 15;
+
+    // ✅ Ensure total slots are capped, not stacked
+    const newSlots = Math.max(user.magnet_slots || 0, slotLimit);
 
     await db.query(
       `UPDATE users 
-         SET has_magnet = 1, 
-             magnet_slots = ?, 
-             has_free_magnet = 0,         -- 🚫 Remove free tier flag
-             free_trial_expires_at = NULL  -- 🧹 Clear trial expiration
+       SET has_magnet = 1,
+           magnet_slots = ?,
+           has_free_magnet = 0,
+           free_trial_expires_at = NULL
        WHERE email = ?`,
       [newSlots, email]
     );
 
-    console.log(
-      `🎯 Added +15 lead magnet slots for ${email} (new total: ${newSlots})`
-    );
+    console.log(`🎯 Set lead magnet slots to ${newSlots} for ${email}`);
+
     return true;
   } catch (err) {
     console.error("❌ upgradeUserToMagnets failed:", err.message);
@@ -729,7 +744,9 @@ export async function activateBusinessBuilder(email, billingCycle = "annual") {
            plan = 'business_builder_pack',
            status = 'active',
            locked_until = ?,
-           pro_expiration = ?
+           pro_expiration = ?,
+           basic_annual = 0,
+           basic_expiration = NULL
        WHERE id = ?`,
       [billingCycle, lockedUntil, lockedUntil, userId]
     );
@@ -772,6 +789,84 @@ export async function deactivateBusinessBuilder(email) {
     console.log(`🚫 Business Builder Pack deactivated for ${email}`);
   } catch (err) {
     console.error("❌ deactivateBusinessBuilder failed:", err.message);
+  }
+}
+// BASIC ANNUAL BUILDER PACK
+export async function activateBusinessBasicBuilder(email) {
+  const db = connect();
+  try {
+    const [userRows] = await db.query("SELECT id FROM users WHERE email = ?", [
+      email,
+    ]);
+
+    if (!userRows.length) {
+      console.warn(`⚠️ No user found for email: ${email}`);
+      return;
+    }
+
+    const userId = userRows[0].id;
+
+    // ✅ 1-year lock period
+    // ✅ 1-year expiration
+    const expiresAt = new Date();
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+    // ✅ Update subscription details
+    await db.query(
+      `
+      UPDATE users
+      SET pro_status = 'active',
+          pro_expiration = ?,
+          billing_type = 'annual',
+          plan = 'business_basic_builder',
+          status = 'active',
+          locked_until = ?,
+          basic_annual = 1,
+          basic_expiration = ?
+      WHERE id = ?
+      `,
+      [expiresAt, expiresAt, expiresAt, userId]
+    );
+
+    await Promise.all([
+      upgradeUserToProCovers(email),
+      activatePromptMemory(email),
+      upgradeUserToMagnets(email, 7), // 👈 KEY DIFFERENCE
+    ]);
+
+    console.log(`🎁 Granted 7 lead magnet slots to ${email}`);
+
+    return true;
+  } catch (err) {
+    console.error("❌ activateBusinessBasicBuilder failed:", err.message);
+    throw err;
+  }
+}
+
+export async function deactivateBusinessBasicBuilder(email) {
+  const db = connect();
+  try {
+    await db.query(
+      `UPDATE users
+       SET basic_annual = 0,
+       pro_status = 'inactive',
+           basic_expiration = NULL,
+           status = 'cancelled',
+           has_magnet = 0,
+           magnet_slots = 0,
+           has_free_magnet = 0,
+           free_trial_expires_at = NULL,
+           plan = NULL,
+           billing_type = NULL,
+           locked_until = NULL
+       WHERE email = ?
+         AND pro_status = 'inactive'`,
+      [email]
+    );
+
+    console.log(`🚫 Business Basic Builder deactivated for ${email}`);
+  } catch (err) {
+    console.error("❌ deactivateBusinessBasicBuilder failed:", err.message);
   }
 }
 
