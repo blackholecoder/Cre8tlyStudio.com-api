@@ -1,14 +1,18 @@
 export function renderHeadingBlock(block, landingPage) {
   const paddingTop = block.paddingTop ?? 14;
+  const alignment = block.alignment || "left";
+
+  const containerStyle =
+    alignment === "right" ? "margin:0 0 0 auto;" : "margin:0 auto;";
 
   return `<h1 style="
     display:block;
     width:100%;
     max-width:700px;
-    margin:0 auto;
+    ${containerStyle}
     padding-top:${paddingTop}px;
     padding-bottom:6px;
-    text-align:center;
+    text-align:${alignment};
     user-select:none;
     -webkit-user-select:none;
     -ms-user-select:none;

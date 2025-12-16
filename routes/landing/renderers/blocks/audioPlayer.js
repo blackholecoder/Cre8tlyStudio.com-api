@@ -43,7 +43,6 @@ export function renderAudioPlayerBlock(block, landingPage) {
   max-width:700px;
   margin:45px auto;
   color:${text_color};
-  font-family:Inter, sans-serif;
   box-shadow:0 0 25px rgba(0,0,0,0.35);
   text-align:${alignment};
 ">
@@ -219,6 +218,48 @@ export function renderAudioPlayerBlock(block, landingPage) {
 ">
   Buy now to unlock the full track.
 </div>
+${
+  block.sell_singles &&
+  audio_url &&
+  (!block.playlist || block.playlist.length <= 1)
+    ? `
+<div style="margin-top:20px;">
+  <button
+    onclick="startAudioCheckoutSingle(
+      '${landingPage.id}',
+      '${landingPage.user_id}',
+      '${block.id}',
+      '${audio_url}',
+      '${title || "Audio Track"}',
+      ${Math.round((block.single_price || 0) * 100)},
+      '${cover_url || ""}'
+    )"
+    style="
+      width: 100%;
+      margin: 0 auto;
+min-height: 56px;
+padding: 16px 20px;
+background: #22c55e;
+color: #000;
+font-size: 1rem;
+font-weight: 700;
+border-radius: 14px;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+box-sizing: border-box;
+flex-shrink: 0;
+line-height: 1.2;
+    "
+  >
+    ${block.single_button_text || "Buy Now"}
+  </button>
+</div>
+`
+    : ""
+}
+
 </div>
 
   <div
@@ -665,6 +706,8 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
 
 (function(){
   function init(){
+  let wsReady = false;
+
     const playBtn = document.getElementById('playbtn_${block.id}');
     const icon = document.getElementById('icon_${block.id}');
     const backBtn = document.getElementById('back_${block.id}');
@@ -672,6 +715,13 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
     const vol = document.getElementById('vol_${block.id}');
     const seek = document.getElementById('seek_${block.id}');
     const nowPlaying = document.getElementById('np_${block.id}');
+    function showNowPlaying() {
+  if (nowPlaying) nowPlaying.style.visibility = "visible";
+}
+
+function hideNowPlaying() {
+  if (nowPlaying) nowPlaying.style.visibility = "hidden";
+}
     const container = document.getElementById('wave_${block.id}');
     const cur = document.getElementById('cur_${block.id}');
     const dur = document.getElementById('dur_${block.id}');
@@ -684,6 +734,32 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
     const coverImg = document.getElementById('cover_${block.id}');
     const tracks = ${JSON.stringify(block.playlist || [])};
     const previewNotice = document.getElementById('preview_notice_${block.id}');
+    
+
+    const audioEl = document.getElementById('audio_${block.id}');
+    audioEl.addEventListener("play", () => {
+  setPlayingUI(true);
+});
+
+audioEl.addEventListener("pause", () => {
+  setPlayingUI(false);
+});
+audioEl.preload = "metadata";
+
+const PLAY_ICON = '<path d="M8 5v14l11-7z"/>';
+const PAUSE_ICON = '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>';
+
+function setPlayingUI(isPlaying) {
+  if (!icon) return;
+
+  icon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+
+  if (isPlaying) {
+    showNowPlaying();
+  } else {
+    hideNowPlaying();
+  }
+}
 
 
     let playlistOpen = true;
@@ -692,11 +768,30 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
     let clickTimeout = null;
     let currentIndex = 0;
 
-    function fmt(sec){
-      if(!sec || isNaN(sec)) return "00:00";
-      return String(Math.floor(sec/60)).padStart(2,"0") + ":" +
-             String(Math.floor(sec%60)).padStart(2,"0");
-    }
+    function fmt(sec) {
+  if (!sec || isNaN(sec)) return "0:00";
+
+  sec = Math.floor(sec);
+
+  const hours = Math.floor(sec / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  const seconds = sec % 60;
+
+  if (hours > 0) {
+    return (
+      hours + ":" +
+      String(minutes).padStart(2, "0") + ":" +
+      String(seconds).padStart(2, "0")
+    );
+  }
+
+  return (
+    String(minutes).padStart(2, "0") + ":" +
+    String(seconds).padStart(2, "0")
+  );
+}
+
+
 
     // Preload durations for playlist items
     tracks.forEach((t, i) => {
@@ -720,6 +815,8 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
       barGap:2,
       height:30,
       responsive:true,
+       backend: 'MediaElement',
+  media: audioEl,
     });
 
     function highlightActive(index) {
@@ -766,10 +863,10 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
         if (autoPlay) {
           ws.play();
           icon.innerHTML = '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>';
-          nowPlaying.style.visibility = "visible";
+           showNowPlaying();
         } else {
           icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-          nowPlaying.style.visibility = "hidden";
+          hideNowPlaying();
         }
       });
     }
@@ -786,19 +883,16 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
     }
 
     // PLAY / PAUSE
-    if (playBtn) {
-      playBtn.onclick = () => {
-        if(ws.isPlaying()){
-          ws.pause();
-          icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-          nowPlaying.style.visibility="hidden";
-        } else {
-          ws.play();
-          icon.innerHTML = '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>';
-          nowPlaying.style.visibility="visible";
-        }
-      };
+if (playBtn) {
+  playBtn.onclick = () => {
+    if (audioEl.paused) {
+      audioEl.play();
+    } else {
+      audioEl.pause();
     }
+  };
+}
+
 
     // BACK 10
     if (backBtn) {
@@ -831,7 +925,7 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
     }
 
     ws.on('audioprocess', () => {
-  if (!ws.isPlaying()) return;
+    if (audioEl.paused) return;
 
   const t = ws.getCurrentTime();
   const d = ws.getDuration() || 1;
@@ -847,7 +941,6 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
     ws.seekTo(0);
 
     icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-    nowPlaying.style.visibility = "hidden";
     seek.value = 0;
     cur.textContent = "00:00";
 
@@ -886,23 +979,30 @@ const PREVIEW_DURATION = ${Number(block.preview_duration || 0)};
 }
 
 
-    ws.on('ready', () => {
+ws.on('ready', () => {
+  wsReady = true;
   const duration = ws.getDuration();
 
   dur.textContent = fmt(duration);
 
+  if (!audioEl.paused) {
+    const t = audioEl.currentTime || 0;
+    audioEl.pause();
+    ws.seekTo(t / duration);
+    ws.play();
+    setPlayingUI(true); // 🔥 THIS WAS MISSING
+  }
+
   if (PREVIEW_ENABLED && PREVIEW_DURATION > 0) {
     const limit = Math.min(PREVIEW_DURATION, duration);
     const pct = (limit / duration) * 100;
-
-    // Apply CSS variable
     container.style.setProperty("--preview-stop", pct + "%");
-
-    // Add mask class
     container.classList.add("ws-preview-mask");
-
   }
 });
+
+
+
 
     ws.on('finish', () => {
       const count = tracks.length;

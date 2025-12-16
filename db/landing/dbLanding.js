@@ -1,5 +1,9 @@
 import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import crypto from "crypto";
+import { s3 } from "../../services/spacesClientV3.js";
 
 export async function getLandingPageByUser(username) {
   try {
@@ -708,4 +712,56 @@ export async function getReferralSlugByUserId(userId) {
     [userId]
   );
   return rows.length ? rows[0].slug : null;
+}
+
+export function flattenBlocks(blocks = []) {
+  const result = [];
+
+  for (const block of blocks) {
+    if (block.enabled === false) continue;
+
+    if (block.type === "container") {
+      if (Array.isArray(block.children)) {
+        result.push(...flattenBlocks(block.children));
+      }
+    } else {
+      result.push(block);
+    }
+  }
+
+  return result;
+}
+
+export async function signUpload(req, res) {
+  try {
+    const { fileName, mimeType, landingId, blockId } = req.body;
+
+    if (!fileName || !mimeType || !landingId || !blockId) {
+      return res.status(400).json({ success: false });
+    }
+
+    const ext = fileName.split(".").pop();
+    const key = `landing_blocks/${landingId}-${blockId}-${crypto.randomUUID()}.${ext}`;
+
+    const command = new PutObjectCommand({
+      Bucket: "cre8tlystudio",
+      Key: key,
+      ContentType: mimeType,
+      ACL: "public-read",
+    });
+
+    const uploadUrl = await getSignedUrl(s3, command, {
+      expiresIn: 60 * 15, // 15 minutes
+    });
+
+    res.json({
+      success: true,
+      uploadUrl,
+      fileKey: key,
+      publicUrl: `https://cre8tlystudio.nyc3.cdn.digitaloceanspaces.com/${key}`,
+    });
+  } catch (err) {
+    console.error("Sign upload error:", err);
+    res.status(500).json({ success: false });
+  }
 }

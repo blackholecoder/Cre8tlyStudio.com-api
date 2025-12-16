@@ -12,6 +12,9 @@ export function renderHead({ title, font, bg, mainOverlayColor, landingPage }) {
   )}:wght@400;600;700&display=swap" rel="stylesheet" />
 
   <style>
+  :root {
+      --landing-font: '${font}';
+    }
     ${renderLandingStyles({ bg, mainOverlayColor, landingPage })}
   </style>
 </head>

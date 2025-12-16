@@ -1,14 +1,9 @@
-export function renderLandingStyles({
-  font,
-  bg,
-  mainOverlayColor,
-  landingPage,
-}) {
+export function renderLandingStyles({ bg, mainOverlayColor, landingPage }) {
   return `
   html, body {
     margin: 0;
     padding: 0;
-    font-family: '${font}', sans-serif;
+    font-family: var(--landing-font), sans-serif;
     height: 100%;
     min-height: 100vh;
     background: ${bg};
@@ -19,6 +14,10 @@ export function renderLandingStyles({
     overscroll-behavior: none;
     color: #222;
   }
+
+  * {
+  font-family: inherit;
+}
 
     header {
   position: relative;

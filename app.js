@@ -9,7 +9,6 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
 import indexRoutes from "./routes/indexRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
@@ -43,14 +42,10 @@ import adminCommunityRoutes from "./routes/admin/communityRoutes.js";
 import deliveriesRoutes from "./routes/admin/deliveriesRoutes.js";
 import latestMagnetsRoutes from "./routes/admin/latestMagnetsRoutes.js";
 
-
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
 import adminAnalyticsRoutes from "./routes/admin/analytics/adminAnalyticsRoutes.js";
 import authAdminRoutes from "./routes/admin/authAdminRoutes.js";
 import referralRoutes from "./routes/admin/referralRoutes.js";
-
-
-
 
 import landingPageRoutes from "./routes/landing/landingPageRoutes.js";
 import landingAnalyticsRoutes from "./routes/analytics/landingAnalyticsRoutes.js";
@@ -66,23 +61,12 @@ import notificationsRoutes from "./routes/community/notifications/notificationsR
 import careersRoutes from "./routes/careers/careeersRoutes.js";
 import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js";
 
-
-
-
-
-
 import cors from "cors";
 import { detectSubdomain } from "./middleware/detectSubdomain.js";
-
 
 const app = express();
 app.set("trust proxy", 1);
 const port = 3001;
-
-
-
-
-
 
 app.use(
   "/api/webhook",
@@ -91,21 +75,28 @@ app.use(
 );
 app.use("/api/seller/webhook", sellerWebhookRoute);
 
-app.use(express.urlencoded({ extended: true }))
-app.use(express.json({limit: "500mb"})); // parse json 
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "500mb" })); // parse json
 app.use(detectSubdomain);
 
-
 // ✅ Add this here
+// app.use(
+//   fileUpload({
+//     useTempFiles: false,
+//     createParentPath: true,
+//     limits: { fileSize: 50 * 1024 * 1024 }, // optional 50MB cap
+//   })
+// );
+
 app.use(
   fileUpload({
-    useTempFiles: false,
+    useTempFiles: true,
+    tempFileDir: "/tmp",
     createParentPath: true,
-    limits: { fileSize: 50 * 1024 * 1024 }, // optional 50MB cap
+    limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // 10GB
+    abortOnLimit: true,
   })
 );
-
-
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -153,13 +144,9 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
-
+app.options("*", cors(corsOptions));
 
 app.use("/api/static", express.static(path.join(__dirname, "public")));
-
-
 
 app.get("/r/:slug", async (req, res) => {
   const { slug } = req.params;
@@ -177,18 +164,11 @@ app.get("/r/:slug", async (req, res) => {
 
     // Redirect to HOME, include referral
     return res.redirect(`https://cre8tlystudio.com/?ref=${slug}`);
-
   } catch (err) {
     console.error("Shortlink error:", err);
     return res.redirect("https://cre8tlystudio.com/");
   }
 });
-
-
-
-
-
-
 
 app.use("/api", indexRoutes);
 app.use("/api/checkout", checkoutRoutes);
@@ -202,13 +182,9 @@ app.use("/api/edit", editorRoutes);
 app.use("/api/vip", leadVipRoutes);
 app.use("/api/messages/user", messagesUserRoutes);
 
-
-
 app.use("/api/landing", landingPageRoutes);
 app.use("/api/landing-analytics", landingAnalyticsRoutes);
 app.use("/api/web-analytics", websiteAnalyticsRoutes);
-
-
 
 app.use("/", landingPageRoutes);
 app.use("/api/seller", sellerRoutes);
@@ -221,7 +197,6 @@ app.use("/api/community/topics", communityTopics);
 app.use("/api/community", communityPosts);
 app.use("/api/community", communityComments);
 app.use("/api/notifications", notificationsRoutes);
-
 
 // Admin
 app.use("/api/admin/auth", authAdminRoutes);
@@ -245,11 +220,12 @@ app.use("/api/admin/referral", referralRoutes);
 
 app.use("/api/admin/community", adminCommunityRoutes);
 
-
-
-
 app.all("*", (req, res) => {
   res.status(404).send("<h1>404 not found</h1>");
 });
 
-app.listen(port, () => console.log(`Listening on port ${port}`));
+const server = app.listen(port, () => {
+  console.log(`Listening on port ${port}`);
+});
+
+server.setTimeout(10800 * 1000);

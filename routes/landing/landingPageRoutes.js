@@ -2,6 +2,7 @@ import express from "express";
 import {
   checkUsernameAvailability,
   deleteLandingTemplate,
+  flattenBlocks,
   getCoverImageByPdfUrl,
   getLandingPageById,
   getLandingPageByUser,
@@ -13,6 +14,7 @@ import {
   restoreLandingTemplate,
   saveLandingPageLead,
   saveLandingTemplate,
+  signUpload,
   updateLandingLogo,
   updateLandingPage,
   updateTemplateVersion,
@@ -25,8 +27,6 @@ import { blendColors } from "../../utils/blendColors.js";
 import { optimizeImageUpload } from "../../helpers/optimizeImageUpload.js";
 import { exec } from "child_process";
 import fs from "fs";
-import path from "path";
-import os from "os";
 import { renderHead } from "./renderers/layout/renderHead.js";
 import { renderFooter } from "./renderers/layout/renderFooter.js";
 import { renderLegalFooter } from "./renderers/layout/renderLegalFooter.js";
@@ -92,14 +92,18 @@ router.get("/", async (req, res, next) => {
     // --- 3️⃣ Parse structured content blocks
     let contentHTML = "";
 
-    const blocks = Array.isArray(landingPage.content_blocks)
+    const rawBlocks = Array.isArray(landingPage.content_blocks)
       ? landingPage.content_blocks
       : [];
+
+    const flattenedBlocks = flattenBlocks(rawBlocks);
 
     // --- 4️⃣ Build HTML from parsed blocks
     try {
       // 🧹 Remove offer_banner from normal rendering so it only appears at the top
-      const contentBlocks = blocks.filter((b) => b.type !== "offer_banner");
+      const contentBlocks = flattenedBlocks.filter(
+        (b) => b.type !== "offer_banner"
+      );
 
       contentHTML = renderLandingBlocks({
         blocks: contentBlocks,
@@ -119,9 +123,9 @@ router.get("/", async (req, res, next) => {
 
     // ✅ Move offer_banner above cover image automatically
     let bannerHTML = "";
-    if (blocks.some((b) => b.type === "offer_banner")) {
+    if (flattenedBlocks.some((b) => b.type === "offer_banner")) {
       // extract only the banner parts
-      bannerHTML = blocks
+      bannerHTML = flattenedBlocks
         .filter((b) => b.type === "offer_banner")
         .map((b) => {
           const bannerBg = b.match_main_bg
@@ -176,7 +180,8 @@ router.get("/", async (req, res, next) => {
     };
     color:${b.button_text_color || b.text_color || "#fff"};
     padding:22px 36px;             
-    border-radius:8px;             
+    border-radius:8px;  
+    font-family: var(--landing-font);           
     font-weight:700;
     font-size:1rem;
     cursor:pointer;
@@ -514,6 +519,7 @@ router.post("/upload-logo", async (req, res) => {
 });
 
 router.post("/upload-media-block", async (req, res) => {
+  console.log("🚀 Upload request received");
   const MAX_AUDIO_SECONDS = 3 * 60 * 60;
 
   try {
@@ -525,6 +531,12 @@ router.post("/upload-media-block", async (req, res) => {
     } else if (req.files?.image && req.files.image.size > 0) {
       file = req.files.image;
     }
+
+    console.log("📦 File received:", {
+      name: file.name,
+      sizeMB: Math.round(file.size / 1024 / 1024),
+      mimetype: file.mimetype,
+    });
 
     if (!file) {
       return res.status(400).json({
@@ -551,12 +563,20 @@ router.post("/upload-media-block", async (req, res) => {
       });
     }
 
-    let bufferToUpload = file.data;
+    let bufferToUpload;
+
+    if (file.tempFilePath) {
+      bufferToUpload = fs.readFileSync(file.tempFilePath);
+    } else {
+      bufferToUpload = file.data;
+    }
+
+    console.log("🧠 Buffer length:", bufferToUpload?.length);
 
     // 🖼 If it's an image, optimize first
     if (isImage) {
       const { optimizedBuffer } = await optimizeImageUpload(
-        file.data,
+        bufferToUpload,
         file.mimetype
       );
       bufferToUpload = optimizedBuffer;
@@ -564,19 +584,19 @@ router.post("/upload-media-block", async (req, res) => {
 
     // 🎧 AUDIO DURATION LIMIT (3 HOURS MAX)
     if (isAudio) {
-      const tempPath = path.join(
-        os.tmpdir(),
-        `audio-check-${Date.now()}-${file.name}`
-      );
-
-      fs.writeFileSync(tempPath, file.data);
-
       try {
-        const duration = await getAudioDuration(tempPath);
+        const durationStart = Date.now();
+        const duration = await getAudioDuration(file.tempFilePath);
+
+        console.log(
+          "✅ Duration checked:",
+          duration,
+          "seconds in",
+          Date.now() - durationStart,
+          "ms"
+        );
 
         if (duration > MAX_AUDIO_SECONDS) {
-          fs.unlinkSync(tempPath);
-
           return res.status(400).json({
             success: false,
             message: "Audio exceeds maximum length of 3 hours",
@@ -585,11 +605,8 @@ router.post("/upload-media-block", async (req, res) => {
           });
         }
       } catch (err) {
-        fs.unlinkSync(tempPath);
         throw err;
       }
-
-      fs.unlinkSync(tempPath);
     }
 
     // 🎧 If audio, no optimization needed — passthrough upload
@@ -605,8 +622,16 @@ router.post("/upload-media-block", async (req, res) => {
     // Final filename
     const fileName = `landing_blocks/${landingId}-${blockId}-${Date.now()}.${ext}`;
 
+    console.log("☁️ Uploading to Spaces...");
+
     // Upload to Spaces
     const result = await uploadFileToSpaces(bufferToUpload, fileName, mimetype);
+
+    console.log("✅ Spaces upload complete:", result.Location);
+
+    if (file.tempFilePath) {
+      fs.unlinkSync(file.tempFilePath);
+    }
 
     res.json({
       success: true,
@@ -758,5 +783,7 @@ router.delete("/delete-template/:id", authenticateToken, async (req, res) => {
     return res.json({ success: false, message: "Server error" });
   }
 });
+
+router.post("/sign-upload", signUpload);
 
 export default router;
