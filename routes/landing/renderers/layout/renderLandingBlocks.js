@@ -1,4 +1,5 @@
 import { renderAudioPlayerBlock } from "../blocks/audioPlayer.js";
+import { renderButtonBlock } from "../blocks/buttonBlock.js";
 import { renderCalendlyBlock } from "../blocks/calendly.js";
 import { renderCountdownBlock } from "../blocks/countdown.js";
 import { renderFaqBlock } from "../blocks/faq.js";
@@ -63,6 +64,9 @@ export function renderLandingBlocks({
 
         case "referral_button":
           return renderReferralButtonBlock(block, landingPage);
+
+        case "button_url":
+          return renderButtonBlock(block, landingPage);
 
         case "verified_reviews":
           return renderVerifiedReviewsBlock(block, landingPage);
