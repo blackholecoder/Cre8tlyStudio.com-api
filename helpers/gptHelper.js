@@ -14,17 +14,17 @@ export async function askGPT(userIdea, options = {}) {
     isFreeTier = false,
   } = options;
 
-   if (isFreeTier) {
+  if (isFreeTier) {
     safePages = 2;
     wordsPerPage = 500;
     totalWords = 1000;
   }
-  
 
   if (!totalWords) totalWords = safePages * wordsPerPage;
 
-  console.log(`🧠 askGPT generating: ${mode} — ${safePages} sections (${totalWords} words total)`);
-
+  console.log(
+    `🧠 askGPT generating: ${mode} — ${safePages} sections (${totalWords} words total)`
+  );
 
   // 🧩 Base system prompt
   let systemPrompt = `
@@ -126,21 +126,17 @@ Mode: ${mode}
     return response.choices[0].message.content;
   } catch (error) {
     if (error.code === "TIMEOUT") {
-      console.error("⚠️ GPT timeout — suggest fewer sections or shorter content.");
+      console.error(
+        "⚠️ GPT timeout — suggest fewer sections or shorter content."
+      );
     }
     console.error("❌ GPT error:", error);
     throw error;
   }
 }
 
-
-
 export async function generateLearningDoc(topic, options = {}) {
-  const {
-    totalWords = 5000,
-    safePages = 5,
-    wordsPerPage = 500,
-  } = options;
+  const { totalWords = 5000, safePages = 5, wordsPerPage = 500 } = options;
 
   // ⏱ Timeout safeguard
   const timeoutPromise = new Promise((_, reject) =>
@@ -190,7 +186,7 @@ Write a full, structured document that teaches, explains, and explores a single 
 - Maintain a professional, book-quality tone suitable for experts.
 
 Audience: professionals, entrepreneurs, and experts who expect a serious, premium-level deep dive.
-`
+`,
         },
         {
           role: "user",
@@ -210,7 +206,7 @@ Each section should:
 Insert "<!--PAGEBREAK-->" between sections to clearly separate them.
 
 Do not stop early — expand fully until all sections are complete.
-`
+`,
         },
       ],
     });
@@ -223,3 +219,55 @@ Do not stop early — expand fully until all sections are complete.
   }
 }
 
+export async function generateAILandingPage({ prompt, blockType }) {
+  if (!prompt || !prompt.trim()) {
+    throw new Error("Prompt is required");
+  }
+
+  // ⏱ Timeout safeguard (shorter for copy)
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(
+      () =>
+        reject(
+          Object.assign(new Error("GPT request timed out after 60 seconds"), {
+            code: "TIMEOUT",
+          })
+        ),
+      60000
+    )
+  );
+
+  const systemPrompt = `
+You are a professional landing page copywriter.
+
+Your job is to write high quality, production-ready copy
+for a "${blockType}" block on a landing page.
+
+Rules:
+- Write ONLY the final copy, no explanations
+- Do NOT repeat the prompt or instructions
+- Do NOT mention PDFs, prompts, or AI
+- Keep it clear, natural, and human
+- Match the expected length for a ${blockType} block
+- Avoid hype unless the prompt explicitly asks for it
+- Use commas instead of dashes
+`.trim();
+
+  try {
+    const gptPromise = client.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.7,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
+    });
+
+    const response = await Promise.race([gptPromise, timeoutPromise]);
+
+    return response.choices[0].message.content.trim();
+  } catch (error) {
+    console.error("GPT Landing Page Error:", error);
+    throw error;
+  }
+}

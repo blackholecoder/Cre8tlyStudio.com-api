@@ -31,14 +31,17 @@ export function renderFaqBlock(block, landingPage, ctx) {
   -ms-user-select:none;
 ">
   <h2 style="
-    font-size:1.8rem;
-    font-weight:700;
-    margin-bottom:20px;
-    text-align:${align};
-    color:${textColor};
-  ">
-    ${block.title || "Frequently Asked Questions"}
-  </h2>
+  display:block;
+  width:100%;
+  font-size:1.8rem;
+  font-weight:700;
+  padding-bottom:40px;
+  text-align:${align};
+  color:${textColor};
+  box-sizing:border-box;
+">
+  ${block.title || "Frequently Asked Questions"}
+</h2>
 
   ${items
     .map((item, i) => {
@@ -62,7 +65,27 @@ export function renderFaqBlock(block, landingPage, ctx) {
         font-size:1.1rem;
       ">
         <span>${item.q || ""}</span>
-        <span class="faq-icon" style="margin-left:12px;">+</span>
+        <span class="faq-icon" style="
+  margin-left:16px;
+  display:flex;
+  align-items:center;
+  transition:transform 0.3s ease;
+">
+  <svg
+    width="30"
+    height="30"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+</span>
+
       </div>
 
       <div id="${id}" style="
@@ -95,12 +118,12 @@ function toggleFaq(id){
   const isOpen = el.style.height && el.style.height !== "0px";
 
   if (isOpen) {
-    el.style.height = "0px";
-    if (icon) icon.textContent = "+";
-  } else {
-    el.style.height = el.scrollHeight + "px";
-    if (icon) icon.textContent = "x";
-  }
+  el.style.height = "0px";
+  if (icon) icon.style.transform = "rotate(0deg)";
+} else {
+  el.style.height = el.scrollHeight + "px";
+  if (icon) icon.style.transform = "rotate(45deg)";
+}
 }
 </script>
 `;

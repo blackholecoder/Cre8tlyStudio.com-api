@@ -40,6 +40,7 @@ import { renderLeadCaptureForm } from "./renderers/layout/renderLeadCaptureForm.
 import { renderCoverImage } from "./renderers/layout/renderCoverImage.js";
 import { renderContentArea } from "./renderers/layout/renderContentArea.js";
 import { renderLandingBlocks } from "./renderers/layout/renderLandingBlocks.js";
+import { generateAILandingPage } from "../../helpers/gptHelper.js";
 
 const router = express.Router();
 
@@ -781,6 +782,26 @@ router.delete("/delete-template/:id", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("❌ delete-template error:", err);
     return res.json({ success: false, message: "Server error" });
+  }
+});
+
+router.post("/generate-copy", async (req, res) => {
+  try {
+    const { prompt, blockType } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
+    }
+
+    const text = await generateAILandingPage({
+      prompt,
+      blockType: blockType || "paragraph",
+    });
+
+    res.json({ success: true, text });
+  } catch (err) {
+    console.error("AI COPY ERROR:", err);
+    res.status(500).json({ error: "Failed to generate copy" });
   }
 });
 
