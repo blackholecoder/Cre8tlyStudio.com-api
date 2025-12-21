@@ -4,7 +4,8 @@ export function renderStripeCheckoutBlock(block, landingPage) {
   const buttonColor = block.button_color || "#10b981";
   const textColor = block.text_color || "#000";
   const alignment = block.alignment || "center";
-  const pdfUrl = block.pdf_url || landingPage.pdf_url || "";
+
+  const productSource = block.product_source || "internal";
 
   return `
 <div id="buy-now" style="
@@ -15,8 +16,9 @@ export function renderStripeCheckoutBlock(block, landingPage) {
     class="btn" 
     onclick="startSellerCheckout(
       '${landingPage.id}',
+      '${block.id}',
+      '${productSource}',
       '${landingPage.user_id}',
-      '${pdfUrl}',
       ${Math.round(price * 100)}
     )"
     style="

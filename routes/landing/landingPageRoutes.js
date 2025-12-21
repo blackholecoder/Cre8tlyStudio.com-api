@@ -655,6 +655,72 @@ router.post("/upload-media-block", async (req, res) => {
   }
 });
 
+router.post("/upload-product", async (req, res) => {
+  try {
+    const { landingId, blockId } = req.body;
+    const file = req.files?.file;
+
+    if (!landingId || !blockId || !file) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing landingId, blockId, or product file",
+      });
+    }
+
+    const mimetype = file.mimetype.toLowerCase();
+
+    const allowedTypes = ["application/pdf", "application/zip"];
+
+    if (!allowedTypes.includes(mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: "Only PDF or ZIP files are allowed",
+      });
+    }
+
+    let bufferToUpload;
+
+    if (file.tempFilePath) {
+      bufferToUpload = fs.readFileSync(file.tempFilePath);
+    } else {
+      bufferToUpload = file.data;
+    }
+
+    const ext = file.name.split(".").pop().toLowerCase();
+
+    const fileName = `landing_products/${landingId}/${blockId}/${Date.now()}-${
+      file.name
+    }`;
+
+    console.log("☁️ Uploading product to Spaces...");
+
+    const result = await uploadFileToSpaces(
+      bufferToUpload,
+      fileName,
+      mimetype,
+      { private: true } // optional if supported
+    );
+
+    if (file.tempFilePath) {
+      fs.unlinkSync(file.tempFilePath);
+    }
+
+    res.json({
+      success: true,
+      url: result.Location,
+      file_name: file.name,
+      mime_type: mimetype,
+      storage_key: fileName,
+    });
+  } catch (err) {
+    console.error("❌ Error uploading product:", err);
+    res.status(500).json({
+      success: false,
+      message: "Product upload failed",
+    });
+  }
+});
+
 router.get("/lead-magnets/cover", async (req, res) => {
   try {
     const { pdfUrl } = req.query;

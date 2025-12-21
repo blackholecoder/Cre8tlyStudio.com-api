@@ -6,7 +6,7 @@ import {
 import { deliverDigitalProduct } from "../services/deliveryService.js";
 import { getLandingPageById } from "../db/landing/dbLanding.js";
 import { sendOutLookMail } from "../utils/sendOutllokMail.js";
-import { insertDelivery } from "../db/dbDeliveries.js";
+import { hasDeliveryBySessionId, insertDelivery } from "../db/dbDeliveries.js";
 
 // 🧠 Fired when a seller completes verification or updates info
 export async function handleAccountUpdated(account) {
@@ -32,15 +32,31 @@ export async function handleExternalAccountChange(event) {
 export async function handleCheckoutCompleted(session) {
   console.log(`💳 Checkout completed for ${session.id}`);
 
+  const alreadyDelivered = await hasDeliveryBySessionId(session.id);
+  if (alreadyDelivered) {
+    console.warn("⚠️ Duplicate Stripe webhook ignored", {
+      sessionId: session.id,
+    });
+    return;
+  }
+
   const buyerEmail = session.customer_details?.email;
   const productId = session.metadata?.product_id;
   const sellerAccountId = session.account;
-
   // 🧩 New: handle landing-page based checkout (PDF sale)
   const landingPageId = session.metadata?.landingPageId;
-  const pdfUrl = session.metadata?.pdfUrl;
+  const blockId = session.metadata?.blockId;
+  const productSource = session.metadata?.productSource;
   const sellerId = session.metadata?.sellerId;
-  const leadMagnetId = session.metadata?.leadMagnetId;
+
+  if (landingPageId && !blockId) {
+    console.error("❌ Landing checkout missing blockId", {
+      sessionId: session.id,
+      landingPageId,
+      metadata: session.metadata,
+    });
+    return;
+  }
 
   try {
     // 🎵 AUDIO PURCHASE — SINGLE OR ALBUM
@@ -54,8 +70,6 @@ export async function handleCheckoutCompleted(session) {
         console.warn("⚠️ Missing buyer email for audio purchase");
         return;
       }
-
-      const blockId = session.metadata?.blockId;
 
       // Array of audio URLs
       const audioFiles = JSON.parse(session.metadata.audio_urls || "[]");
@@ -142,66 +156,68 @@ export async function handleCheckoutCompleted(session) {
     }
 
     // 🧠 Case 2: Paid landing page PDF download
-    if (landingPageId && pdfUrl && buyerEmail) {
-      const landingPage = await getLandingPageById(landingPageId);
-      if (!landingPage) {
-        console.warn(`⚠️ Landing page ${landingPageId} not found`);
+    if (landingPageId && blockId && buyerEmail) {
+      if (!productSource) {
+        console.error("❌ Missing productSource for landing checkout", {
+          sessionId: session.id,
+          blockId,
+          metadata: session.metadata,
+        });
         return;
       }
 
-      let productName = "Digital Product";
+      const downloadUrl = session.metadata?.downloadUrl;
+      const productName =
+        session.metadata?.productTitle ||
+        session.metadata?.productName ||
+        "Digital Product";
 
-      if (session.metadata?.productTitle) {
-        productName = session.metadata.productTitle;
-      } else if (session.metadata?.leadMagnetTitle) {
-        productName = session.metadata.leadMagnetTitle;
-      } else if (landingPage?.title) {
-        productName = landingPage.title;
+      if (!downloadUrl) {
+        console.error("❌ Missing downloadUrl in Stripe metadata", {
+          sessionId: session.id,
+          metadata: session.metadata,
+        });
+        return;
       }
 
-      // ✅ Insert delivery record for verified reviews
       await insertDelivery({
-        user_id: sellerId, // seller’s user ID
-        seller_stripe_id: landingPageId, // we use this as contextual page ref
-        product_id: leadMagnetId, // specific eBook (for reviews)
+        user_id: sellerId,
+        seller_stripe_id: landingPageId,
+        product_id: blockId,
         product_name: productName,
-        download_url: pdfUrl,
+        download_url: downloadUrl,
         buyer_email: buyerEmail,
         stripe_session_id: session.id,
       });
 
       const emailHtml = `
-        <div style="font-family: Helvetica, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
-          <div style="text-align:center;margin-bottom:25px;">
-            <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" style="width:120px;margin-bottom:15px;"/>
-            <h1 style="color:#7bed9f;font-size:26px;margin:0;">Your Purchase is Ready</h1>
-          </div>
-          <p style="color:#e5e5e5;text-align:center;">
-            Thanks for purchasing <strong style="color:#fff;">${
-              landingPage.username
-            }</strong>’s product!
-          </p>
-          <div style="text-align:center;margin-top:30px;">
-            <a href="${pdfUrl}" target="_blank"
-              style="background:linear-gradient(90deg,#7bed9f,#670fe7);color:#fff;padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">
-              Download Your PDF
-            </a>
-          </div>
-          <p style="color:#777;font-size:12px;text-align:center;margin-top:30px;">
-            © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital
-          </p>
-        </div>
-      `;
+    <div style="font-family: Helvetica, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
+      <div style="text-align:center;margin-bottom:25px;">
+        <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" style="width:120px;margin-bottom:15px;"/>
+        <h1 style="color:#7bed9f;font-size:26px;margin:0;">Your Purchase is Ready</h1>
+      </div>
+      <p style="color:#e5e5e5;text-align:center;">
+  Thanks for your purchase!
+</p>
+      <div style="text-align:center;margin-top:30px;">
+        <a href="${downloadUrl}" target="_blank"
+          style="background:linear-gradient(90deg,#7bed9f,#670fe7);color:#fff;padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">
+          Download Your Product
+        </a>
+      </div>
+      <p style="color:#777;font-size:12px;text-align:center;margin-top:30px;">
+        © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital
+      </p>
+    </div>
+  `;
 
       await sendOutLookMail({
         to: buyerEmail,
-        subject: `📘 Your download from ${landingPage.username}`,
+        subject: `📦 Your download is ready`,
         html: emailHtml,
       });
 
-      console.log(
-        `✅ Purchase email sent to ${buyerEmail} for ${landingPage.username}`
-      );
+      console.log(`✅ Block-based purchase delivered to ${buyerEmail}`);
       return;
     }
 

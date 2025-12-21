@@ -81,3 +81,19 @@ export async function getDeliveryBySessionId(sessionId) {
     return null; // Return safe fallback instead of crashing
   }
 }
+
+export async function hasDeliveryBySessionId(stripeSessionId) {
+  const db = connect();
+
+  const [rows] = await db.query(
+    `
+    SELECT id
+    FROM deliveries
+    WHERE stripe_session_id = ?
+    LIMIT 1
+    `,
+    [stripeSessionId]
+  );
+
+  return rows.length > 0;
+}

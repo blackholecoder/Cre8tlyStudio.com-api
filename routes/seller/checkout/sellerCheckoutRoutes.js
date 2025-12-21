@@ -11,47 +11,100 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 // 🎯 Create a checkout session for a connected account
 
 router.post("/create-checkout-session", async (req, res) => {
-  try {
-    const { landingPageId, pdfUrl, sellerId, price_in_cents } = req.body;
+  console.log("① ENTERED checkout route");
 
-    // Get landing page info
-    const landingPage = await getLandingPageById(landingPageId);
-    if (!landingPage || !landingPage.stripe_connect_account_id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid landing page data" });
+  try {
+    const { landingPageId, blockId, productSource, sellerId, price_in_cents } =
+      req.body;
+
+    console.log("② BODY PARSED", req.body);
+
+    if (!landingPageId || !blockId || !productSource) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing landingPageId, blockId, or productSource",
+      });
     }
+
+    const landingPage = await getLandingPageById(landingPageId);
+
+    if (!landingPage || !landingPage.stripe_connect_account_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid landing page data",
+      });
+    }
+
+    console.log("③ LANDING PAGE FETCHED", !!landingPage);
 
     const accountId = landingPage.stripe_connect_account_id;
 
-    // ✅ Determine which PDF version to use (edited or original)
-    const finalPdfUrl = pdfUrl || landingPage.pdf_url;
-    if (!finalPdfUrl) {
-      return res
-        .status(400)
-        .json({ success: false, message: "No PDF linked to landing page" });
+    let blocks = [];
+    try {
+      blocks = Array.isArray(landingPage.content_blocks)
+        ? landingPage.content_blocks
+        : JSON.parse(landingPage.content_blocks || "[]");
+    } catch {
+      return res.status(500).json({
+        success: false,
+        message: "Invalid content_blocks JSON",
+      });
     }
 
-    // ✅ Fetch matching lead magnet for visuals and price
-    const leadMagnet = await getLeadMagnetByPdfUrl(finalPdfUrl);
+    console.log("④ BLOCKS PARSED", blocks.length);
 
-    // ✅ Determine price (priority: frontend > lead magnet > landing page)
+    const allBlocks = [];
+
+    for (const block of blocks) {
+      allBlocks.push(block);
+
+      if (Array.isArray(block.children)) {
+        allBlocks.push(...block.children);
+      }
+    }
+
+    const checkoutBlock = allBlocks.find((b) => b.id === blockId);
+
+    if (!checkoutBlock) {
+      return res.status(404).json({
+        success: false,
+        message: "Checkout block not found",
+      });
+    }
+
     const price =
       price_in_cents ||
-      (leadMagnet?.price
-        ? Math.round(leadMagnet.price * 100)
-        : landingPage.price_in_cents);
+      (checkoutBlock.price ? Math.round(checkoutBlock.price * 100) : null);
 
     if (!price) {
       return res.status(400).json({
         success: false,
-        message: "Missing price information for this product",
+        message: "Missing price information",
       });
     }
 
-    // ✅ Use title and cover image from lead magnet (fallback to landing page)
-    const productTitle =
-      leadMagnet?.title || landingPage.title || "Digital Download";
+    let downloadUrl;
+
+    if (productSource === "internal") {
+      downloadUrl = checkoutBlock.pdf_url;
+    }
+
+    if (productSource === "external") {
+      downloadUrl = checkoutBlock.external_file_url;
+    }
+
+    if (!downloadUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "No downloadable file linked to this product",
+      });
+    }
+
+    const leadMagnet =
+      productSource === "internal"
+        ? await getLeadMagnetByPdfUrl(downloadUrl)
+        : null;
+
     const productImage = leadMagnet?.cover_image
       ? [leadMagnet.cover_image]
       : [
@@ -59,7 +112,20 @@ router.post("/create-checkout-session", async (req, res) => {
             "https://cre8tlystudio.com/default-cover.png",
         ];
 
-    // ✅ Create Checkout Session with platform fee (10 %)
+    // external upload
+    let productTitle;
+
+    // INTERNAL = lead magnet title
+    if (productSource === "internal") {
+      productTitle =
+        leadMagnet?.title || landingPage.title || "Digital Download";
+    }
+
+    // EXTERNAL = file name
+    if (productSource === "external") {
+      productTitle = checkoutBlock.external_file_name || "Digital Download";
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -79,25 +145,29 @@ router.post("/create-checkout-session", async (req, res) => {
       payment_intent_data: {
         application_fee_amount: Math.round(price * 0.2),
         transfer_data: {
-          destination: accountId, // ✅ seller’s account
+          destination: accountId,
         },
       },
       metadata: {
         landingPageId: landingPage.id,
-        pdfUrl: finalPdfUrl,
+        blockId,
+        productSource,
         sellerId: sellerId || landingPage.user_id,
-        leadMagnetId: leadMagnet?.id || null,
-        productTitle: productTitle,
+        downloadUrl, // ✅ REQUIRED
+        productTitle,
       },
       success_url: `${process.env.FRONTEND_URL}/thank-you?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/`,
     });
 
+    console.log("⑧ STRIPE SESSION CREATED", session?.id);
+
     res.json({ success: true, url: session.url });
   } catch (err) {
     console.error("❌ Stripe checkout error:", err.message);
     if (err.raw) console.error("⚙️ Stripe raw:", err.raw);
-    return res.status(500).json({
+
+    res.status(500).json({
       success: false,
       message: err.message,
       stripe_error: err.raw?.message || null,
@@ -109,46 +179,38 @@ router.get("/downloads/:sessionId/file", async (req, res) => {
   try {
     const { sessionId } = req.params;
     if (!sessionId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing session ID" });
+      return res.status(400).json({
+        success: false,
+        message: "Missing session ID",
+      });
     }
 
-    // 🧾 Retrieve session info from Stripe
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent"],
-    });
+    // ✅ SOURCE OF TRUTH: deliveries table
+    const delivery = await getDeliveryBySessionId(sessionId);
 
-    if (!session || session.payment_status !== "paid") {
-      return res
-        .status(403)
-        .json({ success: false, message: "Payment not completed" });
+    if (!delivery) {
+      return res.status(404).json({
+        success: false,
+        message: "Download not ready yet",
+      });
     }
 
-    const { landingPageId, pdfUrl } = session.metadata || {};
-    if (!landingPageId || !pdfUrl) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No linked download found" });
-    }
+    const pdfUrl = delivery.download_url;
+    const title = delivery.product_name || "Cre8tly_Download";
 
-    // 🧠 Try to get the magnet title from DB
-    const magnet = await getLeadMagnetByPdfUrl(pdfUrl);
-    const magnetTitle = magnet?.title || "Cre8tly_Download";
-
-    // ✅ Build proxy URL including the title
     const proxyUrl = `${
       process.env.SITE_URL
     }/api/pdf/proxy?url=${encodeURIComponent(
-      pdfUrl.startsWith("http") ? pdfUrl : `https://${pdfUrl}`
-    )}&title=${encodeURIComponent(magnetTitle)}`;
+      pdfUrl
+    )}&title=${encodeURIComponent(title)}`;
 
     res.redirect(proxyUrl);
   } catch (err) {
     console.error("❌ Error retrieving download:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch download" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch download",
+    });
   }
 });
 
