@@ -93,46 +93,101 @@ export async function handleCheckoutCompleted(session) {
 
       // Send email to buyer
       const emailHtml = `
-  <div style="font-family: Helvetica, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
-    
-    <!-- HEADER -->
-    <div style="text-align:center;margin-bottom:25px;">
-      <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" style="width:120px;margin-bottom:15px;"/>
-      <h1 style="color:#7bed9f;font-size:26px;margin:0;">Your Audio is Ready</h1>
-    </div>
+  <div style="
+    font-family: Helvetica, Arial, sans-serif;
+    background-color: #f9fafb;
+    padding: 40px 20px;
+  ">
+    <div style="
+      max-width: 520px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 30px rgba(0,0,0,0.06);
+    ">
 
-    <!-- COVER IMAGE (Only if exists) -->
-    ${
-      session.metadata?.cover_url
-        ? `
-        <div style="text-align:center;margin-bottom:25px;">
-          <img 
-            src="${session.metadata.cover_url}" 
-            style="width:150px;height:150px;object-fit:cover;border-radius:12px;border:1px solid #222;margin-bottom:10px;"
-          />
+      <!-- HEADER -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
+        <img 
+          src="https://cre8tlystudio.com/cre8tly-logo.png"
+          style="width:48px;height:48px;object-fit:contain;"
+        />
+        <div style="line-height:1.1;">
+          <div style="font-size:18px;font-weight:600;color:#111827;">
+            Cre8tly Studio
+          </div>
         </div>
-        `
-        : ""
-    }
+      </div>
 
-    <p style="color:#e5e5e5;text-align:center;">
-      Thanks for your purchase!
-    </p>
+      <h1 style="
+        font-size:26px;
+        font-weight:700;
+        color:#111827;
+        margin-bottom:8px;
+      ">
+        Your audio is ready
+      </h1>
 
-    <!-- BUTTON -->
-    <div style="text-align:center;margin-top:30px;">
-      <a href="${process.env.FRONTEND_URL}/thank-you?session_id=${session.id}"
-         style="background:linear-gradient(90deg,#7bed9f,#670fe7);color:#fff;
-                padding:14px 34px;border-radius:8px;text-decoration:none;
-                font-weight:700;display:inline-block;">
-        Access Your Audio Files
+      <p style="
+        font-size:14px;
+        color:#4b5563;
+        margin-bottom:24px;
+      ">
+        Thanks for your purchase. Your audio files are ready to access.
+      </p>
+
+      <!-- COVER IMAGE -->
+      ${
+        session.metadata?.cover_url
+          ? `
+          <div style="text-align:center;margin-bottom:24px;">
+            <img
+              src="${session.metadata.cover_url}"
+              style="
+                width:160px;
+                height:160px;
+                object-fit:cover;
+                border-radius:12px;
+                border:1px solid #e5e7eb;
+              "
+            />
+          </div>
+          `
+          : ""
+      }
+
+      <!-- BUTTON -->
+      <a
+        href="${process.env.FRONTEND_URL}/thank-you?session_id=${session.id}"
+        style="
+          display:block;
+          width:100%;
+          text-align:center;
+          background:#111827;
+          color:#ffffff;
+          padding:14px 0;
+          border-radius:10px;
+          text-decoration:none;
+          font-weight:600;
+          font-size:15px;
+          margin-top:16px;
+        "
+      >
+        Access your audio files
       </a>
-    </div>
 
-    <!-- FOOTER -->
-    <p style="color:#777;font-size:12px;text-align:center;margin-top:30px;">
-      © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital
-    </p>
+      <!-- FOOTER -->
+      <p style="
+        margin-top:32px;
+        text-align:center;
+        font-size:12px;
+        color:#9ca3af;
+      ">
+        © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital
+      </p>
+    </div>
   </div>
 `;
 
@@ -191,25 +246,82 @@ export async function handleCheckoutCompleted(session) {
       });
 
       const emailHtml = `
-    <div style="font-family: Helvetica, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
-      <div style="text-align:center;margin-bottom:25px;">
-        <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" style="width:120px;margin-bottom:15px;"/>
-        <h1 style="color:#7bed9f;font-size:26px;margin:0;">Your Purchase is Ready</h1>
+  <div style="
+    font-family: Helvetica, Arial, sans-serif;
+    background-color: #f9fafb;
+    padding: 40px 20px;
+  ">
+    <div style="
+      max-width: 520px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 30px rgba(0,0,0,0.06);
+    ">
+
+      <!-- HEADER -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
+        <img
+          src="https://cre8tlystudio.com/cre8tly-logo.png"
+          style="width:48px;height:48px;object-fit:contain;"
+        />
+        <div style="font-size:18px;font-weight:600;color:#111827;">
+          Cre8tly Studio
+        </div>
       </div>
-      <p style="color:#e5e5e5;text-align:center;">
-  Thanks for your purchase!
-</p>
-      <div style="text-align:center;margin-top:30px;">
-        <a href="${downloadUrl}" target="_blank"
-          style="background:linear-gradient(90deg,#7bed9f,#670fe7);color:#fff;padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">
-          Download Your Product
-        </a>
-      </div>
-      <p style="color:#777;font-size:12px;text-align:center;margin-top:30px;">
+
+      <h1 style="
+        font-size:26px;
+        font-weight:700;
+        color:#111827;
+        margin-bottom:8px;
+      ">
+        Your purchase is ready
+      </h1>
+
+      <p style="
+        font-size:14px;
+        color:#4b5563;
+        margin-bottom:24px;
+      ">
+        Thanks for your purchase. Your product is ready to download.
+      </p>
+
+      <!-- BUTTON -->
+      <a
+        href="${downloadUrl}"
+        target="_blank"
+        style="
+          display:block;
+          width:100%;
+          text-align:center;
+          background:#111827;
+          color:#ffffff;
+          padding:14px 0;
+          border-radius:10px;
+          text-decoration:none;
+          font-weight:600;
+          font-size:15px;
+          margin-top:8px;
+        "
+      >
+        Download your product
+      </a>
+
+      <!-- FOOTER -->
+      <p style="
+        margin-top:32px;
+        text-align:center;
+        font-size:12px;
+        color:#9ca3af;
+      ">
         © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital
       </p>
     </div>
-  `;
+  </div>
+`;
 
       await sendOutLookMail({
         to: buyerEmail,

@@ -504,7 +504,16 @@ router.post("/upload-logo", async (req, res) => {
     // Build filename and upload to Spaces
     const ext = logo.name.split(".").pop();
     const fileName = `landing_logos/${landingId}-${Date.now()}.${ext}`;
-    const result = await uploadFileToSpaces(logo.data, fileName, logo.mimetype);
+
+    const fileBuffer = fs.readFileSync(logo.tempFilePath);
+
+    const result = await uploadFileToSpaces(
+      fileBuffer,
+      fileName,
+      logo.mimetype
+    );
+
+    fs.unlinkSync(logo.tempFilePath);
 
     // Save URL to DB
     await updateLandingLogo(landingId, result.Location);
