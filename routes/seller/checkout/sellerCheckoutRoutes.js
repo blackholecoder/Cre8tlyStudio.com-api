@@ -11,13 +11,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 // 🎯 Create a checkout session for a connected account
 
 router.post("/create-checkout-session", async (req, res) => {
-  console.log("① ENTERED checkout route");
-
   try {
     const { landingPageId, blockId, productSource, sellerId, price_in_cents } =
       req.body;
-
-    console.log("② BODY PARSED", req.body);
 
     if (!landingPageId || !blockId || !productSource) {
       return res.status(400).json({
@@ -35,8 +31,6 @@ router.post("/create-checkout-session", async (req, res) => {
       });
     }
 
-    console.log("③ LANDING PAGE FETCHED", !!landingPage);
-
     const accountId = landingPage.stripe_connect_account_id;
 
     let blocks = [];
@@ -50,8 +44,6 @@ router.post("/create-checkout-session", async (req, res) => {
         message: "Invalid content_blocks JSON",
       });
     }
-
-    console.log("④ BLOCKS PARSED", blocks.length);
 
     const allBlocks = [];
 
@@ -159,8 +151,6 @@ router.post("/create-checkout-session", async (req, res) => {
       success_url: `${process.env.FRONTEND_URL}/thank-you?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/`,
     });
-
-    console.log("⑧ STRIPE SESSION CREATED", session?.id);
 
     res.json({ success: true, url: session.url });
   } catch (err) {

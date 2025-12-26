@@ -28,6 +28,8 @@ import bodyParser from "body-parser";
 // Checkout for Ebooks
 import ebookCheckoutRoutes from "./routes/ebookCheckout/ebookCheckoutRoutes.js";
 
+import previewRouter from "./routes/landing/preview.js";
+
 // Admin Imports
 import usersRoutes from "./routes/admin/usersRoutes.js";
 import statsRoutes from "./routes/admin/statsRoutes.js";
@@ -73,20 +75,15 @@ app.use(
   bodyParser.raw({ type: "application/json" }),
   webhookRoutes
 );
-app.use("/api/seller/webhook", sellerWebhookRoute);
+app.use(
+  "/api/seller/webhook",
+  bodyParser.raw({ type: "application/json" }),
+  sellerWebhookRoute
+);
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "500mb" })); // parse json
 app.use(detectSubdomain);
-
-// ✅ Add this here
-// app.use(
-//   fileUpload({
-//     useTempFiles: false,
-//     createParentPath: true,
-//     limits: { fileSize: 50 * 1024 * 1024 }, // optional 50MB cap
-//   })
-// );
 
 app.use(
   fileUpload({
@@ -183,6 +180,7 @@ app.use("/api/vip", leadVipRoutes);
 app.use("/api/messages/user", messagesUserRoutes);
 
 app.use("/api/landing", landingPageRoutes);
+app.use("/preview", previewRouter);
 app.use("/api/landing-analytics", landingAnalyticsRoutes);
 app.use("/api/web-analytics", websiteAnalyticsRoutes);
 

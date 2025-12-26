@@ -28,20 +28,21 @@ export function renderCountdownBlock(block, landingPage) {
     `,
     boxed: `
       display:inline-block;
-      background:rgba(0,0,0,0.3);
+      background:rgba(15,23,42,0.85);
       border:1px solid rgba(255,255,255,0.2);
-      border-radius:10px;
-      padding:16px 30px;
-      font-size:1.8rem;
+      border-radius:12px;
+      padding:12px 24px;
+      font-size:2rem;
       font-family:monospace;
+      letter-spacing:2px;
       color:${landingPage.font_color_h1 || "#fff"};
-    `,
+  `,
     glow: `
       font-size:2rem;
       font-family:monospace;
       letter-spacing:2px;
       color:${accent};
-      text-shadow:0 0 12px ${accent};
+      text-shadow:0 0 14px ${accent};
       animation:pulseGlow 2s infinite;
     `,
   };
