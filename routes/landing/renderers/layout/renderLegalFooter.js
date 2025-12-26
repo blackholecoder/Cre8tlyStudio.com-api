@@ -1,6 +1,28 @@
 export function renderLegalFooter({ footerTextColor }) {
   return `
-<footer style="
+<style>
+  @media (max-width: 768px) {
+    .legal-footer {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .legal-footer-left {
+      flex: none;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .legal-footer-right {
+      text-align: center;
+      line-height: 1.8;
+    }
+  }
+</style>
+
+<footer class="legal-footer" style="
   display:flex;
   justify-content:flex-end;
   align-items:center;
@@ -13,11 +35,18 @@ export function renderLegalFooter({ footerTextColor }) {
   color:${footerTextColor};
   border-top:1px solid rgba(255,255,255,0.05);
 ">
-  <span style="flex:1;text-align:left;opacity:0.7;">
+  <span class="legal-footer-left" style="
+    flex:1;
+    text-align:left;
+    opacity:0.7;
+  ">
     © ${new Date().getFullYear()} Alure Digital. All rights reserved
   </span>
 
-  <div style="text-align:right;opacity:0.8;">
+  <div class="legal-footer-right" style="
+    text-align:right;
+    opacity:0.8;
+  ">
     <a href="https://cre8tlystudio.com/terms" target="_blank" rel="noopener noreferrer"
        style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
       Terms

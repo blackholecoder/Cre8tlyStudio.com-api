@@ -56,7 +56,7 @@ ${renderHead({
           width:auto;
         "
       >
-        ← Back
+        ← Back to offers
       </button>
     </div>
 
@@ -88,19 +88,52 @@ ${renderHead({
       ${block.title || ""}
     </h1>
 
-    <!-- DESCRIPTION -->
+    <p style="
+  font-size:1rem;
+  opacity:0.85;
+  margin:0 auto 24px auto;
+  color:${textColor};
+  text-align:center;
+  max-width:620px;
+">
+  Instant access · Secure checkout · Download included
+</p>
+
+<p style="
+  font-size:0.9rem;
+  opacity:0.75;
+  text-align:center;
+  max-width:520px;
+  margin:0 auto 24px auto;
+">
+  Designed to give you immediate, actionable insights.
+</p>
+
+<h3 style="
+  font-size:1.25rem;
+  font-weight:700;
+  margin-bottom:12px;
+  color:${textColor};
+">
+  Product details
+</h3>
+
     <!-- DESCRIPTION -->
 <div style="
-  font-size:1.15rem;
-  line-height:1.65;
-  opacity:0.95;
+  font-size:1rem;
+  line-height:1.6;
+  opacity:0.9;
   margin-bottom:24px;
   color:${textColor};
-  padding:40px 20px;
+  padding:24px;
   text-align:left;
-  max-width:650px;
+  max-width:620px;
   margin-left:auto;
   margin-right:auto;
+  white-space:pre-wrap;
+  background:rgba(0,0,0,0.25);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:12px;
   white-space:pre-wrap;
 ">
   ${
@@ -122,50 +155,87 @@ ${renderHead({
         </ul>`
       : description
   }
+
 </div>
 
-
-    <!-- PRICE -->
     
 
-    <!-- BUY NOW BUTTON -->
-    <button
-      onclick="startSellerCheckout(
-            '${landingPage.id}',
-            '${block.id}',
-            '${productSource}',
-            '${landingPage.user_id}',
-            ${priceCents}
-          )"
-      style="
-        width:100%;
-        padding:16px;
-        background:${block.button_color || "#22c55e"};
-        color:${buttonTextColor};
-        border:none;
-        border-radius:10px;
-        font-size:1.2rem;
-        font-weight:700;
-        cursor:pointer;
-        margin-bottom:20px;
-      "
-    >
-      ${block.button_text || "Buy Now"}
-    </button>
+   <!-- PURCHASE BOX -->
+<div style="
+max-width:620px;
+  margin:32px auto 0 auto;
+  padding:24px;
+  background:rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:16px;
+  text-align:center;
+">
 
-    ${
-      price > 0
-        ? `
-        <div style="
-          font-size:1rem;
-          font-weight:400;
-          margin-bottom:20px;
-          color:${textColor};
-        ">
-          $${price.toFixed(2)}
-        </div>`
-        : ""
-    }
+  ${
+    price > 0
+      ? `
+      <div style="
+        font-size:2rem;
+        font-weight:800;
+        margin-bottom:6px;
+        color:${textColor};
+      ">
+        $${price.toFixed(2)}
+      </div>
+      <div style="
+        font-size:0.9rem;
+        opacity:0.75;
+        margin-bottom:18px;
+        color:${textColor};
+      ">
+        One time payment · No subscription
+      </div>
+      `
+      : `
+      <div style="
+        font-size:1.4rem;
+        font-weight:700;
+        margin-bottom:18px;
+        color:${textColor};
+      ">
+        Free Download
+      </div>
+      `
+  }
+
+  <button
+    onclick="startSellerCheckout(
+      '${landingPage.id}',
+      '${block.id}',
+      '${productSource}',
+      '${landingPage.user_id}',
+      ${priceCents}
+    )"
+    style="
+      width:100%;
+      padding:16px;
+      background:${block.button_color || "#22c55e"};
+      color:${buttonTextColor};
+      border:none;
+      border-radius:12px;
+      font-size:1.25rem;
+      font-weight:800;
+      cursor:pointer;
+    "
+  >
+    ${block.button_text || "Buy Now"}
+  </button>
+
+  <div style="
+    margin-top:12px;
+    font-size:0.8rem;
+    opacity:0.7;
+    color:${textColor};
+  ">
+    Secure Stripe checkout · Instant digital delivery
+  </div>
+</div>
+
 
   </main>
 

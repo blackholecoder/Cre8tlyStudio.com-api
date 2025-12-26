@@ -2,6 +2,8 @@ export function renderCountdownBlock(block, landingPage) {
   const label = block.text || "Offer Ends In:";
   const variant = block.style_variant || "minimal";
   const targetDate = block.target_date || null;
+  const textColor = block.text_color || landingPage.font_color_h1 || "#fff";
+  const glowColor = block.glow_color || null;
 
   if (!targetDate) return "";
 
@@ -18,33 +20,37 @@ export function renderCountdownBlock(block, landingPage) {
   };
 
   const accent = getAccentColor();
+  const finalGlowColor = glowColor || accent;
 
   const styleMap = {
     minimal: `
-      font-size:2rem;
-      font-family:monospace;
-      letter-spacing:2px;
-      color:${landingPage.font_color_h1 || "#fff"};
-    `,
+    font-size:2rem;
+    font-family:monospace;
+    letter-spacing:2px;
+    color:${textColor};
+  `,
     boxed: `
-      display:inline-block;
-      background:rgba(15,23,42,0.85);
-      border:1px solid rgba(255,255,255,0.2);
-      border-radius:12px;
-      padding:12px 24px;
-      font-size:2rem;
-      font-family:monospace;
-      letter-spacing:2px;
-      color:${landingPage.font_color_h1 || "#fff"};
+    display:inline-block;
+    background:rgba(15,23,42,0.85);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:12px;
+    padding:12px 24px;
+    font-size:2rem;
+    font-family:monospace;
+    letter-spacing:2px;
+    color:${textColor};
   `,
     glow: `
-      font-size:2rem;
-      font-family:monospace;
-      letter-spacing:2px;
-      color:${accent};
-      text-shadow:0 0 14px ${accent};
-      animation:pulseGlow 2s infinite;
-    `,
+    font-size:2rem;
+    font-family:monospace;
+    letter-spacing:2px;
+    color:${textColor};
+    text-shadow:
+      0 0 6px ${finalGlowColor},
+      0 0 14px ${finalGlowColor},
+      0 0 28px ${finalGlowColor};
+    animation:pulseGlow 2s infinite;
+  `,
   };
 
   return `
