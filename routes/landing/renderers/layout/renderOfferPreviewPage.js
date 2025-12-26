@@ -3,13 +3,20 @@ import { renderHeader } from "./renderHeader.js";
 import { renderLegalFooter } from "./renderLegalFooter.js";
 import { renderStripeCheckoutScript } from "../scripts/renderStripeCheckoutScript.js";
 import { renderLandingAnalyticsScript } from "../scripts/renderLandingAnalyticsScript.js";
+import { renderOfferPageAdvanced } from "./offerPage/renderOfferPageAdvanced.js";
+import { renderTrustItems } from "./offerPage/renderOfferTrustItems.js";
 
 export function renderOfferPreviewPage({
   landingPage,
   block,
   mainOverlayColor,
 }) {
-  const description = block.description || "";
+  const offerBg = block.use_gradient
+    ? `linear-gradient(${block.gradient_direction || "135deg"},
+        ${block.gradient_start || "#a855f7"},
+        ${block.gradient_end || "#ec4899"})`
+    : block.bg_color || "#111827";
+
   const productSource = block.product_source || "internal";
 
   const imageSrc =
@@ -42,22 +49,23 @@ ${renderHead({
   <!-- TOP BACK BUTTON -->
     <div style="width:100%; display:flex; justify-content:flex-start; margin-bottom:20px;">
       <button
-        onclick="window.history.back()"
-        style="
-          padding:6px 14px;
-          background:#000;
-          color:#fff;
-          border:solid;
-          border-color: #fefefe
-          border-radius:8px;
-          font-size:0.9rem;
-          font-weight:500;
-          cursor:pointer;
-          width:auto;
-        "
-      >
-        ← Back to offers
-      </button>
+  onclick="window.history.back()"
+  style="
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:transparent;
+    border:none;
+    color:${textColor};
+    font-size:0.9rem;
+    font-weight:600;
+    opacity:0.85;
+    cursor:pointer;
+    padding:6px 0;
+  "
+>
+  ← Back to offers
+</button>
     </div>
 
 
@@ -96,17 +104,7 @@ ${renderHead({
   text-align:center;
   max-width:620px;
 ">
-  Instant access · Secure checkout · Download included
-</p>
-
-<p style="
-  font-size:0.9rem;
-  opacity:0.75;
-  text-align:center;
-  max-width:520px;
-  margin:0 auto 24px auto;
-">
-  Designed to give you immediate, actionable insights.
+  Instant access · Secure checkout · <br/>Download included
 </p>
 
 <h3 style="
@@ -118,45 +116,7 @@ ${renderHead({
   Product details
 </h3>
 
-    <!-- DESCRIPTION -->
-<div style="
-  font-size:1rem;
-  line-height:1.6;
-  opacity:0.9;
-  margin-bottom:24px;
-  color:${textColor};
-  padding:24px;
-  text-align:left;
-  max-width:620px;
-  margin-left:auto;
-  margin-right:auto;
-  white-space:pre-wrap;
-  background:rgba(0,0,0,0.25);
-  border:1px solid rgba(255,255,255,0.12);
-  border-radius:12px;
-  white-space:pre-wrap;
-">
-  ${
-    block.description_type === "bullets"
-      ? `<ul style="
-            padding-left:22px;
-            margin:0;
-          ">
-          ${description
-            .split("\n")
-            .filter(Boolean)
-            .map(
-              (line) =>
-                `<li style="margin-bottom:10px;">
-                  ${line.replace(/^[•*-]\s*/, "")}
-                </li>`
-            )
-            .join("")}
-        </ul>`
-      : description
-  }
-
-</div>
+${renderOfferPageAdvanced(block.offer_page, textColor, offerBg)}
 
     
 
@@ -165,7 +125,7 @@ ${renderHead({
 max-width:620px;
   margin:32px auto 0 auto;
   padding:24px;
-  background:rgba(0,0,0,0.35);
+  background:${offerBg};
   border:1px solid rgba(255,255,255,0.15);
   border-radius:16px;
   text-align:center;
@@ -225,15 +185,7 @@ max-width:620px;
   >
     ${block.button_text || "Buy Now"}
   </button>
-
-  <div style="
-    margin-top:12px;
-    font-size:0.8rem;
-    opacity:0.7;
-    color:${textColor};
-  ">
-    Secure Stripe checkout · Instant digital delivery
-  </div>
+  ${renderTrustItems(block.offer_page?.trust_items, textColor)}
 </div>
 
 

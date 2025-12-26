@@ -48,6 +48,7 @@ import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
 import adminAnalyticsRoutes from "./routes/admin/analytics/adminAnalyticsRoutes.js";
 import authAdminRoutes from "./routes/admin/authAdminRoutes.js";
 import referralRoutes from "./routes/admin/referralRoutes.js";
+import adminEmailRoutes from "./routes/admin/emailRoutes.js";
 
 import landingPageRoutes from "./routes/landing/landingPageRoutes.js";
 import landingAnalyticsRoutes from "./routes/analytics/landingAnalyticsRoutes.js";
@@ -215,6 +216,7 @@ app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/admin/web-analytics", adminAnalyticsRoutes);
 app.use("/api/admin/lead-magnets", latestMagnetsRoutes);
 app.use("/api/admin/referral", referralRoutes);
+app.use("/api/admin/email", adminEmailRoutes);
 
 app.use("/api/admin/community", adminCommunityRoutes);
 
