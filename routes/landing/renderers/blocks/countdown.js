@@ -58,7 +58,7 @@ export function renderCountdownBlock(block, landingPage) {
   <p style="
     font-weight:700;
     font-size:1.3rem;
-    color:${landingPage.font_color_h1 || "#fff"};
+    color:${textColor};
     margin-bottom:10px;
     text-align:center;
     display:block;
@@ -76,7 +76,7 @@ export function renderCountdownBlock(block, landingPage) {
   </div>
 
   <div style="
-    color:${landingPage.font_color_p || "#ccc"};
+    color:${textColor};
     font-size:0.9rem;
     margin-top:8px;
     letter-spacing:1px;

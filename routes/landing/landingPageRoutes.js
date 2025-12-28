@@ -41,6 +41,8 @@ import { renderCoverImage } from "./renderers/layout/renderCoverImage.js";
 import { renderContentArea } from "./renderers/layout/renderContentArea.js";
 import { renderLandingBlocks } from "./renderers/layout/renderLandingBlocks.js";
 import { generateAILandingPage } from "../../helpers/gptHelper.js";
+import { renderOfferBannerBlock } from "./renderers/blocks/offerBanner.js";
+import { renderLandingMotionScript } from "./renderers/scripts/renderLandingMotionScript.js";
 
 const router = express.Router();
 
@@ -99,6 +101,10 @@ router.get("/", async (req, res, next) => {
 
     const flattenedBlocks = flattenBlocks(rawBlocks);
 
+    const hasStripeCheckout = flattenedBlocks.some(
+      (b) => b.type === "checkout" || b.type === "stripe_checkout"
+    );
+
     // --- 4️⃣ Build HTML from parsed blocks
     try {
       // 🧹 Remove offer_banner from normal rendering so it only appears at the top
@@ -124,87 +130,16 @@ router.get("/", async (req, res, next) => {
 
     // ✅ Move offer_banner above cover image automatically
     let bannerHTML = "";
+
     if (flattenedBlocks.some((b) => b.type === "offer_banner")) {
-      // extract only the banner parts
       bannerHTML = flattenedBlocks
         .filter((b) => b.type === "offer_banner")
-        .map((b) => {
-          const bannerBg = b.match_main_bg
-            ? mainOverlayColor
-            : b.use_gradient
-            ? `linear-gradient(${b.gradient_direction || "90deg"}, ${
-                b.gradient_start || "#F285C3"
-              }, ${b.gradient_end || "#7bed9f"})`
-            : b.bg_color || "#F285C3";
-
-          const buttonText = b.button_text || "Claim Offer";
-
-          return `
-      <div style="
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        align-items:center;
-        background:${bannerBg};
-        color:${b.text_color || "#fff"};
-        text-align:center;
-        padding:${b.padding || 50}px 20px;
-        font-weight:600;
-        font-size:1.2rem;
-        line-height:1.5;
-        margin:0 -30px 40px;
-        border-radius: 24px 24px 0 0;
-        box-shadow:none;
-      ">
-        <div style="max-width:800px;margin:0 auto;">
-          <p style="
-            font-size:1.5rem;
-            font-weight:700;
-            margin:0 0 22px;
-            text-align:center;
-            color:${b.text_color || "#fff"};
-          ">
-            ${b.text || "🔥 Limited Time Offer!"}
-          </p>
-
-          <!-- ALWAYS scroll to Stripe Checkout -->
-          <button
-  onclick="document.getElementById('buy-now').scrollIntoView({ behavior: 'smooth' })"
-  style="
-    display:block;
-    background:${
-      b.use_gradient
-        ? `linear-gradient(${b.gradient_direction || "90deg"}, ${
-            b.gradient_start || "#F285C3"
-          }, ${b.gradient_end || "#7bed9f"})`
-        : b.button_color || b.bg_color || "#F285C3"
-    };
-    color:${b.button_text_color || b.text_color || "#fff"};
-    padding:22px 36px;             
-    border-radius:8px;  
-    font-family: var(--landing-font);           
-    font-weight:700;
-    font-size:1rem;
-    cursor:pointer;
-    border:none;
-    width:100%;                    
-    max-width:340px;                
-    margin:16px auto 0 auto;        
-    box-shadow:0 4px 12px rgba(0,0,0,0.3);
-    transition:transform 0.25s ease;
-  "
-  onmouseover="this.style.transform='scale(1.05)'"
-  onmouseout="this.style.transform='scale(1)'"
->
-  ${buttonText}
-</button>
-
-
-
-        </div>
-      </div>
-    `;
-        })
+        .map((b) =>
+          renderOfferBannerBlock(b, {
+            mainOverlayColor,
+            hasStripeCheckout,
+          })
+        )
         .join("");
     }
 
@@ -259,6 +194,7 @@ router.get("/", async (req, res, next) => {
 
       ${renderLeadCaptureForm({ landingPage })}
       ${renderCountdownScript()}
+      ${renderLandingMotionScript()}
       ${renderCountdownStyles()}
       ${renderLeadFormScript()}
       ${renderFooter({ landingPage, footerTextColor })}

@@ -263,6 +263,7 @@ router.get("/me", authenticateToken, async (req, res) => {
       stripe_details_submitted: stripeStatus.details_submitted,
       stripe_account_type: stripeStatus.account_type || null,
       is_admin_employee: user.is_admin_employee,
+      referral_slug: user.referral_slug || null,
       plan: user.plan,
       basic_annual: user.basic_annual,
     });

@@ -240,6 +240,8 @@ div[style*="linear-gradient"] {
     h1 { font-size: 2rem; }
     h2 { font-size: 1.5rem; }
     p  { font-size: 1rem; }
+
+
     input[type="email"], button { width: 100%; margin: 6px 0; }
 
     .cover-wrapper {
@@ -258,6 +260,136 @@ button {
   box-sizing: border-box;  /* ✅ NEW - prevents off-screen padding overflow */
 }
 }
+
+/* Base motion state */
+.lp-block[data-motion="true"] .lp-motion {
+  opacity: 0;
+  transition-property: opacity, transform, filter;
+  transition-timing-function: ease-out;
+  will-change: opacity, transform, filter;
+}
+
+/* Layout preservation */
+.lp-motion {
+  display: block;
+  width: 100%;
+}
+
+/* Visible state ALWAYS wins */
+.lp-block[data-motion="true"].motion-visible .lp-motion {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: none;
+}
+
+/* ---------------------- */
+/* Fade presets */
+/* ---------------------- */
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="fade"] .lp-motion {
+  transform: translateY(0);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="fade-up"] .lp-motion {
+  transform: translateY(30px);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="fade-down"] .lp-motion {
+  transform: translateY(-30px);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="fade-left"] .lp-motion {
+  transform: translateX(30px);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="fade-right"] .lp-motion {
+  transform: translateX(-30px);
+}
+
+/* ---------------------- */
+/* Slide presets */
+/* ---------------------- */
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="slide-up"] .lp-motion {
+  transform: translateY(60px);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="slide-down"] .lp-motion {
+  transform: translateY(-60px);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="slide-left"] .lp-motion {
+  transform: translateX(-60px);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="slide-right"] .lp-motion {
+  transform: translateX(60px);
+}
+
+/* ---------------------- */
+/* Scale presets */
+/* ---------------------- */
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="scale-up"] .lp-motion {
+  transform: scale(0.9);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="scale-down"] .lp-motion {
+  transform: scale(1.1);
+}
+
+/* ---------------------- */
+/* Fancy presets */
+/* ---------------------- */
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="blur-in"] .lp-motion {
+  filter: blur(10px);
+  transform: translateY(20px);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="rotate-in"] .lp-motion {
+  transform: rotate(-6deg) scale(0.95);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="flip-up"] .lp-motion {
+  transform: rotateX(90deg);
+  transform-origin: bottom;
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="flip-left"] .lp-motion {
+  transform: rotateY(90deg);
+  transform-origin: left;
+}
+
+/* ---------------------- */
+/* Attention presets */
+/* ---------------------- */
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="pop"] .lp-motion {
+  transform: scale(0.8);
+}
+
+.lp-block[data-motion="true"]:not(.motion-visible)[data-motion-preset="bounce"] .lp-motion {
+  transform: translateY(40px);
+}
+
+/* Bounce animation runs AFTER visible */
+.lp-block[data-motion="true"][data-motion-preset="bounce"].motion-visible .lp-motion {
+  animation: lp-bounce 0.6s ease-out;
+}
+
+@keyframes lp-bounce {
+  0%   { transform: translateY(40px); }
+  60%  { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+
+
+
+
+
+
 
 
 

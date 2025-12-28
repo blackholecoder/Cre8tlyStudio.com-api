@@ -554,36 +554,43 @@ export async function getUserById(id) {
 
   try {
     const [rows] = await db.query(
-      `SELECT 
-         id, 
-         name, 
-         email,
-         role, 
-         profile_image_url, 
-         brand_identity_file,
-         pro_covers, 
-         has_book, 
-         book_slots,
-         has_magnet,
-         magnet_slots,
-         has_memory,
-         has_completed_book_onboarding,
-         cta,
-         created_at,
-         pro_status,
-         billing_type,
-         pro_expiration,
-        has_free_magnet,
-        is_free_user,
-        free_trial_expires_at,
-        twofa_enabled,
-        stripe_connect_account_id,
-        has_passkey,
-        is_admin_employee,
-        plan,
-        basic_annual
-       FROM users 
-       WHERE id = ?`,
+      `
+  SELECT 
+    u.id, 
+    u.name, 
+    u.email,
+    u.role, 
+    u.profile_image_url, 
+    u.brand_identity_file,
+    u.pro_covers, 
+    u.has_book, 
+    u.book_slots,
+    u.has_magnet,
+    u.magnet_slots,
+    u.has_memory,
+    u.has_completed_book_onboarding,
+    u.cta,
+    u.created_at,
+    u.pro_status,
+    u.billing_type,
+    u.pro_expiration,
+    u.has_free_magnet,
+    u.is_free_user,
+    u.free_trial_expires_at,
+    u.twofa_enabled,
+    u.stripe_connect_account_id,
+    u.has_passkey,
+    u.is_admin_employee,
+    u.plan,
+    u.basic_annual,
+
+    rs.slug AS referral_slug
+
+  FROM users u
+  LEFT JOIN referral_slugs rs
+    ON rs.employee_id = u.id
+  WHERE u.id = ?
+  `,
       [id]
     );
 

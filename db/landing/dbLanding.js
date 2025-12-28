@@ -109,6 +109,7 @@ export async function updateLandingPage(id, fields) {
       font_color_h3,
       font_color_p,
       content_blocks,
+      motion_settings,
       pdf_url,
       cover_image_url,
       logo_url,
@@ -188,6 +189,27 @@ export async function updateLandingPage(id, fields) {
       contentBlocksJSON = JSON.stringify(parsedBlocks);
     }
 
+    let motionSettingsJSON = null;
+
+    if (motion_settings && typeof motion_settings === "object") {
+      motionSettingsJSON = JSON.stringify({
+        enabled: !!motion_settings.enabled,
+        preset: motion_settings.preset || "fade-up",
+        duration: Number(motion_settings.duration ?? 0.5),
+        delay: Number(motion_settings.delay ?? 0),
+        stagger: Number(motion_settings.stagger ?? 0.12),
+        easing: motion_settings.easing || "ease-out",
+        viewport_once: motion_settings.viewport_once !== false,
+      });
+    } else {
+      // keep existing value if not provided
+      const [oldRows] = await db.query(
+        "SELECT motion_settings FROM user_landing_pages WHERE id = ?",
+        [id]
+      );
+      motionSettingsJSON = oldRows[0]?.motion_settings || null;
+    }
+
     // ✅ Execute safe update
     await db.query(
       `
@@ -204,6 +226,7 @@ export async function updateLandingPage(id, fields) {
         font_color_h3 = ?,
         font_color_p = ?,
         content_blocks = ?, 
+        motion_settings = ?,
         pdf_url = ?,
         cover_image_url = ?,
         logo_url = ?,
@@ -223,6 +246,7 @@ export async function updateLandingPage(id, fields) {
         font_color_h3,
         font_color_p,
         contentBlocksJSON,
+        motionSettingsJSON,
         pdf_url,
         cover_image_url,
         logo_url,
@@ -463,6 +487,7 @@ export async function getOrCreateLandingPage(userId) {
         lp.font_color_h3,
         lp.font_color_p,
         lp.content_blocks,
+        lp.motion_settings,
         lp.pdf_url,
         lp.cover_image_url,
         lp.logo_url,
@@ -486,6 +511,14 @@ export async function getOrCreateLandingPage(userId) {
           page.content_blocks = JSON.parse(page.content_blocks);
         } catch {
           page.content_blocks = [];
+        }
+      }
+
+      if (page && typeof page.motion_settings === "string") {
+        try {
+          page.motion_settings = JSON.parse(page.motion_settings);
+        } catch {
+          page.motion_settings = null;
         }
       }
 
@@ -532,6 +565,16 @@ export async function getOrCreateLandingPage(userId) {
       created_at: new Date(),
     };
 
+    const defaultMotionSettings = JSON.stringify({
+      enabled: false,
+      preset: "fade-up",
+      duration: 0.5,
+      delay: 0,
+      stagger: 0.12,
+      easing: "ease-out",
+      viewport_once: true,
+    });
+
     // 4️⃣ Insert it into DB
     await db.query(
       `
@@ -539,9 +582,9 @@ export async function getOrCreateLandingPage(userId) {
       (id, user_id, username, title, headline, description, theme_color, font, font_file,
        bg_theme, button_text, pdf_url, cover_image_url, logo_url,
        font_color_h1, font_color_h2, font_color_h3, font_color_p,
-       content_blocks, collect_emails, email_list_name, email_leads_count,
+       content_blocks, motion_settings, collect_emails, email_list_name, email_leads_count,
        email_notify, email_thank_you_msg, auto_send_pdf, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         defaultPage.id,
@@ -563,6 +606,7 @@ export async function getOrCreateLandingPage(userId) {
         defaultPage.font_color_h3,
         defaultPage.font_color_p,
         defaultPage.content_blocks,
+        defaultMotionSettings,
         defaultPage.collect_emails,
         defaultPage.email_list_name,
         defaultPage.email_leads_count,

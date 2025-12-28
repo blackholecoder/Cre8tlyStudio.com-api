@@ -7,7 +7,7 @@ import { renderHeadingBlock } from "../blocks/heading.js";
 import { renderImageBlock } from "../blocks/image.js";
 import { renderListHeadingBlock } from "../blocks/listHeading.js";
 import { renderMiniOfferBlock } from "../blocks/miniOffer.js";
-import { renderOfferBannerBlock } from "../blocks/offerBanner.js";
+// import { renderOfferBannerBlock } from "../blocks/offerBanner.js";
 import { renderParagraphBlock } from "../blocks/paragraph.js";
 import { renderReferralButtonBlock } from "../blocks/referralButton.js";
 import { renderSecureCheckoutBlock } from "../blocks/secureCheckout.js";
@@ -20,79 +20,134 @@ import { renderSubsubheadingBlock } from "../blocks/subsubheading.js";
 import { renderVerifiedReviewsBlock } from "../blocks/verifiedReviews.js";
 import { renderVideoBlock } from "../blocks/video.js";
 
+function getMotionAttributes({ block, index, motionSettings }) {
+  if (!motionSettings?.enabled) return "";
+  if (block.motion?.disabled === true) return "";
+
+  const delay =
+    (motionSettings.delay ?? 0) + index * (motionSettings.stagger ?? 0.12);
+
+  return `
+    data-motion="true"
+    data-motion-preset="${motionSettings.preset || "fade-up"}"
+    data-motion-delay="${delay}"
+    data-motion-duration="${motionSettings.duration ?? 0.5}"
+  `;
+}
+
 export function renderLandingBlocks({
   blocks = [],
   landingPage,
   mainOverlayColor,
 }) {
   return blocks
-    .map((block) => {
+    .map((block, index) => {
+      let html = "";
+
       switch (block.type) {
         case "heading":
-          return renderHeadingBlock(block, landingPage);
+          html = renderHeadingBlock(block, landingPage);
+          break;
 
         case "subheading":
-          return renderSubheadingBlock(block, landingPage);
+          html = renderSubheadingBlock(block, landingPage);
+          break;
+
         case "subsubheading":
-          return renderSubsubheadingBlock(block, landingPage);
+          html = renderSubsubheadingBlock(block, landingPage);
+          break;
 
         case "list_heading":
-          return renderListHeadingBlock(block, landingPage);
+          html = renderListHeadingBlock(block, landingPage);
+          break;
 
         case "paragraph":
-          return renderParagraphBlock(block, landingPage);
+          html = renderParagraphBlock(block, landingPage);
+          break;
 
         case "video":
-          return renderVideoBlock(block, landingPage);
+          html = renderVideoBlock(block, landingPage);
+          break;
 
-        case "spacer":
-          return renderSpacerBlock(block);
+        case "divider":
+          html = renderSpacerBlock(block);
+          break;
 
-        case "offer_banner":
-          return renderOfferBannerBlock(block, landingPage);
+        // case "offer_banner":
+        //    html = renderOfferBannerBlock(block, landingPage);
+        //    break;
 
         case "calendly":
-          return renderCalendlyBlock(block, landingPage);
+          html = renderCalendlyBlock(block, landingPage);
+          break;
 
         case "social_links":
-          return renderSocialLinksBlock(block, landingPage);
+          html = renderSocialLinksBlock(block, landingPage);
+          break;
 
         case "countdown":
-          return renderCountdownBlock(block, landingPage);
+          html = renderCountdownBlock(block, landingPage);
+          break;
 
         case "stripe_checkout":
-          return renderStripeCheckoutBlock(block, landingPage);
+          html = renderStripeCheckoutBlock(block, landingPage);
+          break;
 
         case "referral_button":
-          return renderReferralButtonBlock(block, landingPage);
+          html = renderReferralButtonBlock(block, landingPage);
+          break;
 
         case "button_url":
-          return renderButtonBlock(block, landingPage);
+          html = renderButtonBlock(block, landingPage);
+          break;
 
         case "verified_reviews":
-          return renderVerifiedReviewsBlock(block, landingPage);
+          html = renderVerifiedReviewsBlock(block, landingPage);
+          break;
 
         case "faq":
-          return renderFaqBlock(block, landingPage, { mainOverlayColor });
+          html = renderFaqBlock(block, landingPage, { mainOverlayColor });
+          break;
 
         case "image":
-          return renderImageBlock(block);
+          html = renderImageBlock(block);
+          break;
 
         case "secure_checkout":
-          return renderSecureCheckoutBlock(block);
+          html = renderSecureCheckoutBlock(block);
+          break;
 
         case "audio_player":
-          return renderAudioPlayerBlock(block, landingPage);
+          html = renderAudioPlayerBlock(block, landingPage);
+          break;
 
         case "single_offer":
-          return renderSingleOfferBlock(block, landingPage);
+          html = renderSingleOfferBlock(block, landingPage);
+          break;
 
         case "mini_offer":
-          return renderMiniOfferBlock(block, landingPage);
+          html = renderMiniOfferBlock(block, landingPage);
+          break;
 
         default:
-          return "";
+          html = "";
       }
+
+      if (!html) return "";
+
+      const motionAttrs = getMotionAttributes({
+        block,
+        index,
+        motionSettings: landingPage.motion_settings,
+      });
+
+      return `
+  <div class="lp-block" ${motionAttrs}>
+    <div class="lp-motion">
+      ${html}
+    </div>
+  </div>
+`;
     })
     .join("");
 }

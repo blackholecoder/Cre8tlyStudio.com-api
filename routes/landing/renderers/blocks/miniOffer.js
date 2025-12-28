@@ -15,8 +15,13 @@ export function renderMiniOfferBlock(block, landingPage) {
         ${block.gradient_end || "#ec4899"})`
     : block.bg_color || "#111827";
 
-  const fullPreviewText = (block.description || "").replace(/•/g, "");
-  const isLongPreview = fullPreviewText.trim().split(/\s+/).length > 20;
+  const fullPreviewText = (
+    block.offer_page?.blocks?.map((b) => b.text)?.join(" ") || ""
+  ).replace(/•/g, "");
+
+  const hasDescription = fullPreviewText.trim().length > 0;
+  const isLongPreview =
+    hasDescription && fullPreviewText.trim().split(/\s+/).length > 20;
 
   return `
 
@@ -157,25 +162,40 @@ export function renderMiniOfferBlock(block, landingPage) {
       </div>
 
       <div style="margin-top:16px;">
-        <button
-          onclick="window.location.href='/preview/${landingPage.id}/${
-    block.id
-  }'"
-          style="
-            width:100%;
-            max-width:260px;
-            padding:14px;
-            border-radius:10px;
-            font-weight:700;
-            border:none;
-            cursor:pointer;
-            background:${block.button_color || "#22c55e"};
-            color:${buttonTextColor};
-            font-size:1.05rem;
-          "
-        >
-          ${block.button_text || "Buy Now"}
-        </button>
+  <button
+    ${
+      hasDescription
+        ? `onclick="window.location.href='/preview/${landingPage.id}/${block.id}'"`
+        : ""
+    }
+    style="
+      width:100%;
+      max-width:260px;
+      padding:14px;
+      border-radius:10px;
+      font-weight:700;
+      border:none;
+      font-size:1.05rem;
+
+      background:${block.button_color || "#22c55e"};
+      color:${buttonTextColor};
+
+      cursor:${hasDescription ? "pointer" : "not-allowed"};
+      opacity:${hasDescription ? "1" : "0.6"};
+    "
+  >
+    ${block.button_text || "Buy Now"}
+  </button>
+
+  ${
+    !hasDescription
+      ? `
+  <div style="margin-top:6px;font-size:0.85rem;opacity:0.7;">
+    Preview unavailable
+  </div>
+`
+      : ""
+  }
 
         ${
           price
