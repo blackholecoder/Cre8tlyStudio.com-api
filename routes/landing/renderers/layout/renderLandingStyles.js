@@ -1,5 +1,15 @@
 export function renderLandingStyles({ bg, mainOverlayColor, landingPage }) {
+  const motion = landingPage.motion_settings || {};
   return `
+
+  :root {
+    --lp-motion-duration: ${motion.duration ?? 0.5}s;
+    --lp-motion-delay: ${motion.delay ?? 0}s;
+    --lp-motion-stagger: ${motion.stagger ?? 0.12}s;
+    --lp-motion-easing: ${motion.easing ?? "ease-out"};
+  }
+
+
   html, body {
     margin: 0;
     padding: 0;
@@ -265,9 +275,12 @@ button {
 .lp-block[data-motion="true"] .lp-motion {
   opacity: 0;
   transition-property: opacity, transform, filter;
-  transition-timing-function: ease-out;
+  transition-duration: var(--lp-motion-duration);
+  transition-timing-function: var(--lp-motion-easing);
+  transition-delay: var(--lp-motion-delay);
   will-change: opacity, transform, filter;
 }
+
 
 /* Layout preservation */
 .lp-motion {
