@@ -9,7 +9,7 @@ export async function getAllReports() {
       u.name AS user_name,
       u.email AS user_email,
       u.magnet_slots AS purchased_slots,
-      lp.custom_domain AS landing_custom_domain,
+      cd.domain AS landing_custom_domain,
       lp.username AS landing_username,
       COUNT(lm.id) AS total_reports,
       SUM(CASE WHEN lm.status = 'completed' THEN 1 ELSE 0 END) AS completed_reports,
@@ -43,7 +43,11 @@ export async function getAllReports() {
       AND lm.deleted_at IS NULL
       LEFT JOIN user_landing_pages lp 
   ON lp.user_id = u.id
-    GROUP BY u.id, u.name, u.email, u.magnet_slots, lp.custom_domain, lp.username
+      LEFT JOIN custom_domains cd
+      ON cd.user_id = u.id
+    AND cd.is_primary = 1
+    AND cd.verified = 1
+    GROUP BY u.id, u.name, u.email, u.magnet_slots, lp.username, cd.domain
     ORDER BY last_created_at DESC;
   `);
 

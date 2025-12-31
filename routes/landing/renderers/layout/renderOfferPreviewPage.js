@@ -107,14 +107,6 @@ ${renderHead({
   Instant access · Secure checkout · <br/>Download included
 </p>
 
-<h3 style="
-  font-size:1.25rem;
-  font-weight:700;
-  margin-bottom:12px;
-  color:${textColor};
-">
-  Product details
-</h3>
 
 ${renderOfferPageAdvanced(block.offer_page, textColor, offerBg)}
 

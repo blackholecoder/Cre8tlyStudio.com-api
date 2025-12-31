@@ -776,6 +776,8 @@ export async function activateBusinessBuilder(email, billingCycle = "annual") {
 export async function deactivateBusinessBuilder(email) {
   const db = connect();
   try {
+    await db.query("START TRANSACTION");
+
     await db.query(
       `UPDATE users 
        SET pro_status = 'inactive',
@@ -793,6 +795,18 @@ export async function deactivateBusinessBuilder(email) {
        WHERE email = ?`,
       [email]
     );
+    await db.query(
+      `
+      DELETE cd
+      FROM custom_domains cd
+      JOIN users u ON cd.user_id = u.id
+      WHERE u.email = ?
+      `,
+      [email]
+    );
+
+    await db.query("COMMIT");
+
     console.log(`🚫 Business Builder Pack deactivated for ${email}`);
   } catch (err) {
     console.error("❌ deactivateBusinessBuilder failed:", err.message);

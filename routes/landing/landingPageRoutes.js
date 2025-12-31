@@ -5,7 +5,7 @@ import {
   flattenBlocks,
   getCoverImageByPdfUrl,
   getLandingPageById,
-  getLandingPageByUser,
+  getLandingPageByUserIdHost,
   getLandingTemplatesByPage,
   getOrCreateLandingPage,
   getReferralSlugByUserId,
@@ -58,16 +58,16 @@ function getAudioDuration(filePath) {
   });
 }
 
-// Capture root requests for each subdomain
+// Capture root requests for each tenantUserId
 router.get("/", async (req, res, next) => {
-  const { subdomain } = req;
+  const { tenantUserId } = req;
 
-  if (!subdomain) {
-    return next(); // passes to the next route → /r/:slug will now work
+  if (!tenantUserId) {
+    return res.status(404).send("Not found");
   }
 
   try {
-    const landingPage = await getLandingPageByUser(subdomain);
+    const landingPage = await getLandingPageByUserIdHost(tenantUserId);
 
     // --- 1️⃣ Default “coming soon” fallback
     if (!landingPage) {
@@ -380,7 +380,7 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
       );
     }
 
-    const result = await updateLandingPage(id, req.body);
+    const result = await updateLandingPage(req.user.id, id, req.body);
 
     if (!result.success) {
       return res.status(400).json({
@@ -398,13 +398,30 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
 
 router.get("/check-username/:username", authenticateToken, async (req, res) => {
   try {
-    const { username } = req.params;
+    const rawUsername = req.params.username;
     const currentUserId = req.user?.id;
 
-    if (!username || username.length < 3) {
+    if (!rawUsername) {
       return res
         .status(400)
-        .json({ available: false, message: "Username too short" });
+        .json({ available: false, message: "Username is required" });
+    }
+
+    const username = rawUsername.trim().toLowerCase();
+
+    if (username.length < 3 || username.length > 30) {
+      return res.status(400).json({
+        available: false,
+        message: "Username must be between 3 and 30 characters",
+      });
+    }
+
+    const validPattern = /^[a-z0-9-]+$/;
+    if (!validPattern.test(username)) {
+      return res.status(400).json({
+        available: false,
+        message: "Only lowercase letters, numbers, and dashes are allowed",
+      });
     }
 
     const available = await checkUsernameAvailability(username, currentUserId);
@@ -416,12 +433,16 @@ router.get("/check-username/:username", authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({ available: true, message: "This username is available!" });
+    res.json({
+      available: true,
+      message: "This username is available!",
+    });
   } catch (err) {
     console.error("🔥 Error in /check-username route:", err);
-    res
-      .status(500)
-      .json({ available: false, message: "Server error checking username" });
+    res.status(500).json({
+      available: false,
+      message: "Server error checking username",
+    });
   }
 });
 

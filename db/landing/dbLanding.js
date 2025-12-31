@@ -33,6 +33,33 @@ export async function getLandingPageByUser(username) {
   }
 }
 
+export async function getLandingPageByUserIdHost(userId) {
+  try {
+    const db = connect();
+
+    const [rows] = await db.query(
+      "SELECT * FROM user_landing_pages WHERE user_id = ? LIMIT 1",
+      [userId]
+    );
+
+    const page = rows[0];
+
+    if (page && typeof page.content_blocks === "string") {
+      try {
+        page.content_blocks = JSON.parse(page.content_blocks);
+      } catch (err) {
+        console.warn("⚠️ Could not parse content_blocks for user:", userId);
+        page.content_blocks = [];
+      }
+    }
+
+    return page || null;
+  } catch (err) {
+    console.error("❌ Error fetching landing page for user:", userId, err);
+    throw new Error("Failed to fetch landing page");
+  }
+}
+
 export async function saveLandingPageLead(landingPageId, email) {
   const db = connect();
 
@@ -94,7 +121,7 @@ export async function getLandingPageByUserId(userId) {
   }
 }
 
-export async function updateLandingPage(id, fields) {
+export async function updateLandingPage(userId, id, fields) {
   const db = connect();
   try {
     let {
@@ -122,6 +149,32 @@ export async function updateLandingPage(id, fields) {
     username = username?.trim() || null;
 
     // ✅ Prevent duplicate usernames
+    if (username !== null) {
+      const [domainRows] = await db.query(
+        `
+    SELECT 1
+    FROM custom_domains
+    WHERE user_id = ?
+      AND verified = 1
+      AND is_primary = 1
+    LIMIT 1
+    `,
+        [userId]
+      );
+
+      if (domainRows.length > 0) {
+        return {
+          success: false,
+          message:
+            "Username cannot be changed while a custom domain is active.",
+        };
+        // OR if you prefer silent ignore instead:
+        // username = null;
+      }
+    }
+    /* 🔒 END BLOCK */
+
+    // 🔒 Prevent username changes when a primary custom domain exists
     if (username) {
       const [exists] = await db.query(
         "SELECT id FROM user_landing_pages WHERE username = ? AND id != ?",
@@ -232,7 +285,7 @@ export async function updateLandingPage(id, fields) {
         logo_url = ?,
         show_download_button = ?,
         updated_at = NOW()
-      WHERE id = ?
+      WHERE id = ? AND user_id = ?
       `,
       [
         headline,
@@ -252,6 +305,7 @@ export async function updateLandingPage(id, fields) {
         logo_url,
         show_download_button,
         id,
+        userId,
       ]
     );
 
@@ -268,8 +322,7 @@ export async function updateLandingPage(id, fields) {
   }
 }
 
-// SAVE TEMPLATES
-
+// SAVE VERSION TEMPLATES
 export async function saveLandingTemplate({
   userId,
   landingPageId,
@@ -279,15 +332,50 @@ export async function saveLandingTemplate({
   const db = connect();
 
   try {
+    // 🔒 Fetch user plan + pro status
+    const [users] = await db.query(
+      `
+      SELECT plan, pro_status
+      FROM users
+      WHERE id = ?
+      `,
+      [userId]
+    );
+
+    if (!users.length) {
+      return { success: false, message: "User not found" };
+    }
+
+    const { plan, pro_status } = users[0];
+
+    // ✅ Pro is ONLY valid if BOTH conditions match
+    const isPro = plan === "business_builder_pack" && pro_status === "active";
+
+    const MAX_VERSIONS = isPro ? 30 : 10;
+
+    // 🔒 Count existing versions
+    const currentCount = await countUserTemplates(userId, landingPageId);
+
+    if (currentCount >= MAX_VERSIONS) {
+      return {
+        success: false,
+        code: "VERSION_LIMIT_REACHED",
+        message: isPro
+          ? "You’ve reached the maximum of 30 saved versions."
+          : "Free accounts can save up to 10 versions. Upgrade to Pro to save more.",
+      };
+    }
+
+    // ✅ Create new version
     const versionId = crypto.randomUUID();
     const versionName =
       name?.trim() || `Version ${new Date().toLocaleString()}`;
 
     await db.query(
       `
-        INSERT INTO landing_page_templates
-        (id, user_id, landing_page_id, name, snapshot)
-        VALUES (?, ?, ?, ?, ?)
+      INSERT INTO landing_page_templates
+      (id, user_id, landing_page_id, name, snapshot)
+      VALUES (?, ?, ?, ?, ?)
       `,
       [versionId, userId, landingPageId, versionName, JSON.stringify(snapshot)]
     );
@@ -295,7 +383,30 @@ export async function saveLandingTemplate({
     return { success: true, versionId };
   } catch (err) {
     console.error("❌ Error saving landing page template:", err);
-    return { success: false, message: err.message || "Server error" };
+    return {
+      success: false,
+      message: err.message || "Server error",
+    };
+  }
+}
+
+async function countUserTemplates(userId, landingPageId) {
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM landing_page_templates
+      WHERE user_id = ? AND landing_page_id = ?
+      `,
+      [userId, landingPageId]
+    );
+
+    return rows?.[0]?.total || 0;
+  } catch (err) {
+    console.error("❌ countUserTemplates error:", err);
+
+    // Fail-safe: return 0 so user is not blocked due to DB error
+    return 0;
   }
 }
 
@@ -522,7 +633,28 @@ export async function getOrCreateLandingPage(userId) {
         }
       }
 
-      return page;
+      const [domainRows] = await db.query(
+        `
+  SELECT domain
+  FROM custom_domains
+  WHERE user_id = ?
+    AND verified = 1
+    AND is_primary = 1
+  LIMIT 1
+  `,
+        [userId]
+      );
+
+      const hasPrimaryDomain = domainRows.length > 0;
+      const primaryDomain = hasPrimaryDomain ? domainRows[0].domain : null;
+
+      return {
+        ...page,
+        domain: {
+          hasPrimaryDomain,
+          primaryDomain,
+        },
+      };
     }
 
     // 2️⃣ Check user and PRO plan status
@@ -617,8 +749,13 @@ export async function getOrCreateLandingPage(userId) {
       ]
     );
 
-    console.log("✅ Created new default landing page:", defaultPage);
-    return defaultPage;
+    return {
+      ...defaultPage,
+      domain: {
+        hasPrimaryDomain: false,
+        primaryDomain: null,
+      },
+    };
   } catch (err) {
     console.error("❌ Error in getOrCreateLandingPage:", err);
     return { error: "Server error", status: 500 };
@@ -808,4 +945,35 @@ export async function signUpload(req, res) {
     console.error("Sign upload error:", err);
     res.status(500).json({ success: false });
   }
+}
+
+export async function resolveTenantByHost({ subdomain, customDomain }) {
+  const db = connect();
+
+  if (customDomain) {
+    const [rows] = await db.query(
+      `SELECT user_id 
+       FROM custom_domains 
+       WHERE domain = ? 
+         AND verified = 1 
+       LIMIT 1`,
+      [customDomain]
+    );
+
+    return rows[0]?.user_id || null;
+  }
+
+  if (subdomain) {
+    const [rows] = await db.query(
+      `SELECT user_id
+      FROM user_landing_pages
+      WHERE username = ?
+      LIMIT 1`,
+      [subdomain]
+    );
+
+    return rows[0]?.user_id || null;
+  }
+
+  return null;
 }

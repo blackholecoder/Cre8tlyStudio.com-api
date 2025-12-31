@@ -56,6 +56,7 @@ import sellerRoutes from "./routes/seller/sellerRoutes.js";
 import sellerWebhookRoute from "./routes/seller/sellerWebhookRoute.js";
 import sellerCheckoutRoutes from "./routes/seller/checkout/sellerCheckoutRoutes.js";
 import reviewsRoutes from "./routes/landing/reviewsRoutes.js";
+import customDomainRoutes from "./routes/customDomainRoutes/customDomainRoutes.js";
 
 import communityTopics from "./routes/community/topicsRoutes.js";
 import communityPosts from "./routes/community/postsRoutes.js";
@@ -65,7 +66,8 @@ import careersRoutes from "./routes/careers/careeersRoutes.js";
 import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js";
 
 import cors from "cors";
-import { detectSubdomain } from "./middleware/detectSubdomain.js";
+import { detectTenantFromHost } from "./middleware/detectDomain.js";
+import { attachTenant } from "./middleware/attachTenant.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -84,7 +86,8 @@ app.use(
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "500mb" })); // parse json
-app.use(detectSubdomain);
+app.use(detectTenantFromHost);
+app.use(attachTenant);
 
 app.use(
   fileUpload({
@@ -196,6 +199,7 @@ app.use("/api/community/topics", communityTopics);
 app.use("/api/community", communityPosts);
 app.use("/api/community", communityComments);
 app.use("/api/notifications", notificationsRoutes);
+app.use("/api/domains", customDomainRoutes);
 
 // Admin
 app.use("/api/admin/auth", authAdminRoutes);

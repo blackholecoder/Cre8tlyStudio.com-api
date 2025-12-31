@@ -1,7 +1,5 @@
 import connect from "../connect.js";
 
-
-
 export async function getPaginatedDeliveries(page = 1, limit = 20) {
   const db = connect();
   const offset = (page - 1) * limit;
@@ -21,11 +19,17 @@ export async function getPaginatedDeliveries(page = 1, limit = 20) {
 
       -- Landing page fields
       lp.username,
-      lp.custom_domain
+      cd.domain AS custom_domain
 
     FROM deliveries d
     LEFT JOIN users u ON u.id = d.user_id
-    LEFT JOIN user_landing_pages lp ON lp.user_id = d.user_id
+    LEFT JOIN user_landing_pages lp 
+  ON lp.user_id = d.user_id
+
+    LEFT JOIN custom_domains cd
+      ON cd.user_id = d.user_id
+    AND cd.is_primary = 1
+    AND cd.verified = 1
     ORDER BY d.delivered_at DESC
     LIMIT ? OFFSET ?
     `,
@@ -39,7 +43,7 @@ export async function getPaginatedDeliveries(page = 1, limit = 20) {
   // Build final landing page URL
   rows.forEach((d) => {
     if (d.custom_domain) {
-      d.landing_url = d.custom_domain; // seller uses custom domain
+      d.landing_url = `https://${d.custom_domain}`;
     } else if (d.username) {
       d.landing_url = `https://${d.username}.cre8tlystudio.com`;
     } else {

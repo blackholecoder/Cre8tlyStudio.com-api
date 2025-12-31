@@ -162,6 +162,18 @@ export function renderMiniOfferBlock(block, landingPage) {
       </div>
 
       <div style="margin-top:16px;">
+      ${
+        price
+          ? `<div style="
+                margin-bottom:10px;
+                font-size:1.05rem;
+                font-weight:300;
+              ">
+                $${price.toFixed(2)}
+              </div>`
+          : ""
+      }
+        
   <button
     ${
       hasDescription
@@ -197,17 +209,7 @@ export function renderMiniOfferBlock(block, landingPage) {
       : ""
   }
 
-        ${
-          price
-            ? `<div style="
-                margin-top:10px;
-                font-size:1.05rem;
-                font-weight:300;
-              ">
-                $${price.toFixed(2)}
-              </div>`
-            : ""
-        }
+        
       </div>
 
     </div>

@@ -77,6 +77,7 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
                       width: 90% !important;
                       margin-left: auto !important;
                       margin-right: auto !important;
+                      margin-top: 28px !important; 
                       border-radius: 12px !important;
                     }
                   }
@@ -90,7 +91,7 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
               <span style="color:#facc15;">⭐</span>
             </div>
 
-            <h2 style="font-size:2rem;font-weight:700;margin-bottom:30px;">
+            <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:30px;">
               ${title}
             </h2>
 
