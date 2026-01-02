@@ -8,9 +8,7 @@ import {
   softDeleteMagnetById,
 } from "../db/dbLeadMagnet.js";
 import { processPromptFlow } from "../services/leadMagnetService.js";
-import {
-  authenticateToken,
-} from "../middleware/authMiddleware.js";
+import { authenticateToken } from "../middleware/authMiddleware.js";
 import { askGPT } from "../helpers/gptHelper.js";
 import { getUserBrandFile } from "../db/dbUploads.js";
 import { getUserById } from "../db/dbUser.js";
@@ -166,7 +164,6 @@ router.post("/prompt", authenticateToken, async (req, res) => {
   }
 });
 
-
 router.post("/prompt-builder", authenticateToken, async (req, res) => {
   const { audience, pain, promise, offer, userId } = req.body;
   console.log("🎯 Received prompt-builder data:", req.body);
@@ -178,7 +175,9 @@ router.post("/prompt-builder", authenticateToken, async (req, res) => {
 
     // 🧩 2️⃣ Enforce 5-page cap for free users
     if (isFreeTier) {
-      console.log(`🔒 Free-tier user detected (${user.email}) — enforcing limits.`);
+      console.log(
+        `🔒 Free-tier user detected (${user.email}) — enforcing limits.`
+      );
     }
 
     // 🧩 3️⃣ Optional: Modify system prompt to reflect page limits
@@ -284,6 +283,5 @@ router.delete("/magnets/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
 
 export default router;

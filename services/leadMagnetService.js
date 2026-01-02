@@ -37,9 +37,6 @@ export async function processPromptFlow(
   cta,
   contentType
 ) {
-
-  
-
   const user = await getUserById(userId);
   const isFreeTier = user?.has_free_magnet === 1 && user?.magnet_slots === 1;
 
@@ -110,63 +107,62 @@ ${brandTone.slice(0, 4000)}
       '<div class="page-break"></div>'
     );
 
-let tempCoverPath = null;
-let finalCoverUrl = coverImage; // default fallback (already a valid URL)
+    let tempCoverPath = null;
+    let finalCoverUrl = coverImage; // default fallback (already a valid URL)
 
-if (coverImage) {
-  const tmpDir = path.resolve(__dirname, "../uploads/tmp");
-  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    if (coverImage) {
+      const tmpDir = path.resolve(__dirname, "../uploads/tmp");
+      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-  try {
-    // ✅ Skip uploading if the image is from Unsplash
-    if (coverImage.includes("unsplash.com")) {
-      console.log("🟢 Using Unsplash image directly:", coverImage);
-      finalCoverUrl = coverImage; // just keep the Unsplash URL
+      try {
+        // ✅ Skip uploading if the image is from Unsplash
+        if (coverImage.includes("unsplash.com")) {
+          console.log("🟢 Using Unsplash image directly:", coverImage);
+          finalCoverUrl = coverImage; // just keep the Unsplash URL
+        }
+
+        // ✅ Handle base64 uploads
+        else if (coverImage.startsWith("data:image")) {
+          const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
+          const extension = coverImage.substring(
+            coverImage.indexOf("/") + 1,
+            coverImage.indexOf(";")
+          );
+          tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
+          fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
+        }
+
+        // ✅ Handle remote URLs (non-Unsplash)
+        else if (coverImage.startsWith("http")) {
+          const response = await axios.get(coverImage, {
+            responseType: "arraybuffer",
+            timeout: 10000,
+          });
+          const extension =
+            path.extname(new URL(coverImage).pathname) || ".jpg";
+          tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${extension}`);
+          fs.writeFileSync(tempCoverPath, Buffer.from(response.data));
+        }
+
+        // ✅ Upload to Spaces if we have a new local file
+        if (tempCoverPath && fs.existsSync(tempCoverPath)) {
+          const fileName = `covers/${userId}-${magnetId}-${Date.now()}${path.extname(
+            tempCoverPath
+          )}`;
+          const uploadedCover = await uploadFileToSpaces(
+            tempCoverPath,
+            fileName,
+            `image/${path.extname(tempCoverPath).replace(".", "")}`
+          );
+          finalCoverUrl = uploadedCover.Location;
+
+          // 🧹 Cleanup
+          await fs.promises.unlink(tempCoverPath).catch(() => {});
+        }
+      } catch (err) {
+        console.warn("⚠️ Failed to handle cover image:", err.message);
+      }
     }
-
-    // ✅ Handle base64 uploads
-    else if (coverImage.startsWith("data:image")) {
-      const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
-      const extension = coverImage.substring(
-        coverImage.indexOf("/") + 1,
-        coverImage.indexOf(";")
-      );
-      tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
-      fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
-    }
-
-    // ✅ Handle remote URLs (non-Unsplash)
-    else if (coverImage.startsWith("http")) {
-      const response = await axios.get(coverImage, {
-        responseType: "arraybuffer",
-        timeout: 10000,
-      });
-      const extension =
-        path.extname(new URL(coverImage).pathname) || ".jpg";
-      tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${extension}`);
-      fs.writeFileSync(tempCoverPath, Buffer.from(response.data));
-    }
-
-    // ✅ Upload to Spaces if we have a new local file
-    if (tempCoverPath && fs.existsSync(tempCoverPath)) {
-      const fileName = `covers/${userId}-${magnetId}-${Date.now()}${path.extname(tempCoverPath)}`;
-      const uploadedCover = await uploadFileToSpaces(
-        tempCoverPath,
-        fileName,
-        `image/${path.extname(tempCoverPath).replace(".", "")}`
-      );
-      finalCoverUrl = uploadedCover.Location;
-
-      // 🧹 Cleanup
-      await fs.promises.unlink(tempCoverPath).catch(() => {});
-    }
-  } catch (err) {
-    console.warn("⚠️ Failed to handle cover image:", err.message);
-  }
-}
-
-
-
 
     let finalLogoUrl = logo;
     if (logo && logo.startsWith("data:image")) {
@@ -201,11 +197,11 @@ if (coverImage) {
       }
     }
 
-if (tempCoverPath && fs.existsSync(tempCoverPath)) {
-  const stats = fs.statSync(tempCoverPath);
-} else {
-  console.log("⚠️ No local cover image file found at:", tempCoverPath);
-}
+    if (tempCoverPath && fs.existsSync(tempCoverPath)) {
+      const stats = fs.statSync(tempCoverPath);
+    } else {
+      console.log("⚠️ No local cover image file found at:", tempCoverPath);
+    }
     // 📄 Generate PDF
     const localPath = await generatePDF({
       id: magnetId,
@@ -228,44 +224,53 @@ if (tempCoverPath && fs.existsSync(tempCoverPath)) {
       "application/pdf"
     );
 
-   // ✅ Detect dark themes for correct text color
-const isDarkBg = ["royal", "dark", "graphite", "purple", "navy", "lavender", "carbon"].includes(bgTheme);
+    // ✅ Detect dark themes for correct text color
+    const isDarkBg = [
+      "royal",
+      "dark",
+      "graphite",
+      "purple",
+      "navy",
+      "lavender",
+      "carbon",
+    ].includes(bgTheme);
 
-// ✅ Pick proper colors dynamically
-const resolvedTheme = {
-  background: pdfThemes[bgTheme]?.background || bgTheme || "#fff",
-  color: isDarkBg ? "#fff" : "#000",
-};
+    // ✅ Pick proper colors dynamically
+    const resolvedTheme = {
+      background: pdfThemes[bgTheme]?.background || bgTheme || "#fff",
+      color: isDarkBg ? "#fff" : "#000",
+    };
 
-// ✅ CTA contrast (light on dark, dark on light)
-const ctaBg = pdfThemes[bgTheme]?.ctaBg || (isDarkBg ? "#fff" : "#00E07A");
-const ctaText = pdfThemes[bgTheme]?.ctaText || (isDarkBg ? "#000" : "#000");
+    // ✅ CTA contrast (light on dark, dark on light)
+    const ctaBg = pdfThemes[bgTheme]?.ctaBg || (isDarkBg ? "#fff" : "#00E07A");
+    const ctaText = pdfThemes[bgTheme]?.ctaText || (isDarkBg ? "#000" : "#000");
 
-// ✅ Load CSS and inject variables
-const cssPath = path.resolve(__dirname, "../public/pdf-style.css");
-const cssTemplate = fs.readFileSync(cssPath, "utf8");
+    // ✅ Load CSS and inject variables
+    const cssPath = path.resolve(__dirname, "../public/pdf-style.css");
+    const cssTemplate = fs.readFileSync(cssPath, "utf8");
 
-const css = cssTemplate
-  .replace(/{{font}}/g, "Montserrat")
-  .replace(/{{background}}/g, resolvedTheme.background)
-  .replace(/{{textColor}}/g, resolvedTheme.color)
-  .replace(/{{ctaBg}}/g, ctaBg)
-  .replace(/{{ctaText}}/g, ctaText);
+    const css = cssTemplate
+      .replace(/{{font}}/g, "Montserrat")
+      .replace(/{{background}}/g, resolvedTheme.background)
+      .replace(/{{textColor}}/g, resolvedTheme.color)
+      .replace(/{{ctaBg}}/g, ctaBg)
+      .replace(/{{ctaText}}/g, ctaText);
 
-  // ✅ Resolve cover image inline (base64 preferred)
-const coverSrc =
-  tempCoverPath && fs.existsSync(tempCoverPath)
-    ? `data:image/${path.extname(tempCoverPath).replace(".", "")};base64,${fs
-        .readFileSync(tempCoverPath)
-        .toString("base64")}`
-    : coverImage || "";
+    // ✅ Resolve cover image inline (base64 preferred)
+    const coverSrc =
+      tempCoverPath && fs.existsSync(tempCoverPath)
+        ? `data:image/${path
+            .extname(tempCoverPath)
+            .replace(".", "")};base64,${fs
+            .readFileSync(tempCoverPath)
+            .toString("base64")}`
+        : coverImage || "";
 
-const coverImgTag = coverSrc
-  ? `<div class="cover-page"><img src="${coverSrc}" alt="Cover Image" class="cover-img" /></div>`
-  : "";
+    const coverImgTag = coverSrc
+      ? `<div class="cover-page"><img src="${coverSrc}" alt="Cover Image" class="cover-img" /></div>`
+      : "";
 
-
-let htmlContent = `
+    let htmlContent = `
 <html>
   <head>
     <meta charset="utf-8" />
@@ -308,7 +313,6 @@ let htmlContent = `
 </html>
 `;
 
-
     await saveLeadMagnetPdf(
       magnetId,
       userId,
@@ -317,6 +321,7 @@ let htmlContent = `
       uploaded.Location,
       font_name,
       font_file,
+      formattedAnswer, // ✅ editable_html
       htmlContent,
       bgTheme,
       finalLogoUrl,
@@ -330,7 +335,6 @@ let htmlContent = `
     throw err;
   }
 }
-
 
 export async function handleCheckoutCompleted(session) {
   const createdAt = new Date();

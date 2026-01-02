@@ -475,8 +475,6 @@ export async function logUserActivity({
 
   try {
     if (ipAddress) {
-      console.log("🌎 Starting geo lookup for:", ipAddress);
-
       // Do NOT override IPv6
       const { data: geo } = await axios.get(
         `http://ip-api.com/json/${ipAddress}`

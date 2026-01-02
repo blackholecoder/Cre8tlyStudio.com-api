@@ -1,7 +1,9 @@
 import express from "express";
-import { commitLeadMagnetEdit, startLeadMagnetEdit } from "../../db/editor/dbLeadMagnetsEditor.js";
+import {
+  commitLeadMagnetEdit,
+  startLeadMagnetEdit,
+} from "../../db/editor/dbLeadMagnetsEditor.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
-
 
 const router = express.Router();
 
@@ -14,14 +16,10 @@ router.post("/:id/editor/start", authenticateToken, async (req, res) => {
   }
 });
 
-
 router.put("/:id/editor/commit", authenticateToken, async (req, res) => {
   try {
     const { token, updatedHtml } = req.body;
     const file = req.files?.file; // handled by express-fileupload globally
-
-
-
 
     const result = await commitLeadMagnetEdit(req.user.id, req.params.id, {
       token,

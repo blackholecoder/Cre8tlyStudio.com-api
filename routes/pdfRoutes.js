@@ -4,6 +4,7 @@ import axios from "axios";
 
 import dotenv from "dotenv";
 import { pdfLeads } from "../db/dbPdf.js";
+import { incrementLeadMagnetExportCount } from "../db/dbLeadMagnet.js";
 dotenv.config();
 
 const router = express.Router();
@@ -22,12 +23,12 @@ router.post("/free-pdf", async (req, res) => {
       },
     });
 
-// 📨 Send the guide to user
-await transporter.sendMail({
-  from: '"Cre8tly Studio" <hitwritertv@gmail.com>',
-  to: email,
-  subject: "The Secret Formula To Grow Your Email List 🚀",
-  html: `
+    // 📨 Send the guide to user
+    await transporter.sendMail({
+      from: '"Cre8tly Studio" <hitwritertv@gmail.com>',
+      to: email,
+      subject: "The Secret Formula To Grow Your Email List 🚀",
+      html: `
   <div style="font-family:Montserrat,Arial,sans-serif;background:#0b0f1a;color:#f5f5f5;padding:40px 20px;text-align:center;border-radius:12px;">
     
     <!-- Header Logo -->
@@ -56,14 +57,14 @@ await transporter.sendMail({
     </p>
   </div>
   `,
-});
+    });
 
-// 🔔 Internal notification
-await transporter.sendMail({
-  from: '"Cre8tly Studio Notifications" <hitwritertv@gmail.com>',
-  to: ["hitwritertv@gmail.com", "chrischilodesigns@gmail.com"],
-  subject: "📥 New PDF Download (Cre8tly Studio)",
-  html: `
+    // 🔔 Internal notification
+    await transporter.sendMail({
+      from: '"Cre8tly Studio Notifications" <hitwritertv@gmail.com>',
+      to: ["hitwritertv@gmail.com", "chrischilodesigns@gmail.com"],
+      subject: "📥 New PDF Download (Cre8tly Studio)",
+      html: `
   <div style="font-family:Montserrat,Arial,sans-serif;background:#0a0a0a;color:#f5f5f5;padding:40px 20px;text-align:center;border-radius:12px;">
     
     <!-- Header Logo -->
@@ -84,8 +85,7 @@ await transporter.sendMail({
     <p style="font-size:14px;color:#ccc;">Follow up with this lead — they’re warm and conversion-ready 🔥</p>
   </div>
   `,
-});
-
+    });
 
     res.json({ success: true, message: "PDF sent successfully!" });
   } catch (e) {
@@ -94,9 +94,8 @@ await transporter.sendMail({
   }
 });
 
-
 router.get("/proxy", async (req, res) => {
-  let { url, title, preview } = req.query; // accept title and preview flags
+  let { url, title, preview, magnetId } = req.query; // accept title and preview flags
 
   if (!url || typeof url !== "string") {
     console.error("❌ Missing or invalid ?url:", url);
@@ -128,7 +127,14 @@ router.get("/proxy", async (req, res) => {
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Cache-Control", "no-store");
-    res.setHeader("Content-Disposition", `${dispositionType}; filename="${filename}"`);
+    res.setHeader(
+      "Content-Disposition",
+      `${dispositionType}; filename="${filename}"`
+    );
+
+    if (preview !== "1" && magnetId) {
+      incrementLeadMagnetExportCount(magnetId);
+    }
 
     res.send(response.data);
   } catch (err) {
@@ -137,10 +143,4 @@ router.get("/proxy", async (req, res) => {
   }
 });
 
-
-
-
-
-
 export default router;
-

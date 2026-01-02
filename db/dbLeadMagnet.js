@@ -2,7 +2,12 @@ import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 import { optimizeCoverImage } from "../utils/optimizeCoverImage.js";
 
-export async function createLeadMagnet(userId, prompt, font_name = "Montserrat", font_file = "/fonts/Montserrat-Regular.ttf") {
+export async function createLeadMagnet(
+  userId,
+  prompt,
+  font_name = "Montserrat",
+  font_file = "/fonts/Montserrat-Regular.ttf"
+) {
   const db = connect();
   const id = uuidv4();
   const createdAt = new Date();
@@ -43,8 +48,6 @@ export async function createLeadMagnet(userId, prompt, font_name = "Montserrat",
     ]
   );
 
-  ;
-
   return { id, status, hasProCovers };
 }
 export async function markLeadMagnetComplete(id, pdfUrl) {
@@ -55,7 +58,6 @@ export async function markLeadMagnetComplete(id, pdfUrl) {
      WHERE id=? AND deleted_at IS NULL`,
     [pdfUrl, id]
   );
-  ;
 }
 export async function insertLeadMagnet({
   id,
@@ -68,13 +70,13 @@ export async function insertLeadMagnet({
   createdAt,
   stripeSessionId,
   slot_number,
-  font_name,   
+  font_name,
   font_file,
 }) {
   const db = connect();
   await db.query(
     `INSERT INTO lead_magnets 
-      (id, user_id, prompt, title, pdf_url, price, status, created_at, stripe_session_id, slot_number, font_name, font_file)
+      (id, user_id, prompt, title, pdf_url, price, status, created_at, stripe_session_id, slot_number, font_name, font_file, export_count)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
@@ -91,8 +93,8 @@ export async function insertLeadMagnet({
       font_file,
     ]
   );
-  ;
 }
+
 export async function getLeadMagnetBySessionId(sessionId) {
   const db = connect();
 
@@ -106,7 +108,9 @@ export async function getLeadMagnetBySessionId(sessionId) {
       prompt,
       pdf_url,
       created_at,
-      theme
+      theme,
+      export_count,
+      edit_commit_count
     FROM lead_magnets
     WHERE stripe_session_id = ?
       AND deleted_at IS NULL
@@ -114,8 +118,6 @@ export async function getLeadMagnetBySessionId(sessionId) {
     `,
     [sessionId]
   );
-
-  ;
 
   return rows[0] || null;
 }
@@ -126,7 +128,6 @@ export async function updateLeadMagnetPrompt(id, prompt) {
     "UPDATE lead_magnets SET prompt=?, status='pending' WHERE id=? AND prompt='' AND deleted_at IS NULL",
     [prompt, id]
   );
-  ;
   return result.affectedRows > 0; // false if already had a prompt
 }
 
@@ -149,6 +150,8 @@ export async function getLeadMagnetsByUser(userId) {
       lm.edit_used,
       lm.edit_committed_at,
       lm.cover_image,
+      lm.export_count,
+      lm.edit_commit_count,
       u.magnet_slots AS total_slots,
       (
       SELECT COUNT(*)
@@ -166,9 +169,6 @@ export async function getLeadMagnetsByUser(userId) {
     `,
     [userId]
   );
-
-  ;
-  
 
   // Optimize images
   const optimizedRows = await Promise.all(
@@ -202,7 +202,6 @@ export async function softDeleteLeadMagnet(id) {
     "UPDATE lead_magnets SET deleted_at=NOW() WHERE id=? AND deleted_at IS NULL",
     [id]
   );
-  ;
 }
 export async function getLeadMagnetById(id) {
   const db = connect();
@@ -218,7 +217,6 @@ export async function getLeadMagnetById(id) {
     [id]
   );
 
-  ;
   return rows[0] || null;
 }
 
@@ -235,16 +233,16 @@ export async function saveLeadMagnetPdf(
   prompt,
   title,
   pdfUrl,
-   font_name,
+  font_name,
   font_file,
-  htmlContent,
+  editableHtml,
+  htmlTemplate,
   bgTheme,
   logo,
   link,
   coverImage,
   cta
 ) {
-
   const db = connect();
   const finalBgTheme = bgTheme || "modern";
 
@@ -264,6 +262,7 @@ export async function saveLeadMagnetPdf(
       cover_image = ?, 
       cta = ?, 
       editable_html = ?, 
+      html_template = ?,
       created_at_prompt = NOW(),
       original_pdf_url = COALESCE(original_pdf_url, ?)
     WHERE id = ? AND user_id = ?
@@ -280,14 +279,13 @@ export async function saveLeadMagnetPdf(
       link,
       coverImage,
       cta,
-      htmlContent,
+      editableHtml, // ✅ inner content only
+      htmlTemplate, // ✅ full HTML doc
       pdfUrl,
       magnetId,
       userId,
     ]
   );
-
-  ;
 }
 export async function getPromptMemory(userId, page, limit) {
   const db = connect();
@@ -319,7 +317,7 @@ export async function getPromptMemory(userId, page, limit) {
       [userId]
     );
 
-        return {
+    return {
       prompts: rows,
       page,
       limit,
@@ -329,7 +327,7 @@ export async function getPromptMemory(userId, page, limit) {
   } catch (err) {
     console.error("❌ Error fetching prompt memory:", err);
     throw err;
-  } 
+  }
 }
 
 export async function getLeadMagnetByPdfUrl(pdfUrl) {
@@ -346,7 +344,7 @@ export async function getLeadMagnetByPdfUrl(pdfUrl) {
   } catch (err) {
     console.error("❌ getLeadMagnetByPdfUrl error:", err);
     throw err;
-  } 
+  }
 }
 
 export async function softDeleteMagnetById(magnetId, userId) {
@@ -361,12 +359,32 @@ export async function softDeleteMagnetById(magnetId, userId) {
     AND user_id = ? 
     AND deleted_at IS NULL
   `,
-  [magnetId, userId]
+      [magnetId, userId]
     );
 
     return result.affectedRows > 0;
   } catch (err) {
     console.error("❌ softDeleteMagnetById error:", err);
     throw err;
-  } 
+  }
+}
+// DOWNLOAD EXPORT COUNT
+export async function incrementLeadMagnetExportCount(magnetId) {
+  if (!magnetId) return;
+
+  const db = connect();
+
+  try {
+    await db.query(
+      `
+      UPDATE lead_magnets
+      SET export_count = export_count + 1
+      WHERE id = ?
+      `,
+      [magnetId]
+    );
+  } catch (err) {
+    console.error("❌ incrementLeadMagnetExportCount error:", err);
+    // IMPORTANT: do NOT throw
+  }
 }
