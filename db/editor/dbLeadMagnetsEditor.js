@@ -15,8 +15,7 @@ const __dirname = path.dirname(__filename);
 export async function startLeadMagnetEdit(userId, leadMagnetId) {
   const db = connect();
   const [rows] = await db.query(
-    `SELECT user_id, editable_html, html_template, edit_used, edit_commit_count,
-            theme, bg_theme, logo, link, cover_image, cta, pdf_url, original_pdf_url
+    `SELECT user_id, editable_html, html_template, edit_used, edit_commit_count, export_count, theme, bg_theme, logo, link, cover_image, cta, pdf_url, original_pdf_url, font_name
        FROM lead_magnets
       WHERE id = ?`,
     [leadMagnetId]
@@ -26,10 +25,6 @@ export async function startLeadMagnetEdit(userId, leadMagnetId) {
   const record = rows[0];
 
   if (record.user_id !== userId) throw new Error("Unauthorized");
-
-  if (record.edit_commit_count >= 2) {
-    throw new Error("Editing is permanently locked");
-  }
 
   if (record.export_count > 0) {
     throw new Error("Editing is locked after export");
