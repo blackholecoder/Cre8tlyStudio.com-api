@@ -61,10 +61,16 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
                    margin-right:auto;">
 
                 <style>
+                  #review-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 12px;
+                  }
                   @media (max-width: 600px) {
                     #reviews-section {
                       padding: 20px !important;
-                      border-radius: 0 !important;
+                      border-radius: 14 !important;
                       max-width: 100% !important;
                       
                     }
@@ -80,6 +86,13 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
                       margin-top: 28px !important; 
                       border-radius: 12px !important;
                     }
+                    #review-header {
+                      flex-direction: column;
+                      align-items: center;
+                      text-align: center;
+                    }
+
+                    
                   }
                 </style>
 
@@ -114,9 +127,10 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
                   <button
                     id="review-btn"
                     style="width:100%;padding:12px 26px;border:none;border-radius:10px;
-                           background:#fff200;color:#000 !important;font-weight:600;font-size:1rem;
-                           cursor:pointer;transition:all 0.25s ease;
-                           box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                    background:rgba(255,255,255,0.12);
+                    color:#ffffff;border:1px solid rgba(255,255,255,0.25); !important;font-weight:600;font-size:1rem;
+                    cursor:pointer;transition:all 0.25s ease;
+                    box-shadow:0 4px 12px rgba(0,0,0,0.3);backdrop-filter: blur(6px);">
                     Leave a Review
                   </button>
 
@@ -188,16 +202,23 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
                         div.style.padding = '18px';
                         div.style.background = 'rgba(0,0,0,0.4)';
                         div.style.borderRadius = '12px';
-                        div.innerHTML = \`
-                          <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="color:#7bed9f !important;font-weight:600;">\${r.username}</span>
-                            <span style="color:#facc15 !important;">\${'⭐'.repeat(r.rating)}</span>
-                          </div>
-                          <p style="margin-top:8px;">\${r.review_text}</p>
-                          <p style="font-size:0.85rem;margin-top:6px;opacity:0.8;">
-                            Verified Buyer • \${new Date(r.created_at).toLocaleDateString()}
-                          </p>
-                        \`;
+                        div.innerHTML =
+  '<div style="text-align:center;margin-bottom:16px;">' +
+    '<span style="color:#facc15 !important;">' + '⭐'.repeat(r.rating) + '</span>' +
+  '</div>' +
+
+  '<p style="margin:6px 0 6px 0;text-align:left;">' +
+    r.review_text +
+  '</p>' +
+
+  '<p style="margin:16px 0 0 0;font-weight:500;color:#7bed9f !important;text-align:left;">' +
+    r.username +
+  '</p>' +
+
+  '<p style="margin:2px 0 0 0;font-size:0.85rem;opacity:0.8;text-align:left;">' +
+    'Verified Buyer • ' + new Date(r.created_at).toLocaleDateString() +
+  '</p>';
+
                         container.appendChild(div);
                       });
                     } catch (err) {

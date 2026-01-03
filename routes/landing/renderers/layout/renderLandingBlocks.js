@@ -9,6 +9,7 @@ import { renderListHeadingBlock } from "../blocks/listHeading.js";
 import { renderMiniOfferBlock } from "../blocks/miniOffer.js";
 // import { renderOfferBannerBlock } from "../blocks/offerBanner.js";
 import { renderParagraphBlock } from "../blocks/paragraph.js";
+import { renderProfileCardBlock } from "../blocks/profileCard.js";
 import { renderReferralButtonBlock } from "../blocks/referralButton.js";
 import { renderSecureCheckoutBlock } from "../blocks/secureCheckout.js";
 import { renderSingleOfferBlock } from "../blocks/singleOffer.js";
@@ -111,6 +112,10 @@ export function renderLandingBlocks({
 
         case "image":
           html = renderImageBlock(block);
+          break;
+
+        case "profile_card":
+          html = renderProfileCardBlock(block, landingPage);
           break;
 
         case "secure_checkout":

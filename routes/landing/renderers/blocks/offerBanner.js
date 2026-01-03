@@ -50,21 +50,29 @@ export function renderOfferBannerBlock(block, ctx = {}) {
 <div style="
   background:${bannerBg};
   color:${block.text_color || "#fff"};
-  padding:40px;
+  padding:${shouldShowButton ? "32px 24px" : "20px"};
+   margin:0;
   text-align:center;
   border-radius:20px;
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:${shouldShowButton ? "flex-start" : "center"};
 ">
+  ${
+    block.text
+      ? `
   <p style="
     font-size:1.5rem;
     font-weight:700;
-    margin-bottom:${shouldShowButton ? "20px" : "0"};
+    margin:0;
+    margin-bottom:${shouldShowButton ? "18px" : "0"};
+    line-height:1.2;
   ">
-    ${block.text || "🔥 Limited Time Offer!"}
-  </p>
+    ${block.text}
+  </p>`
+      : ""
+  }
+
   ${shouldShowButton ? buttonHTML : ""}
 </div>
 `;

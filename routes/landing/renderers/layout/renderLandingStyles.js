@@ -35,7 +35,7 @@ export function renderLandingStyles({ bg, mainOverlayColor, landingPage }) {
   justify-content: center; /* future cover centers */
   align-items: center;
   width: 100%;
-  padding: 40px 20px 0;
+  padding: 10px 20px 0;
 }
 
 header .logo {
