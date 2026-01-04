@@ -929,6 +929,7 @@ router.post("/webauthn/login-verify", async (req, res) => {
         stripe_account_type: stripeStatus.account_type || null,
         plan: user.plan,
         basic_annual: user.basic_annual,
+        is_admin_employee: user.is_admin_employee,
         passkey: creds
           ? {
               id: creds.credentialID,
@@ -937,6 +938,7 @@ router.post("/webauthn/login-verify", async (req, res) => {
             }
           : null,
       },
+
       accessToken,
       refreshToken,
     });

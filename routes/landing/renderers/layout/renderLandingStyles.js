@@ -399,6 +399,50 @@ button {
 
 
 
+/* ============================== */
+/* Scroll Arrow (Live Landing) */
+/* ============================== */
+
+.scroll-arrow-item {
+  display: block;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  will-change: transform, opacity;
+}
+
+/* Bounce */
+.scroll-arrow-item.bounce {
+  animation-name: arrow-bounce;
+}
+
+/* Float */
+.scroll-arrow-item.float {
+  animation-name: arrow-float;
+}
+
+/* Pulse */
+.scroll-arrow-item.pulse {
+  animation-name: arrow-pulse;
+}
+
+/* Keyframes (these stay the same) */
+@keyframes arrow-bounce {
+  0% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(10px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0.6; }
+}
+
+@keyframes arrow-float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes arrow-pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.6; }
+}
 
 
 

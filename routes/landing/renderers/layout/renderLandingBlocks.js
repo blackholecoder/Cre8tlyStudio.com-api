@@ -11,6 +11,7 @@ import { renderMiniOfferBlock } from "../blocks/miniOffer.js";
 import { renderParagraphBlock } from "../blocks/paragraph.js";
 import { renderProfileCardBlock } from "../blocks/profileCard.js";
 import { renderReferralButtonBlock } from "../blocks/referralButton.js";
+import { renderScrollArrowBlock } from "../blocks/scrollArrow.js";
 import { renderSecureCheckoutBlock } from "../blocks/secureCheckout.js";
 import { renderSingleOfferBlock } from "../blocks/singleOffer.js";
 import { renderSocialLinksBlock } from "../blocks/socialLinks.js";
@@ -132,6 +133,9 @@ export function renderLandingBlocks({
 
         case "mini_offer":
           html = renderMiniOfferBlock(block, landingPage);
+          break;
+        case "scroll_arrow":
+          html = renderScrollArrowBlock(block, landingPage);
           break;
 
         default:
