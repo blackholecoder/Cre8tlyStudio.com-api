@@ -59,7 +59,7 @@ export function renderScrollArrowBlock(block) {
         style="
           display:block;
           margin-top:${i === 0 ? 0 : "-10"}px;
-          animation-delay:${i * stagger}s;
+          animation-delay:${i * (block.stagger ?? stagger)}s;
           animation-duration:${animation_speed}s;
         "
       >
