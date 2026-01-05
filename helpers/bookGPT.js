@@ -4,7 +4,6 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-
 // Fiction
 export async function askBookGPTFiction(
   bookPrompt,
@@ -93,9 +92,7 @@ Never close the story unless told to.
   }
 }
 
-
-
-// DO NOT DELETE 
+// DO NOT DELETE!
 export async function askBookGPT(
   bookPrompt,
   previousText = "",
@@ -108,22 +105,46 @@ export async function askBookGPT(
     const safeInput =
       typeof userInput === "string" && userInput.trim().length > 0
         ? userInput.trim()
-        : safePrevious || safePrompt;
+        : safePrompt;
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("OpenAI request timed out after 240s")), 240000)
+      setTimeout(
+        () => reject(new Error("OpenAI request timed out after 240s")),
+        240000
+      )
     );
 
-    const gptPromise = client.chat.completions.create({
-      model: "gpt-4.1",
-      temperature: 0.8, // more natural storytelling tone, but still truthful
-      messages: [
-        {
-          role: "system",
-          content: `
+    const messages = [];
+
+    if (safePrevious && chapterNumber > 1) {
+      messages.push({
+        role: "system",
+        content: `
+NARRATIVE MEMORY — FOR CONTINUITY ONLY
+
+The following text represents what has already happened earlier in the book.
+Use it ONLY to maintain continuity of timeline, tone, and narrative direction.
+DO NOT repeat, summarize, paraphrase, or rewrite this content.
+Continue the book forward with new material.
+
+${safePrevious}
+    `,
+      });
+    }
+
+    messages.push(
+      {
+        role: "system",
+        content: `
 You are Cre8tlyStudio AI — a **nonfiction co-author and stylist** trained to write at the level of a bestselling memoirist.
 You help real authors transform their raw, honest experiences into emotionally powerful, cinematic narratives —
 without ever changing what truly happened.
+
+CRITICAL CONTINUATION RULES:
+• Each chapter must advance the story forward
+• Never repeat or rephrase previous chapters
+• Assume the reader has already read earlier chapters
+• Maintain continuity without restating prior content
 
 🎯 PURPOSE
 Turn the author's authentic words into compelling prose that reads like a professional memoir.
@@ -153,19 +174,24 @@ truth intact, but the *delivery* refined, captivating, and alive.
 <h2>Chapter ${chapterNumber}</h2>
 <p>Enhanced, professionally written version of the author’s true story — more vivid and emotionally engaging, but entirely factual.</p>
 `,
-        },
-        {
-          role: "user",
-          content: `Here is the author's true story. 
+      },
+      {
+        role: "user",
+        content: `Here is the author's true story. 
 Make it read like a bestselling memoir — emotional, structured, and beautifully written —
 but **do not add** fictional details or invent anything beyond what the author provided:\n\n${safeInput}`,
-        },
-        {
-          role: "system",
-          content:
-            "Reminder: Stay 100% grounded in the author's truth. You may shape expression and tone, not facts or events.",
-        },
-      ],
+      },
+      {
+        role: "system",
+        content:
+          "Reminder: Stay 100% grounded in the author's truth. You may shape expression and tone, not facts or events. Do not repeat prior chapters.",
+      }
+    );
+
+    const gptPromise = client.chat.completions.create({
+      model: "gpt-4.1",
+      temperature: 0.8, // more natural storytelling tone, but still truthful
+      messages,
     });
 
     const response = await Promise.race([gptPromise, timeoutPromise]);

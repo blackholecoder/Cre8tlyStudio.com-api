@@ -103,17 +103,17 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       pages = 10,
       link,
       coverImage,
-      title, 
+      title,
       authorName,
-      bookName, 
+      bookName,
       partNumber = 1,
       bookType,
-      font_name = "Montserrat", 
-      font_file = "/fonts/Montserrat-Regular.ttf", 
+      font_name = "Montserrat",
+      font_file = "/fonts/Montserrat-Regular.ttf",
       isEditing = false,
     } = req.body;
 
-    
+    console.log("cover image", coverImage);
 
     const userId = req.user.id;
 
@@ -126,7 +126,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
         });
       }
 
-    // ✏️ --- EDIT MODE: Save edited text ONLY, no GPT ---
+      // ✏️ --- EDIT MODE: Save edited text ONLY, no GPT ---
       const updatedUrl = await updateEditedChapter({
         bookId,
         userId,
@@ -186,7 +186,6 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     if (isEditing) {
       await lockBookPartEdit(bookId, partNumber, userId);
     }
-
 
     res.json(generated);
   } catch (err) {

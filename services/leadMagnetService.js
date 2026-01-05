@@ -18,6 +18,7 @@ import { uploadFileToSpaces } from "../helpers/uploadToSpace.js";
 import { getUserBrandFile } from "../db/dbUploads.js";
 import axios from "axios";
 import { pdfThemes } from "./pdfThemes.js";
+import { normalizePunctuation } from "../utils/normalizePunctuation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,6 +82,8 @@ ${brandTone.slice(0, 4000)}
         brandTone: brandTone || null,
       });
     }
+
+    gptAnswer = normalizePunctuation(gptAnswer);
 
     if (!gptAnswer || typeof gptAnswer !== "string") {
       throw new Error("processPromptFlow: GPT did not return valid text");

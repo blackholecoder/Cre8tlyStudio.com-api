@@ -6,15 +6,16 @@ export function renderScrollArrowBlock(block) {
     animation_type = "bounce", // bounce | float | pulse
     animation_speed = 1.2,
     arrow_style = "single", // single | double | triple
+    stagger = 0, // 🔑 user-controlled
   } = block;
 
   const styleMap = {
-    single: { count: 1, stagger: 0 },
-    double: { count: 2, stagger: 0.15 },
-    triple: { count: 3, stagger: 0.18 },
+    single: 1,
+    double: 2,
+    triple: 3,
   };
 
-  const { count, stagger } = styleMap[arrow_style] || styleMap.single;
+  const count = styleMap[arrow_style] || 1;
 
   return `
 <div
@@ -59,7 +60,7 @@ export function renderScrollArrowBlock(block) {
         style="
           display:block;
           margin-top:${i === 0 ? 0 : "-10"}px;
-          animation-delay:${i * (block.stagger ?? stagger)}s;
+          animation-delay:${i * stagger}s;
           animation-duration:${animation_speed}s;
         "
       >

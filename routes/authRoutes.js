@@ -6,11 +6,12 @@ import {
   createUser,
   getUserByEmail,
   getUserById,
-  getUserByRefreshToken,
   getWebAuthnCredentials,
+  isRefreshTokenValid,
   logEmployeeReferral,
   logUserActivity,
   removeUserPasskey,
+  rotateRefreshToken,
   saveAdminRefreshToken,
   saveRefreshToken,
   saveWebAuthnCredentials,
@@ -177,32 +178,51 @@ router.post("/login", async (req, res) => {
 
 router.post("/refresh", async (req, res) => {
   const { token } = req.body;
-  if (!token) return res.status(401).json({ message: "No refresh token" });
+  if (!token) {
+    return res.status(401).json({ message: "No refresh token" });
+  }
 
-  const user = await getUserByRefreshToken(token);
-  if (!user) return res.status(403).json({ message: "Invalid refresh token" });
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  } catch {
+    return res
+      .status(403)
+      .json({ message: "Invalid or expired refresh token" });
+  }
 
-  jwt.verify(token, process.env.JWT_REFRESH_SECRET, async (err) => {
-    if (err) return res.status(403).json({ message: "Expired refresh token" });
+  const user = await getUserById(payload.id);
+  if (!user) {
+    return res.status(403).json({ message: "User not found" });
+  }
 
-    const newAccessToken = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
-    );
+  const valid = await isRefreshTokenValid(user.id, token);
+  if (!valid) {
+    return res.status(403).json({ message: "Refresh token revoked" });
+  }
 
-    // Rotate refresh token
-    const newRefreshToken = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
-    );
-    await saveRefreshToken(user.id, newRefreshToken);
+  const newAccessToken = jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" }
+  );
 
-    res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+  const newRefreshToken = jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  const rotated = await rotateRefreshToken(user.id, newRefreshToken, token);
+  if (!rotated) {
+    return res.status(403).json({ message: "Refresh token already used" });
+  }
+
+  res.json({
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
   });
 });
-
 // LOGOUT → clear refresh token
 router.post("/logout", authenticateToken, async (req, res) => {
   await saveRefreshToken(req.user.id, null);

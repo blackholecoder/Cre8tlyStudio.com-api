@@ -515,6 +515,66 @@ export async function getUserByRefreshToken(refreshToken) {
   return rows[0] || null;
 }
 
+export async function rotateRefreshToken(userId, newToken, oldToken) {
+  try {
+    const db = connect();
+    if (!userId || !newToken || !oldToken) {
+      return false;
+    }
+
+    const [result] = await db.query(
+      `
+      UPDATE users
+      SET
+        refresh_token = ?,
+        previous_refresh_token = ?
+      WHERE id = ?
+        AND (refresh_token = ? OR previous_refresh_token = ?)
+      `,
+      [newToken, oldToken, userId, oldToken, oldToken]
+    );
+
+    return result.affectedRows === 1;
+  } catch (err) {
+    console.error("❌ rotateRefreshToken error:", {
+      userId,
+      err,
+    });
+    return false;
+  }
+}
+
+export async function isRefreshTokenValid(userId, token) {
+  try {
+    const db = connect();
+    if (!userId || !token) {
+      return false;
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT 1
+      FROM users
+      WHERE id = ?
+        AND (
+          refresh_token = ?
+          OR previous_refresh_token = ?
+        )
+      LIMIT 1
+      `,
+      [userId, token, token]
+    );
+
+    return rows.length > 0;
+  } catch (err) {
+    console.error("❌ isRefreshTokenValid error:", {
+      userId,
+      err,
+    });
+    return false;
+  }
+}
+
 export async function getAdminByRefreshToken(refreshToken) {
   try {
     const db = connect();

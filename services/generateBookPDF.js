@@ -14,11 +14,10 @@ export async function generateBookPDF({
   chapters = [],
   coverImage = null,
   link = null,
-  font_name = "AdobeArabic", 
-  font_file = "/fonts/AdobeArabic-Regular.ttf", 
+  partNumber = 1,
+  font_name = "AdobeArabic",
+  font_file = "/fonts/AdobeArabic-Regular.ttf",
 }) {
-
-
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -28,23 +27,29 @@ export async function generateBookPDF({
   await page.evaluateHandle("document.fonts.ready");
 
   // ✅ Resolve dynamic font path
-  const fontPath = path.resolve(__dirname, `../public${font_file.startsWith('/') ? font_file : '/' + font_file}`);
+  const fontPath = path.resolve(
+    __dirname,
+    `../public${font_file.startsWith("/") ? font_file : "/" + font_file}`
+  );
 
-let finalFontPath = fontPath;
+  let finalFontPath = fontPath;
 
-if (!fs.existsSync(fontPath)) {
-  console.warn(`⚠️ Font not found at ${fontPath}, falling back to default.`);
-  finalFontPath = path.resolve(__dirname, "../public/fonts/AdobeArabic-Regular.ttf");
-}
+  if (!fs.existsSync(fontPath)) {
+    console.warn(`⚠️ Font not found at ${fontPath}, falling back to default.`);
+    finalFontPath = path.resolve(
+      __dirname,
+      "../public/fonts/AdobeArabic-Regular.ttf"
+    );
+  }
 
-// ✅ Detect format and convert
-const fontFormat = finalFontPath.endsWith(".otf")
-  ? "opentype"
-  : finalFontPath.endsWith(".ttf")
-  ? "truetype"
-  : "woff2";
+  // ✅ Detect format and convert
+  const fontFormat = finalFontPath.endsWith(".otf")
+    ? "opentype"
+    : finalFontPath.endsWith(".ttf")
+    ? "truetype"
+    : "woff2";
 
-const fontBase64 = fs.readFileSync(finalFontPath).toString("base64");
+  const fontBase64 = fs.readFileSync(finalFontPath).toString("base64");
 
   let coverTag = "";
   if (coverImage && fs.existsSync(coverImage)) {
@@ -56,110 +61,152 @@ const fontBase64 = fs.readFileSync(finalFontPath).toString("base64");
       </div>`;
   }
 
-  const content = chapters
-    .map(
-      (c) => `
-        <div class="chapter">
-          <h1>${c.title}</h1>
-          <p>${c.content.replace(/\n/g, "</p><p>")}</p>
-        </div>`
-    )
-    .join("");
-
   const learnMore = link
     ? `
-      <div class="page-break"></div>
-      <div class="chapter">
-        <h2>Learn More</h2>
-        <p>
-          Continue your journey at 
-          <a href="${link}" class="book-link">${link}</a>.
-        </p>
-      </div>`
+    <div class="page">
+      <div class="page-inner">
+        <div class="chapter">
+          <h2 class="chapter-title">Learn More</h2>
+          <p>
+            Continue your journey at
+            <a href="${link}" class="book-link">${link}</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  `
     : "";
 
+  const content =
+    chapters
+      .map(
+        (c) => `
+  <div class="page">
+    <div class="page-inner">
+      <div class="chapter">
+        <h2 class="chapter-title">${c.title}</h2>
+        ${c.content
+          .split(/\n+/)
+          .map((p) => `<p>${p.trim()}</p>`)
+          .join("")}
+      </div>
+    </div>
+  </div>
+`
+      )
+      .join("") + learnMore;
 
+  const titlePage =
+    partNumber === 1
+      ? `
+      <div class="title-page">
+        <h1>${title}</h1>
+        <h2>by ${author}</h2>
+        ${link ? `<p><a href="${link}" target="_blank">${link}</a></p>` : ""}
+      </div>
+    `
+      : "";
 
-  const html = `
-  <html>
+  await page.setContent(`
+<html>
   <head>
     <style>
       @font-face {
         font-family: '${font_name}';
         src: url('data:font/${fontFormat};base64,${fontBase64}') format('${fontFormat}');
       }
+
       body {
         font-family: '${font_name}', Georgia, serif;
-        color: #222;
         margin: 0;
         padding: 0;
       }
-      .cover-page {
-        text-align: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        page-break-after: always;
+
+      .page {
+        width: 210mm;
+        break-inside: avoid;
       }
-      .cover-img {
-        max-width: 70%;
-        height: auto;
-        border: 4px solid #222;
-        border-radius: 8px;
+        .page:not(:last-child) {
+  page-break-after: always;
+}
+
+      .page-inner {
+        padding: 0;
       }
+
+
+      .cover-page { 
+      position: relative; 
+      width: 210mm; 
+      height: 297mm; 
+      page-break-after: always; 
+      overflow: hidden; 
+      } 
+      
+      .cover-img { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+      }
+
       .title-page {
-        text-align: center;
-        margin-top: 200px;
-        page-break-after: always;
+  width: 210mm;
+  height: 297mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  page-break-after: always;
+}
+      .title-page h1 { 
+      font-size: 26pt; color: #000; 
+      margin-bottom: 10px; 
+      } 
+      .title-page h2 { 
+      font-size: 16pt; 
+      color: #444; 
+      margin-bottom: 10px; 
       }
-      .title-page h1 {
-        font-size: 26pt;
-        color: #000;
-        margin-bottom: 10px;
-      }
-      .title-page h2 {
-        font-size: 16pt;
-        color: #444;
-        margin-bottom: 10px;
-      }
+
       .chapter {
-        margin: 60px auto;
-        max-width: 700px;
-        padding: 0 20px;
-        text-align: justify;
+        margin: 0 0 24px 0;
         font-size: 13pt;
         line-height: 1.8;
-        page-break-inside: avoid;
+        text-align: justify;
       }
-      .chapter h1 {
-        margin-top: 40px;
-        margin-bottom: 20px;
-        font-size: 20pt;
-        color: #000;
+
+      .chapter-title {
+        margin-top: 32px; 
+        margin-bottom: 12px; 
+        font-size: 18pt; 
+        font-weight: bold; 
+        color: #000; 
+        page-break-after: avoid;
       }
+
       .book-link {
         color: #3366cc;
         text-decoration: none;
       }
-      .page-break { page-break-before: always; }
-      @page { size: A4; margin: 20mm; }
+
+      p {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
     </style>
   </head>
   <body>
     ${coverTag}
-    <div class="title-page">
-      <h1>${title}</h1>
-      <h2>by ${author}</h2>
-      ${link ? `<p><a href="${link}" target="_blank">${link}</a></p>` : ""}
-    </div>
+    ${titlePage}
     ${content}
-    ${learnMore}
   </body>
-  </html>
-  `;
+</html>
+`);
 
-  await page.setContent(html);
   await page.evaluateHandle("document.fonts.ready").catch(() => {});
 
   const outputDir = path.resolve("public/books");
@@ -172,39 +219,33 @@ const fontBase64 = fs.readFileSync(finalFontPath).toString("base64");
     format: "A4",
     printBackground: true,
     preferCSSPageSize: true,
-    displayHeaderFooter: true,
-    headerTemplate: `
-      <div style="font-size:10px; color:#888; text-align:right; width:100%; padding-right:20px;">
-        <span class="title"></span>
-      </div>
-    `,
-    footerTemplate: `
-      <div style="font-size:10px; color:#555; text-align:center; width:100%; padding-bottom:10px;">
-        Page <span class="pageNumber"></span> of <span class="totalPages"></span>
-      </div>
-    `,
-    margin: { top: "15mm", bottom: "20mm", left: "15mm", right: "15mm" },
+    displayHeaderFooter: false,
+    margin: {
+      top: "25mm",
+      bottom: "25mm",
+      left: "20mm",
+      right: "20mm",
+    },
   });
 
+  await browser.close();
 
-await browser.close();
+  // ✅ Ensure file is fully written before reading
+  await new Promise((res) => setTimeout(res, 300));
 
-// ✅ Ensure file is fully written before reading
-await new Promise((res) => setTimeout(res, 300));
-
-let pageCount = 0;
-try {
-  if (fs.existsSync(localPdfPath)) {
-    const pdfBytes = fs.readFileSync(localPdfPath);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    pageCount = pdfDoc.getPageCount();
-    console.log("✅ True page count:", pageCount);
-  } else {
-    console.warn("⚠️ PDF file not found:", localPdfPath);
+  let pageCount = 0;
+  try {
+    if (fs.existsSync(localPdfPath)) {
+      const pdfBytes = fs.readFileSync(localPdfPath);
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+      pageCount = pdfDoc.getPageCount();
+      console.log("✅ True page count:", pageCount);
+    } else {
+      console.warn("⚠️ PDF file not found:", localPdfPath);
+    }
+  } catch (err) {
+    console.warn("⚠️ Page count read error:", err.message);
   }
-} catch (err) {
-  console.warn("⚠️ Page count read error:", err.message);
-}
 
-return { localPdfPath, pageCount };
+  return { localPdfPath, pageCount };
 }

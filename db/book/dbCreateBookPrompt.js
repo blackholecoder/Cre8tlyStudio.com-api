@@ -1,7 +1,11 @@
 import connect from "../connect.js";
 import { generateBookPDF } from "../../services/generateBookPDF.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
-import { askBookGPT, askBookGPTEducational, askBookGPTFiction } from "../../helpers/bookGPT.js";
+import {
+  askBookGPT,
+  askBookGPTEducational,
+  askBookGPTFiction,
+} from "../../helpers/bookGPT.js";
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
@@ -10,25 +14,24 @@ import {
   saveBookPartText,
 } from "./getLastBookPartText.js";
 import { getBookTypeById, saveBookPdf } from "./dbBooks.js";
+import { normalizePunctuation } from "../../utils/normalizePunctuation.js";
 
 export async function createBookPrompt({
   prompt,
   pages = 10,
   link,
   coverImage,
+  title,
   bookName,
   authorName,
   partNumber = 1,
   bookId = null,
   userId = null,
   bookType,
-  font_name = "Montserrat",           // ✅ new
+  font_name = "Montserrat", // ✅ new
   font_file = "/fonts/Montserrat-Regular.ttf", // ✅ new
-  isEditing = false, 
+  isEditing = false,
 }) {
-
-
-
   console.log(`✍️ Running Book GPT Engine (Part ${partNumber})...`);
   const db = connect();
 
@@ -63,44 +66,70 @@ export async function createBookPrompt({
     } else if (resolvedBookType === "non-fiction") {
       gptOutput = await askBookGPT(prompt, previousText, "", partNumber);
     } else if (resolvedBookType === "educational") {
-      gptOutput = await askBookGPTEducational(prompt, previousText, "", partNumber);
+      gptOutput = await askBookGPTEducational(
+        prompt,
+        previousText,
+        "",
+        partNumber
+      );
     } else {
       console.log("⚠️ Unknown type, defaulting to non-fiction GPT");
       gptOutput = await askBookGPT(prompt, previousText, "", partNumber);
     }
 
+    gptOutput = normalizePunctuation(gptOutput);
+
     if (!gptOutput || typeof gptOutput !== "string") {
       throw new Error("GPT did not return valid text for the book section");
     }
 
-
     // ✅ 3. Temporary cover handling
     let tempCoverPath = null;
-    if (coverImage && coverImage.startsWith("data:image")) {
+
+    if (coverImage) {
       const tmpDir = path.resolve("uploads/tmp");
       if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-      const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
-      const extension = coverImage.substring(
-        coverImage.indexOf("/") + 1,
-        coverImage.indexOf(";")
-      );
+      // 🟢 Case 1: base64 image
+      if (coverImage.startsWith("data:image")) {
+        const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
+        const extension = coverImage.substring(
+          coverImage.indexOf("/") + 1,
+          coverImage.indexOf(";")
+        );
 
-      tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
-      fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
+        tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
+        fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
+      }
+
+      // 🟢 Case 2: remote image (Unsplash, CDN, Spaces)
+      else if (coverImage.startsWith("http")) {
+        const url = new URL(coverImage);
+        const ext = path.extname(url.pathname) || ".jpg";
+
+        tempCoverPath = path.join(tmpDir, `cover_${Date.now()}${ext}`);
+
+        const response = await fetch(coverImage);
+        if (!response.ok) {
+          throw new Error(`Failed to download cover image: ${response.status}`);
+        }
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        fs.writeFileSync(tempCoverPath, buffer);
+      }
     }
 
     // ✅ 4. Parse chapters
-    const chapters = [];
-    const regex = /<h[12][^>]*>(.*?)<\/h[12]>([\s\S]*?)(?=<h[12]|$)/gi;
-    let match;
-    while ((match = regex.exec(gptOutput)) !== null) {
-      const chapterTitle = match[1]?.replace(/<\/?[^>]+(>|$)/g, "").trim();
-      const chapterContent = match[2]?.trim() || "";
-      if (chapterTitle && chapterContent) {
-        chapters.push({ title: chapterTitle, content: chapterContent });
-      }
-    }
+    const cleanedContent = gptOutput
+      .replace(/<h[12][^>]*>.*?<\/h[12]>/gi, "") // strip GPT headings
+      .trim();
+
+    const chapters = [
+      {
+        title: title?.trim() || `Chapter ${partNumber}`, // ← from frontend
+        content: cleanedContent,
+      },
+    ];
 
     // ✅ 5. Fallbacks
     let finalTitle = bookName?.trim() || null;
@@ -133,17 +162,22 @@ export async function createBookPrompt({
       chapters,
       coverImage: tempCoverPath,
       link,
+      partNumber,
       font_name, // ✅ include font info
-      font_file, 
+      font_file,
     });
-
 
     // ✅ 7. Upload PDF to Spaces
     const fileName = `books/${thisBookId}_part${partNumber}-${Date.now()}.pdf`;
-    const uploaded = await uploadFileToSpaces(localPdfPath, fileName, "application/pdf");
+    const uploaded = await uploadFileToSpaces(
+      localPdfPath,
+      fileName,
+      "application/pdf"
+    );
 
     // ✅ 8. Cleanup temp files
-    if (tempCoverPath && fs.existsSync(tempCoverPath)) fs.unlinkSync(tempCoverPath);
+    if (tempCoverPath && fs.existsSync(tempCoverPath))
+      fs.unlinkSync(tempCoverPath);
     if (fs.existsSync(localPdfPath)) fs.unlinkSync(localPdfPath);
 
     // ✅ 9. Save text for continuity
@@ -171,7 +205,7 @@ export async function createBookPrompt({
       bookId: thisBookId,
       gptOutput,
       actualPages: pageCount || pages,
-      font_name, 
+      font_name,
       font_file,
     };
   } catch (err) {
@@ -179,7 +213,6 @@ export async function createBookPrompt({
     throw err;
   }
 }
-
 
 export function validateBookPromptInput(bookId, prompt) {
   if (!bookId || !prompt) return "bookId and prompt are required";
@@ -222,13 +255,10 @@ export async function processBookPrompt({
   partNumber,
   bookName, // ✅ book title
   bookType,
-  font_name = "Montserrat", 
-  font_file = "/fonts/Montserrat-Regular.ttf", 
+  font_name = "Montserrat",
+  font_file = "/fonts/Montserrat-Regular.ttf",
 }) {
-
-
   const db = connect();
-
 
   // ✅ Generate content and upload
   const generated = await createBookPrompt({
@@ -250,7 +280,6 @@ export async function processBookPrompt({
   console.log(`📄 Estimated actual pages generated: ${actualPages}`);
 
   console.log("🧩 Saving part:", { bookId, title, partNumber });
-
 
   // ✅ Save file & update page count
   await saveBookPdf(
@@ -285,7 +314,5 @@ export async function processBookPrompt({
     `📊 Updating DB with ${generated.actualPages} pages (requested ${pages}), font: ${font_name}`
   );
 
-  ;
   return generated;
 }
-
