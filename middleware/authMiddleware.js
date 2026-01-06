@@ -1,7 +1,5 @@
 import jwt from "jsonwebtoken";
 
-
-
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -12,10 +10,6 @@ export function authenticateToken(req, res, next) {
 
   try {
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-
-      
-
-
       if (err) {
         if (err.name === "TokenExpiredError") {
           res.setHeader("X-Auth-Status", "expired");
@@ -23,7 +17,9 @@ export function authenticateToken(req, res, next) {
         }
         if (err.name === "JsonWebTokenError") {
           res.setHeader("X-Auth-Status", "malformed");
-          return res.status(401).json({ message: "Malformed or missing token" });
+          return res
+            .status(401)
+            .json({ message: "Malformed or missing token" });
         }
 
         console.error("JWT verification error:", err);
@@ -39,6 +35,64 @@ export function authenticateToken(req, res, next) {
     res.status(500).json({ message: "Authentication system error" });
   }
 }
+// export function authenticateToken(req, res, next) {
+//   const authHeader = req.headers["authorization"];
+//   const token = authHeader?.startsWith("Bearer ")
+//     ? authHeader.split(" ")[1]
+//     : null;
+
+//   if (!token) {
+//     console.error("🚫 AUTH: No token provided", {
+//       path: req.originalUrl,
+//       method: req.method,
+//       authHeader,
+//     });
+
+//     res.setHeader("X-Auth-Status", "missing");
+//     return res.status(401).json({ message: "No token provided" });
+//   }
+
+//   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+//     if (err) {
+//       if (err.name === "TokenExpiredError") {
+//         console.warn("⏰ AUTH: Token expired", {
+//           path: req.originalUrl,
+//           userId: err?.decoded?.id,
+//         });
+
+//         res.setHeader("X-Auth-Status", "expired");
+//         return res.status(401).json({ message: "Access token expired" });
+//       }
+
+//       if (err.name === "JsonWebTokenError") {
+//         console.warn("🚫 AUTH: Malformed token", {
+//           path: req.originalUrl,
+//           tokenPreview: token.slice(0, 16) + "...",
+//         });
+
+//         res.setHeader("X-Auth-Status", "malformed");
+//         return res.status(401).json({ message: "Malformed or invalid token" });
+//       }
+
+//       console.error("❌ AUTH: Invalid token", {
+//         path: req.originalUrl,
+//         error: err.message,
+//       });
+
+//       res.setHeader("X-Auth-Status", "invalid");
+//       return res.status(403).json({ message: "Invalid token" });
+//     }
+
+//     // ✅ Success
+//     console.log("✅ AUTH: Token verified", {
+//       userId: user.id,
+//       path: req.originalUrl,
+//     });
+
+//     req.user = user;
+//     next();
+//   });
+// }
 
 export function requireAdmin(req, res, next) {
   if (!req.user) {
@@ -46,7 +100,9 @@ export function requireAdmin(req, res, next) {
   }
 
   if (req.user.role !== "admin" && req.user.role !== "superadmin") {
-    return res.status(403).json({ message: "Admin or Super Admin access only" });
+    return res
+      .status(403)
+      .json({ message: "Admin or Super Admin access only" });
   }
 
   next();
@@ -88,7 +144,6 @@ export function authenticateAdminToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
-
   if (!token) {
     return res.status(401).json({ message: "No token provided" });
   }
@@ -121,9 +176,3 @@ export function authenticateAdminToken(req, res, next) {
     next();
   });
 }
-
-
-
-
-
-

@@ -177,51 +177,70 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/refresh", async (req, res) => {
-  const { token } = req.body;
-  if (!token) {
-    return res.status(401).json({ message: "No refresh token" });
-  }
+  let timedOut = false;
 
-  let payload;
-  try {
-    payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-  } catch {
-    return res
-      .status(403)
-      .json({ message: "Invalid or expired refresh token" });
-  }
-
-  const user = await getUserById(payload.id);
-  if (!user) {
-    return res.status(403).json({ message: "User not found" });
-  }
-
-  const valid = await isRefreshTokenValid(user.id, token);
-  if (!valid) {
-    return res.status(403).json({ message: "Refresh token revoked" });
-  }
-
-  const newAccessToken = jwt.sign(
-    { id: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "15m" }
-  );
-
-  const newRefreshToken = jwt.sign(
-    { id: user.id, role: user.role },
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
-  );
-
-  const rotated = await rotateRefreshToken(user.id, newRefreshToken, token);
-  if (!rotated) {
-    return res.status(403).json({ message: "Refresh token already used" });
-  }
-
-  res.json({
-    accessToken: newAccessToken,
-    refreshToken: newRefreshToken,
+  res.setTimeout(15_000, () => {
+    timedOut = true;
+    if (!res.headersSent) {
+      return res.status(408).json({ message: "Refresh timeout" });
+    }
   });
+
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(401).json({ message: "No refresh token" });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    } catch {
+      return res
+        .status(403)
+        .json({ message: "Invalid or expired refresh token" });
+    }
+
+    const user = await getUserById(payload.id);
+    if (!user) {
+      return res.status(403).json({ message: "User not found" });
+    }
+
+    const valid = await isRefreshTokenValid(user.id, token);
+    if (!valid) {
+      return res.status(403).json({ message: "Refresh token revoked" });
+    }
+
+    const newAccessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    const newRefreshToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    const rotated = await rotateRefreshToken(user.id, newRefreshToken, token);
+
+    if (!rotated) {
+      return res.status(403).json({ message: "Refresh token already used" });
+    }
+
+    if (timedOut || res.headersSent) return;
+
+    res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (err) {
+    console.error("Refresh route failed:", err);
+    if (!res.headersSent) {
+      return res.status(500).json({ message: "Refresh failed" });
+    }
+  }
 });
 // LOGOUT → clear refresh token
 router.post("/logout", authenticateToken, async (req, res) => {

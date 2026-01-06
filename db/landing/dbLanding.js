@@ -392,6 +392,7 @@ export async function saveLandingTemplate({
 
 async function countUserTemplates(userId, landingPageId) {
   try {
+    const db = connect();
     const [rows] = await db.query(
       `
       SELECT COUNT(*) AS total

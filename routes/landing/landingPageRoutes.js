@@ -43,6 +43,7 @@ import { renderLandingBlocks } from "./renderers/layout/renderLandingBlocks.js";
 import { generateAILandingPage } from "../../helpers/gptHelper.js";
 import { renderOfferBannerBlock } from "./renderers/blocks/offerBanner.js";
 import { renderLandingMotionScript } from "./renderers/scripts/renderLandingMotionScript.js";
+import { renderVerifiedReviewsBlock } from "./renderers/blocks/verifiedReviews.js";
 
 const router = express.Router();
 
@@ -101,6 +102,15 @@ router.get("/", async (req, res, next) => {
 
     const flattenedBlocks = flattenBlocks(rawBlocks);
 
+    let reviewsHTML = "";
+
+    if (flattenedBlocks.some((b) => b.type === "verified_reviews")) {
+      reviewsHTML = flattenedBlocks
+        .filter((b) => b.type === "verified_reviews")
+        .map((b) => renderVerifiedReviewsBlock(b, landingPage))
+        .join("");
+    }
+
     const hasStripeCheckout = flattenedBlocks.some(
       (b) => b.type === "checkout" || b.type === "stripe_checkout"
     );
@@ -109,7 +119,7 @@ router.get("/", async (req, res, next) => {
     try {
       // 🧹 Remove offer_banner from normal rendering so it only appears at the top
       const contentBlocks = flattenedBlocks.filter(
-        (b) => b.type !== "offer_banner"
+        (b) => b.type !== "offer_banner" && b.type !== "verified_reviews"
       );
 
       contentHTML = renderLandingBlocks({
@@ -190,9 +200,11 @@ router.get("/", async (req, res, next) => {
       ${renderCoverImage({ landingPage })}
 
       ${renderContentArea({ contentHTML })}
+      
 
 
       ${renderLeadCaptureForm({ landingPage })}
+      ${reviewsHTML}
       ${renderCountdownScript()}
       ${renderLandingMotionScript()}
       ${renderCountdownStyles()}

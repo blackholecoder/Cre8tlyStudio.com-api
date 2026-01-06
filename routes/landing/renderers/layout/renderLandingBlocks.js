@@ -7,7 +7,6 @@ import { renderHeadingBlock } from "../blocks/heading.js";
 import { renderImageBlock } from "../blocks/image.js";
 import { renderListHeadingBlock } from "../blocks/listHeading.js";
 import { renderMiniOfferBlock } from "../blocks/miniOffer.js";
-// import { renderOfferBannerBlock } from "../blocks/offerBanner.js";
 import { renderParagraphBlock } from "../blocks/paragraph.js";
 import { renderProfileCardBlock } from "../blocks/profileCard.js";
 import { renderReferralButtonBlock } from "../blocks/referralButton.js";
@@ -19,7 +18,6 @@ import { renderSpacerBlock } from "../blocks/spacer.js";
 import { renderStripeCheckoutBlock } from "../blocks/stripeCheckout.js";
 import { renderSubheadingBlock } from "../blocks/subheading.js";
 import { renderSubsubheadingBlock } from "../blocks/subsubheading.js";
-import { renderVerifiedReviewsBlock } from "../blocks/verifiedReviews.js";
 import { renderVideoBlock } from "../blocks/video.js";
 
 function getMotionAttributes({ block, index, motionSettings }) {
@@ -75,10 +73,6 @@ export function renderLandingBlocks({
           html = renderSpacerBlock(block);
           break;
 
-        // case "offer_banner":
-        //    html = renderOfferBannerBlock(block, landingPage);
-        //    break;
-
         case "calendly":
           html = renderCalendlyBlock(block, landingPage);
           break;
@@ -101,10 +95,6 @@ export function renderLandingBlocks({
 
         case "button_url":
           html = renderButtonBlock(block, landingPage);
-          break;
-
-        case "verified_reviews":
-          html = renderVerifiedReviewsBlock(block, landingPage);
           break;
 
         case "faq":
