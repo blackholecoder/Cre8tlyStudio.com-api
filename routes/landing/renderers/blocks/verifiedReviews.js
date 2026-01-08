@@ -101,6 +101,21 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
 
   <!-- Reviews -->
   <div id="reviews-container" style="display:flex;flex-direction:column;"></div>
+  <div style="margin-top:16px;text-align:center;">
+
+  <button id="load-more-reviews" style="
+    display:none;
+    padding:8px 14px;
+    font-size:0.85rem;
+    background:transparent;
+    border:1px solid currentColor;
+    opacity:0.7;
+    border-radius:4px;
+    cursor:pointer;
+  ">
+    Load more reviews
+  </button>
+</div>
 
   <!-- Write review CTA -->
   <div style="margin-top:24px;text-align:center;">
@@ -174,16 +189,33 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
   const productId = "${productId}";
   let verifiedEmail = null;
 
+  let currentPage = 1;
+  const limit = 5;
+  let hasMore = true;
+
   async function fetchReviews() {
-    const res = await fetch("https://cre8tlystudio.com/api/reviews/" + landingPageId);
+    const res = await fetch(
+  "https://cre8tlystudio.com/api/reviews/" +
+    landingPageId +
+    "?page=" + currentPage +
+    "&limit=" + limit
+);
     const data = await res.json();
     const container = document.getElementById("reviews-container");
-    container.innerHTML = "";
 
-    if (!data.reviews || !data.reviews.length) {
-      container.innerHTML = "<p style='opacity:0.7;'>No reviews yet.</p>";
-      return;
-    }
+if (currentPage === 1) {
+  container.innerHTML = "";
+}
+
+    const btn = document.getElementById("load-more-reviews");
+
+// Empty state (only on first page)
+if (currentPage === 1 && (!data.reviews || !data.reviews.length)) {
+  container.innerHTML = "<p style='opacity:0.7;'>No reviews yet.</p>";
+  hasMore = false;
+  if (btn) btn.style.display = "none";
+  return;
+}
 
     data.reviews.forEach((r) => {
   const div = document.createElement("div");
@@ -228,6 +260,18 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
     const reviewBtn = document.getElementById("review-btn");
     const verifyBox = document.getElementById("verify-box");
     const submitBox = document.getElementById("submit-box");
+
+    const loadMoreBtn = document.getElementById("load-more-reviews");
+
+loadMoreBtn.onclick = () => {
+  if (!hasMore) {
+    loadMoreBtn.style.display = "none";
+    return;
+  }
+
+  currentPage++;
+  fetchReviews();
+};
 
     reviewBtn.onclick = () => {
       reviewBtn.style.display = "none";
@@ -277,6 +321,11 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
 
       submitBox.style.display = "none";
       reviewBtn.style.display = "block";
+      currentPage = 1;
+      hasMore = true;
+      const btn = document.getElementById("load-more-reviews");
+      if (btn) btn.style.display = "inline-block";
+
       fetchReviews();
     };
   });

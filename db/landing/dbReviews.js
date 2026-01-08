@@ -1,7 +1,5 @@
 import connect from "../connect.js";
 
-
-
 export async function verifyBuyer(email, productId) {
   const db = connect();
   try {
@@ -34,7 +32,15 @@ export async function insertReview({
       `INSERT INTO product_reviews 
       (id, product_id, landing_page_id, username, buyer_email, rating, review_text, verified, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
-      [id, product_id, landing_page_id, username, buyer_email, rating, review_text]
+      [
+        id,
+        product_id,
+        landing_page_id,
+        username,
+        buyer_email,
+        rating,
+        review_text,
+      ]
     );
     return { success: true, id };
   } catch (err) {
@@ -46,17 +52,26 @@ export async function insertReview({
 /**
  * ✅ Fetch all reviews for a specific landing page
  */
-export async function getReviewsByLandingPage(landingPageId) {
+export async function getReviewsByLandingPage(landingPageId, limit, offset) {
   const db = connect();
   try {
-    const [rows] = await db.query(
-      `SELECT username, rating, review_text, created_at 
-       FROM product_reviews 
-       WHERE landing_page_id = ? 
-       ORDER BY created_at DESC`,
+    const [[{ total }]] = await db.query(
+      `SELECT COUNT(*) as total
+       FROM product_reviews
+       WHERE landing_page_id = ?`,
       [landingPageId]
     );
-    return rows;
+
+    const [rows] = await db.query(
+      `SELECT username, rating, review_text, created_at
+       FROM product_reviews
+       WHERE landing_page_id = ?
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+      [landingPageId, limit, offset]
+    );
+
+    return { reviews: rows, total };
   } catch (err) {
     console.error("❌ getReviewsByLandingPage error:", err);
     throw err;

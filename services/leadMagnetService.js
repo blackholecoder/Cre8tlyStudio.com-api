@@ -330,7 +330,8 @@ ${brandTone.slice(0, 4000)}
       finalLogoUrl,
       link,
       finalCoverUrl,
-      cta
+      cta,
+      safePages
     );
     return { pdf_url: uploaded.Location, status: "completed" };
   } catch (err) {

@@ -107,6 +107,7 @@ export async function getLeadMagnetBySessionId(sessionId) {
       status,
       prompt,
       pdf_url,
+      page_count, 
       created_at,
       theme,
       export_count,
@@ -144,6 +145,7 @@ export async function getLeadMagnetsByUser(userId) {
       lm.prompt,
       lm.title,
       lm.pdf_url,
+      lm.page_count,
       lm.created_at,
       lm.theme,
       lm.created_at_prompt,
@@ -241,7 +243,8 @@ export async function saveLeadMagnetPdf(
   logo,
   link,
   coverImage,
-  cta
+  cta,
+  pageCount
 ) {
   const db = connect();
   const finalBgTheme = bgTheme || "modern";
@@ -261,6 +264,7 @@ export async function saveLeadMagnetPdf(
       link = ?, 
       cover_image = ?, 
       cta = ?, 
+      page_count = ?,
       editable_html = ?, 
       html_template = ?,
       created_at_prompt = NOW(),
@@ -279,6 +283,7 @@ export async function saveLeadMagnetPdf(
       link,
       coverImage,
       cta,
+      pageCount,
       editableHtml, // ✅ inner content only
       htmlTemplate, // ✅ full HTML doc
       pdfUrl,
@@ -334,7 +339,7 @@ export async function getLeadMagnetByPdfUrl(pdfUrl) {
   const db = connect();
   try {
     const [rows] = await db.query(
-      `SELECT id, user_id, title, prompt, pdf_url, cover_image, price
+      `SELECT id, user_id, title, prompt, pdf_url, cover_image, price, page_count 
        FROM lead_magnets
        WHERE pdf_url = ? OR original_pdf_url = ?
        LIMIT 1`,

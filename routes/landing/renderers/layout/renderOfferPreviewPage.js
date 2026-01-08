@@ -11,6 +11,11 @@ export function renderOfferPreviewPage({
   block,
   mainOverlayColor,
 }) {
+  const pageCount =
+    block.page_count !== null && block.page_count !== undefined
+      ? Number(block.page_count)
+      : null;
+
   const offerBg = block.use_gradient
     ? `linear-gradient(${block.gradient_direction || "135deg"},
         ${block.gradient_start || "#a855f7"},
@@ -126,34 +131,67 @@ max-width:620px;
   ${
     price > 0
       ? `
-      <div style="
-        font-size:2rem;
-        font-weight:800;
-        margin-bottom:6px;
-        color:${textColor};
-      ">
-        $${price.toFixed(2)}
-      </div>
-      <div style="
-        font-size:0.9rem;
-        opacity:0.75;
-        margin-bottom:18px;
-        color:${textColor};
-      ">
-        One time payment · No subscription
-      </div>
-      `
+    <div style="
+      font-size:2rem;
+      font-weight:800;
+      margin-bottom:4px;
+      color:${textColor};
+    ">
+      $${price.toFixed(2)}
+    </div>
+
+    ${
+      pageCount
+        ? `
+        <div style="
+          font-size:0.9rem;
+          opacity:0.85;
+          margin-bottom:6px;
+          color:${textColor};
+          font-weight:600;
+        ">
+          ${pageCount} page PDF
+        </div>
+        `
+        : ""
+    }
+
+    <div style="
+      font-size:0.9rem;
+      opacity:0.75;
+      margin-bottom:18px;
+      color:${textColor};
+    ">
+      One time payment · No subscription
+    </div>
+    `
       : `
-      <div style="
-        font-size:1.4rem;
-        font-weight:700;
-        margin-bottom:18px;
-        color:${textColor};
-      ">
-        Free Download
-      </div>
-      `
+    <div style="
+      font-size:1.4rem;
+      font-weight:700;
+      margin-bottom:6px;
+      color:${textColor};
+    ">
+      Free Download
+    </div>
+
+    ${
+      pageCount
+        ? `
+        <div style="
+          font-size:0.9rem;
+          opacity:0.75;
+          margin-bottom:18px;
+          color:${textColor};
+        ">
+          ${pageCount} page PDF
+        </div>
+        `
+        : ""
+    }
+    `
   }
+
 
   <button
     onclick="startSellerCheckout(

@@ -58,13 +58,6 @@ router.post("/submit", async (req, res) => {
       review_text,
     });
 
-    console.log("🧩 Review Insert Debug:", {
-      landingPageId,
-      productId,
-      username,
-      email,
-    });
-
     res.json({ success: true, message: "Review submitted successfully" });
   } catch (err) {
     console.error("❌ /submit error:", err);
@@ -78,12 +71,29 @@ router.post("/submit", async (req, res) => {
 router.get("/:landingPageId", async (req, res) => {
   try {
     const { landingPageId } = req.params;
+    const page = parseInt(req.query.page || "1");
+    const limit = parseInt(req.query.limit || "10");
+    const offset = (page - 1) * limit;
+
     if (!landingPageId) {
       return res.status(400).json({ reviews: [], message: "Missing ID" });
     }
 
-    const reviews = await getReviewsByLandingPage(landingPageId);
-    res.json({ reviews });
+    const { reviews, total } = await getReviewsByLandingPage(
+      landingPageId,
+      limit,
+      offset
+    );
+
+    res.json({
+      reviews,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (err) {
     console.error("❌ /:landingPageId error:", err);
     res.status(500).json({ reviews: [] });
