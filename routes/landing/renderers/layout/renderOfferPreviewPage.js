@@ -45,6 +45,7 @@ ${renderHead({
   landingPage,
 })}
 
+
 <body style="margin:0;padding:0;">
 
   ${renderHeader({ landingPage })}
@@ -52,7 +53,7 @@ ${renderHead({
   <main style="padding:20px;max-width:900px;margin:0 auto;">
 
   <!-- TOP BACK BUTTON -->
-    <div style="width:100%; display:flex; justify-content:flex-start; margin-bottom:20px;">
+    <div style="width:100%; display:flex; justify-content:flex-start; margin-bottom:20px;margin-top:20px;">
       <button
   onclick="window.history.back()"
   style="

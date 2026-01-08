@@ -233,8 +233,9 @@ div[style*="linear-gradient"] {
   /* Responsive */
   @media (max-width: 768px) {
     main {
-    max-width: 90%;
-    padding: 40px 12px 60px;
+    max-width: 100%;
+    margin: 24px auto;
+    padding: 24px 8px 56px;
     background: none;
     backdrop-filter: none;
     box-shadow: none;

@@ -98,7 +98,7 @@ export function renderParagraphBlock(block, landingPage) {
 
   // 🧾 Normal paragraph fallback
   return `<p style="
-    padding-bottom:${padding}px;
+     padding:${padding}px 24px;
     white-space:pre-line;
     text-align:${block.alignment || "left"};
     max-width:700px;

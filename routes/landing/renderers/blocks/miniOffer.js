@@ -47,6 +47,12 @@ export function renderMiniOfferBlock(block, landingPage) {
     align-items: stretch;
   }
 
+.mini-offer-wrapper {
+    padding:8px 8px !important;
+    margin:16px auto !important;
+  }
+
+
   /* 🔑 REMOVE Safari-breaking heights */
   .mini-offer-image,
   .mini-offer-content {
@@ -71,7 +77,7 @@ export function renderMiniOfferBlock(block, landingPage) {
 
 
 
-<div style="
+<div class="mini-offer-wrapper" style="
   padding:40px 20px;
   max-width:1100px;
   margin:40px auto;
@@ -105,6 +111,10 @@ export function renderMiniOfferBlock(block, landingPage) {
               height:100%;
               object-fit:cover;
               display:block;
+              border-top-left-radius:20px;
+              border-bottom-left-radius:20px;
+              border-top-right-radius:0;
+              border-bottom-right-radius:0;
             ">`
           : ""
       }
