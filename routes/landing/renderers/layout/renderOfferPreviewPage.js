@@ -28,6 +28,11 @@ export function renderOfferPreviewPage({
     block.image_url || block.cover_url || block.pdf_cover_image || "";
 
   const textColor = block.text_color || "#ffffff";
+
+  const secondaryTextColor = block.secondary_text_color || textColor;
+
+  const utilityTextColor = block.utility_text_color || secondaryTextColor;
+
   const buttonTextColor = block.button_text_color || "#000000";
 
   const price = Number(block.price || 0);
@@ -62,7 +67,7 @@ ${renderHead({
     gap:6px;
     background:transparent;
     border:none;
-    color:${textColor};
+    color:${utilityTextColor};
     font-size:0.9rem;
     font-weight:600;
     opacity:0.85;
@@ -97,7 +102,7 @@ ${renderHead({
       font-size:2.2rem;
       font-weight:800;
       margin-bottom:16px;
-      color:${textColor};
+      color:${secondaryTextColor};
     ">
       ${block.title || ""}
     </h1>
@@ -106,7 +111,7 @@ ${renderHead({
   font-size:1rem;
   opacity:0.85;
   margin:0 auto 24px auto;
-  color:${textColor};
+  color:${secondaryTextColor};
   text-align:center;
   max-width:620px;
 ">

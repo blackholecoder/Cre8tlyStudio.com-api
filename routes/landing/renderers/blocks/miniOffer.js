@@ -135,6 +135,7 @@ export function renderMiniOfferBlock(block, landingPage) {
         font-size:1.2rem;
         font-weight:800;
         margin-bottom:10px;
+        color:${textColor};
       ">
         ${block.title || "Offer Title"}
       </h1>

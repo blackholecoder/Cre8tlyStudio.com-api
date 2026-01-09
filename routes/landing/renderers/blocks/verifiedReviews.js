@@ -57,17 +57,17 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
 
   const resolvedBg = resolveBackground(block, landingPage);
 
-  const textColor = block.text_color || autoTextColor(resolvedBg);
+  const textColor =
+    block.reviews_text_color || block.text_color || autoTextColor(resolvedBg);
 
   const placeholderColor =
     textColor === "#ffffff" ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)";
 
   return `
 <style>
-  #reviews-section,
-  #reviews-section * {
-    color: ${textColor};
-  }
+  #reviews-section {
+  color: ${textColor};
+}
     #reviews-section input::placeholder,
   #reviews-section textarea::placeholder {
     color: ${placeholderColor};
@@ -89,12 +89,12 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
       ★★★★★
     </span>
 
-    <h2 style="margin:0;font-size:1.4rem;font-weight:600;">
+    <h2 style="margin:0;font-size:1.4rem;font-weight:600;color: ${textColor}">
       ${title}
     </h2>
   </div>
 
-  <div style="font-size:0.85rem;opacity:0.65;margin-top:6px;">
+  <div style="font-size:0.85rem;opacity:0.65;margin-top:6px;color: ${textColor}">
     Real feedback from verified customers
   </div>
 </div>
@@ -201,6 +201,7 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
     "&limit=" + limit
 );
     const data = await res.json();
+    
     const container = document.getElementById("reviews-container");
 
 if (currentPage === 1) {
@@ -216,6 +217,12 @@ if (currentPage === 1 && (!data.reviews || !data.reviews.length)) {
   if (btn) btn.style.display = "none";
   return;
 }
+
+hasMore = data.reviews && data.reviews.length === limit;
+
+ if (btn) {
+    btn.style.display = hasMore ? "inline-block" : "none";
+  }
 
     data.reviews.forEach((r) => {
   const div = document.createElement("div");
