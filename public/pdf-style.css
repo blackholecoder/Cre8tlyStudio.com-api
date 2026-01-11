@@ -13,6 +13,19 @@ body, .page {
   color: {{textColor}};
 }
 
+p,
+.page-inner,
+.formatted-content {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
+}
+
+h2 + p {
+  page-break-before: avoid;
+  break-before: avoid;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -35,9 +48,13 @@ header {
 
 .logo-wrapper {
   text-align: center;
-  padding-top: 160px; 
-  margin-top: 90px;
+  margin-top: 40px;
   margin-bottom: 20px;
+}
+
+.logo-wrapper + h1 {
+  page-break-before: avoid;
+  break-before: avoid;
 }
 
 .logo {
@@ -65,6 +82,8 @@ h2 {
 
 h1, h2, h3 {
   color: {{headingColor}};
+   page-break-after: avoid;
+  break-after: avoid;
 }
 
 p {
@@ -219,7 +238,7 @@ p {
   box-sizing: border-box;
 }
 
-formatted-content p,
+.formatted-content p,
 .formatted-content h1,
 .formatted-content h2,
 .formatted-content h3 {

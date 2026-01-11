@@ -7,11 +7,8 @@ import { pdfThemes } from "./pdfThemes.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
-
 function getReadableTextColor(backgroundColor) {
   try {
-
     if (!backgroundColor || typeof backgroundColor !== "string") {
       return "#ffffff";
     }
@@ -49,9 +46,8 @@ export async function generatePDF({
   coverImage,
   cta,
 }) {
-
   bgTheme = bgTheme || "modern";
-font_file = font_file || "/fonts/Montserrat-Regular.ttf";
+  font_file = font_file || "/fonts/Montserrat-Regular.ttf";
 
   const browser = await puppeteer.launch({
     headless: "new",
@@ -69,32 +65,30 @@ font_file = font_file || "/fonts/Montserrat-Regular.ttf";
   let content;
   let cleanedPrompt = prompt;
 
-
   // Remove AI-generated CTA inside prompt
-if (cta) {
-  const ctaText = cta.trim();
+  if (cta) {
+    const ctaText = cta.trim();
 
-  // Remove exact CTA text if appears inside the prompt
-  cleanedPrompt = cleanedPrompt.replace(ctaText, "");
+    // Remove exact CTA text if appears inside the prompt
+    cleanedPrompt = cleanedPrompt.replace(ctaText, "");
 
-  // Remove any leftover empty paragraphs or breaks left behind
-  cleanedPrompt = cleanedPrompt.replace(/<p>\s*<\/p>/g, "");
-  cleanedPrompt = cleanedPrompt.replace(/\n{2,}/g, "\n");
-}
+    // Remove any leftover empty paragraphs or breaks left behind
+    cleanedPrompt = cleanedPrompt.replace(/<p>\s*<\/p>/g, "");
+    cleanedPrompt = cleanedPrompt.replace(/\n{2,}/g, "\n");
+  }
 
-// Remove link if AI added its own "Visit..." or URL section
-if (link) {
-  const domain = new URL(link).hostname.replace(/^www\./, "");
+  // Remove link if AI added its own "Visit..." or URL section
+  if (link) {
+    const domain = new URL(link).hostname.replace(/^www\./, "");
 
-  // Remove patterns like "Visit example.com"
-  const regexVisit = new RegExp(`Visit\\s+${domain}[\\s\\S]*?$`, "gi");
-  cleanedPrompt = cleanedPrompt.replace(regexVisit, "");
+    // Remove patterns like "Visit example.com"
+    const regexVisit = new RegExp(`Visit\\s+${domain}[\\s\\S]*?$`, "gi");
+    cleanedPrompt = cleanedPrompt.replace(regexVisit, "");
 
-  // Remove raw URL if AI inserted it inside the guide
-  const regexUrl = new RegExp(link.replace(/\//g, "\\/"), "gi");
-  cleanedPrompt = cleanedPrompt.replace(regexUrl, "");
-}
-
+    // Remove raw URL if AI inserted it inside the guide
+    const regexUrl = new RegExp(link.replace(/\//g, "\\/"), "gi");
+    cleanedPrompt = cleanedPrompt.replace(regexUrl, "");
+  }
 
   if (isHtml) {
     content = cleanedPrompt;
@@ -107,61 +101,71 @@ if (link) {
   }
 
   const sections = content.split(/<!--PAGEBREAK-->/g);
-  while (sections.length > 0 && sections[sections.length - 1].trim().length === 0) {
-  sections.pop();
-}
+  while (
+    sections.length > 0 &&
+    sections[sections.length - 1].trim().length === 0
+  ) {
+    sections.pop();
+  }
   const lastSection = sections.pop() || "";
 
-  content = [
+  const logoImgTag = logo
+    ? `<div class="logo-wrapper"><img src="${logo}" alt="Brand Logo" class="logo" /></div>`
+    : "";
+
+  const pages = [
     ...sections.map(
       (s) => `<div class="page"><div class="page-inner">${s}</div></div>`
     ),
     `<div class="page"><div class="page-inner">${lastSection}</div></div>`,
-  ].join("");
+  ];
+
+  // 🔑 Inject logo into the FIRST page only
+  if (logo && pages.length > 0) {
+    pages[0] = pages[0].replace(
+      '<div class="page-inner">',
+      `<div class="page-inner">${logoImgTag}`
+    );
+  }
+
+  content = pages.join("");
 
   const safeFontFile = font_file || "/fonts/Montserrat-Regular.ttf";
 
-const fontPath = path.resolve(
-  __dirname, 
-  `../public${safeFontFile?.startsWith("/") ? safeFontFile : "/" + safeFontFile}`
-);
-
-
-
+  const fontPath = path.resolve(
+    __dirname,
+    `../public${
+      safeFontFile?.startsWith("/") ? safeFontFile : "/" + safeFontFile
+    }`
+  );
 
   // 🔥 Read and embed font as Base64
   const fontBase64 = fs.readFileSync(fontPath).toString("base64");
 
   const safeExt = (font_file || "").toLowerCase();
 
-const fontFormat = safeExt.endsWith(".otf")
-  ? "opentype"
-  : safeExt.endsWith(".ttf")
-  ? "truetype"
-  : "woff2";
-
-  const logoImgTag = logo
-    ? `<div class="logo-wrapper"><img src="${logo}" alt="Brand Logo" class="logo" /></div>`
-    : "";
+  const fontFormat = safeExt.endsWith(".otf")
+    ? "opentype"
+    : safeExt.endsWith(".ttf")
+    ? "truetype"
+    : "woff2";
 
   let coverImgTag = "";
-if (coverImage && fs.existsSync(coverImage)) {
-  const base64Cover = fs.readFileSync(coverImage).toString("base64");
-  const ext = path.extname(coverImage).replace(".", "") || "png";
-  coverImgTag = `
+  if (coverImage && fs.existsSync(coverImage)) {
+    const base64Cover = fs.readFileSync(coverImage).toString("base64");
+    const ext = path.extname(coverImage).replace(".", "") || "png";
+    coverImgTag = `
     <div class="cover-page">
       <img src="data:image/${ext};base64,${base64Cover}" alt="Cover Image" class="cover-img" />
     </div>
   `;
-} else if (coverImage?.startsWith("http")) {
-  coverImgTag = `
+  } else if (coverImage?.startsWith("http")) {
+    coverImgTag = `
     <div class="cover-page">
       <img src="${coverImage}" alt="Cover Image" class="cover-img" />
     </div>
   `;
-}
-
-
+  }
 
   const cssPath = path.resolve(__dirname, "../public/pdf-style.css");
   let cssTemplate = fs.readFileSync(cssPath, "utf8");
@@ -222,7 +226,6 @@ if (coverImage && fs.existsSync(coverImage)) {
             : "#ffffff")
       )
     );
-    
 
   // ✅ Embed @font-face rule
   const fontFace = `
@@ -236,8 +239,6 @@ if (coverImage && fs.existsSync(coverImage)) {
     }
   `;
 
-  
-
   const html = `
 <html>
   <head>
@@ -247,7 +248,6 @@ if (coverImage && fs.existsSync(coverImage)) {
   <div class="page-bg"></div>
   ${coverImgTag} 
     <div class="pdf-content">
-  ${logoImgTag}
   ${content}
 </div>
    ${

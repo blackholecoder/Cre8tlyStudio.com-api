@@ -556,7 +556,8 @@ router.post("/upload-media-block", async (req, res) => {
     if (isImage) {
       const { optimizedBuffer } = await optimizeImageUpload(
         bufferToUpload,
-        file.mimetype
+        file.mimetype,
+        { purpose: "profile" }
       );
       bufferToUpload = optimizedBuffer;
     }

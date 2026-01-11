@@ -5,7 +5,13 @@ import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import fs from "fs";
 
 // ✅ Create a new empty book slot for a user
-export async function createBook(userId, prompt, book_name = "Untitled Book", authorName = null, bookType = "fiction") {
+export async function createBook(
+  userId,
+  prompt,
+  book_name = "Untitled Book",
+  authorName = null,
+  bookType = "fiction"
+) {
   const db = connect();
   const id = uuidv4();
   const createdAt = new Date();
@@ -37,7 +43,6 @@ export async function createBook(userId, prompt, book_name = "Untitled Book", au
     ]
   );
 
-  ;
   return { id, status };
 }
 
@@ -50,7 +55,6 @@ export async function markBookComplete(id, pdfUrl) {
      WHERE id=? AND deleted_at IS NULL`,
     [pdfUrl, id]
   );
-  ;
 }
 
 // ✅ Get all books for a user
@@ -103,10 +107,8 @@ export async function getBooksByUser(userId) {
     [userId]
   );
 
-  ;
   return rows;
 }
-
 
 // ✅ Get all books (admin)
 export async function getAllBooks() {
@@ -117,7 +119,6 @@ export async function getAllBooks() {
      WHERE deleted_at IS NULL
      ORDER BY created_at DESC`
   );
-  ;
   return rows;
 }
 
@@ -128,7 +129,6 @@ export async function softDeleteBook(id) {
     "UPDATE generated_books SET deleted_at=NOW() WHERE id=? AND deleted_at IS NULL",
     [id]
   );
-  ;
 }
 
 // ✅ Get single book by ID
@@ -168,7 +168,7 @@ export async function getBookById(id) {
     bookType: book.book_type,
     font_name: book.font_name,
     font_file: book.font_file,
-    can_edit: book.can_edit,   // ⚡ NEW
+    can_edit: book.can_edit, // ⚡ NEW
     ...book,
   };
 }
@@ -184,27 +184,25 @@ export async function updateEditedChapter({
   font_name,
   font_file,
 }) {
-
- let cleanText = editedText
+  let cleanText = editedText
     .replace(/<h1[^>]*>.*?<\/h1>/gi, "")
     .replace(/^# .*/gm, "")
     .trim();
 
-
   const db = connect();
 
   if (bookName) {
-  await db.query(
-    `UPDATE generated_books
+    await db.query(
+      `UPDATE generated_books
      SET book_name = ?, updated_at = NOW()
      WHERE id = ? AND user_id = ?`,
-    [bookName, bookId, userId]
-  );
-}
+      [bookName, bookId, userId]
+    );
+  }
 
   // 1. Save new edited text
   await db.query(
-  `UPDATE book_parts
+    `UPDATE book_parts
    SET 
      gpt_output = ?, 
      title = ?,                  
@@ -213,14 +211,16 @@ export async function updateEditedChapter({
    WHERE book_id = ? 
      AND user_id = ? 
      AND part_number = ?`,
-  [cleanText, title, bookId, userId, partNumber]
-);
+    [cleanText, title, bookId, userId, partNumber]
+  );
 
   // 2. Regenerate PDF using edited text
-  const chapters = [{
-    title: title || `Part ${partNumber}`,
-    content: cleanText,
-  }];
+  const chapters = [
+    {
+      title: title || `Part ${partNumber}`,
+      content: cleanText,
+    },
+  ];
 
   const { localPdfPath, pageCount } = await generateBookPDF({
     id: `${bookId}-part${partNumber}`,
@@ -233,7 +233,11 @@ export async function updateEditedChapter({
 
   // 3. Upload PDF
   const fileName = `books/${bookId}_part${partNumber}_edited-${Date.now()}.pdf`;
-  const uploaded = await uploadFileToSpaces(localPdfPath, fileName, "application/pdf");
+  const uploaded = await uploadFileToSpaces(
+    localPdfPath,
+    fileName,
+    "application/pdf"
+  );
 
   await db.query(
     `UPDATE book_parts 
@@ -243,17 +247,18 @@ export async function updateEditedChapter({
   );
 
   try {
-  if (fs.existsSync(localPdfPath)) {
-    fs.unlinkSync(localPdfPath);
+    if (fs.existsSync(localPdfPath)) {
+      fs.unlinkSync(localPdfPath);
+    }
+  } catch (err) {
+    console.warn(
+      "⚠️ Could not delete local PDF (probably already removed):",
+      err.message
+    );
   }
-} catch (err) {
-  console.warn("⚠️ Could not delete local PDF (probably already removed):", err.message);
-}
 
   return uploaded.Location;
 }
-
-
 
 export async function getBookPartByNumber(bookId, partNumber, userId) {
   const db = connect();
@@ -290,10 +295,9 @@ export async function getBookPartByNumber(bookId, partNumber, userId) {
     editor_text: row.draft_text || row.gpt_output || "",
 
     // Make sure can_edit is boolean
-    can_edit: row.can_edit === 1 ? 1 : 0
+    can_edit: row.can_edit === 1 ? 1 : 0,
   };
 }
-
 
 export async function lockBookPartEdit(bookId, partNumber, userId) {
   const db = connect();
@@ -312,7 +316,6 @@ export async function updateBookPrompt(id, prompt) {
     "UPDATE generated_books SET prompt=?, status='pending' WHERE id=? AND deleted_at IS NULL",
     [prompt, id]
   );
-  ;
   return result.affectedRows > 0;
 }
 
@@ -398,11 +401,16 @@ export async function getBookParts(bookId, userId) {
     );
     return rows;
   } finally {
-    ;
   }
 }
 
-export async function updateBookInfo(bookId, userId, bookName, authorName, bookType) {
+export async function updateBookInfo(
+  bookId,
+  userId,
+  bookName,
+  authorName,
+  bookType
+) {
   const db = connect();
 
   try {
@@ -424,7 +432,6 @@ export async function updateBookInfo(bookId, userId, bookName, authorName, bookT
   }
 }
 
-
 export async function getBookTypeById(bookId, userId) {
   const db = connect();
   try {
@@ -434,7 +441,6 @@ export async function getBookTypeById(bookId, userId) {
     );
     return rows.length ? rows[0].book_type : null;
   } finally {
-    ;
   }
 }
 
@@ -498,14 +504,17 @@ export async function saveBookDraft({
       );
 
       if (existingPart.length > 0) {
-        ;
-        return { error: true, message: `Part ${partNumber} already submitted, cannot save draft.` };
+        return {
+          error: true,
+          message: `Part ${partNumber} already submitted, cannot save draft.`,
+        };
       }
     }
 
     if (!bookId) {
-      ;
-      throw new Error("Missing bookId — each user must have a pre-created book row before saving a draft.");
+      throw new Error(
+        "Missing bookId — each user must have a pre-created book row before saving a draft."
+      );
     }
 
     // ✅ Update book draft with font info
@@ -537,8 +546,6 @@ export async function saveBookDraft({
       ]
     );
 
-    ;
-
     if (result.affectedRows === 0) {
       console.warn(`⚠️ No book found for user ${userId} with id ${bookId}`);
       return { error: true, message: "No matching book found" };
@@ -546,7 +553,6 @@ export async function saveBookDraft({
 
     return { success: true, id: bookId, message: "Draft updated" };
   } catch (err) {
-    ;
     console.error("❌ Error in saveBookDraft:", err);
     throw err;
   }
@@ -588,7 +594,16 @@ export async function getBookDraft({ userId, bookId }) {
             AND bp.user_id = g.user_id
             AND bp.part_number = 1
           LIMIT 1
-        ) AS can_edit
+        ) AS can_edit,
+
+        (
+  SELECT bp.sections_json
+  FROM book_parts bp
+  WHERE bp.book_id = g.id
+    AND bp.user_id = g.user_id
+    AND bp.part_number = 1
+  LIMIT 1
+) AS sections_json
 
       FROM generated_books g
       WHERE g.id = ? AND g.user_id = ?
@@ -604,8 +619,14 @@ export async function getBookDraft({ userId, bookId }) {
   }
 }
 
-
-export async function saveBookPartDraft({ userId, bookId, partNumber, draftText, title }) {
+export async function saveBookPartDraft({
+  userId,
+  bookId,
+  partNumber,
+  draftText,
+  title,
+  sections,
+}) {
   const db = connect();
 
   try {
@@ -617,22 +638,37 @@ export async function saveBookPartDraft({ userId, bookId, partNumber, draftText,
     if (existing.length) {
       await db.query(
         `UPDATE book_parts
-         SET draft_text = ?, title = COALESCE(?, title), updated_at = NOW()
+         SET sections_json = ?, draft_text = ?, title = COALESCE(?, title), updated_at = NOW()
          WHERE book_id = ? AND user_id = ? AND part_number = ?`,
-        [draftText, title, bookId, userId, partNumber]
+        [JSON.stringify(sections), draftText, title, bookId, userId, partNumber]
       );
     } else {
       await db.query(
-        `INSERT INTO book_parts (book_id, user_id, part_number, title, draft_text, created_at)
-         VALUES (?, ?, ?, ?, ?, NOW())`,
-        [bookId, userId, partNumber, title, draftText]
+        `INSERT INTO book_parts (
+     book_id,
+     user_id,
+     part_number,
+     title,
+     draft_text,
+     sections_json,
+     gpt_output,
+     created_at
+   )
+   VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          bookId,
+          userId,
+          partNumber,
+          title,
+          draftText,
+          JSON.stringify(sections),
+          "",
+        ]
       );
     }
 
-    ;
     return { message: "Part draft saved" };
   } catch (err) {
-    ;
     console.error("❌ saveBookPartDraft error:", err);
     throw err;
   }
@@ -651,6 +687,7 @@ export async function getBookPartDraft(bookId, partNumber, userId) {
       bp.pages,
       bp.created_at,
       bp.draft_text,
+      bp.sections_json,
       bp.gpt_output,
       bp.can_edit,
       
@@ -673,8 +710,3 @@ export async function getBookPartDraft(bookId, partNumber, userId) {
 
   return rows[0] || null;
 }
-
-
-
-
-

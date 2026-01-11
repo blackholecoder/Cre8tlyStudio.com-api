@@ -257,6 +257,7 @@ router.post("/draft", authenticateToken, async (req, res) => {
     const {
       bookId,
       draftText,
+      sections,
       book_name,
       link,
       author_name,
@@ -269,6 +270,7 @@ router.post("/draft", authenticateToken, async (req, res) => {
       userId,
       bookId,
       draftText,
+      sections,
       book_name,
       link,
       author_name,
@@ -310,7 +312,7 @@ router.post(
   authenticateToken,
   async (req, res) => {
     const { bookId, partNumber } = req.params;
-    const { draftText, title } = req.body;
+    const { draftText, title, sections } = req.body;
     const userId = req.user.id;
 
     try {
@@ -320,6 +322,7 @@ router.post(
         partNumber,
         draftText,
         title,
+        sections,
       });
       res.json(result);
     } catch (err) {

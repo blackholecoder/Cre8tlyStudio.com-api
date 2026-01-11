@@ -145,6 +145,7 @@ router.post("/create-checkout-session", async (req, res) => {
         blockId,
         productSource,
         sellerId: sellerId || landingPage.user_id,
+        sellerStripeAccountId: accountId,
         downloadUrl, // ✅ REQUIRED
         productTitle,
       },

@@ -3,18 +3,25 @@ import connect from "../db/connect.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendOutLookMail } from "../utils/sendOutllokMail.js";
 
-
 /**
  * deliverDigitalProduct
  * Handles paid product delivery after Stripe checkout completes.
  * Logs to deliveries table and sends buyer an Outlook email.
  */
-export async function deliverDigitalProduct(buyerEmail, productId, sellerStripeId, sessionId = null) {
+export async function deliverDigitalProduct(
+  buyerEmail,
+  productId,
+  sellerStripeId,
+  sessionId = null
+) {
   const db = connect();
 
   try {
     // 1️⃣ Find buyer in users table
-    const [user] = await db.query("SELECT id, name FROM users WHERE email = ? LIMIT 1", [buyerEmail]);
+    const [user] = await db.query(
+      "SELECT id, name FROM users WHERE email = ? LIMIT 1",
+      [buyerEmail]
+    );
     if (!user?.length) {
       console.warn("⚠️ Buyer not found in users table:", buyerEmail);
       return;
@@ -40,7 +47,16 @@ export async function deliverDigitalProduct(buyerEmail, productId, sellerStripeI
       `INSERT INTO deliveries 
         (id, user_id, seller_stripe_id, product_id, product_name, download_url, buyer_email, stripe_session_id) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [deliveryId, userId, sellerStripeId, productId, name, download_url, buyerEmail, sessionId]
+      [
+        deliveryId,
+        userId,
+        sellerStripeId,
+        productId,
+        name,
+        download_url,
+        buyerEmail,
+        sessionId,
+      ]
     );
 
     // 4️⃣ Email buyer via Outlook
@@ -122,6 +138,108 @@ export async function deliverDigitalProduct(buyerEmail, productId, sellerStripeI
     });
 
     console.log(`📦 Delivered "${name}" to ${buyerEmail}`);
+
+    // 5️⃣ Fetch seller info
+    try {
+      const [seller] = await db.query(
+        "SELECT email, name FROM users WHERE stripe_connect_account_id = ? LIMIT 1",
+        [sellerStripeId]
+      );
+
+      console.log("🧾 Seller lookup result:", seller);
+
+      const sellerEmail = seller?.[0]?.email;
+      const sellerName = seller?.[0]?.name || "Seller";
+
+      console.log("📧 Seller resolved:", {
+        sellerEmail,
+        sellerName,
+      });
+
+      if (!sellerEmail) {
+        console.warn(
+          "⚠️ Seller email not found for stripe account:",
+          sellerStripeId
+        );
+      } else {
+        const sellerHtml = `
+<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+  <div style="
+    max-width:420px;
+    margin:0 auto;
+    background:#ffffff;
+    padding:32px;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+  ">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+      <img
+        src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+        width="40"
+        height="40"
+        style="display:block;"
+        alt="Cre8tly Studio"
+      />
+      <div style="font-size:18px;font-weight:600;color:#111827;">
+        Cre8tly Studio
+      </div>
+    </div>
+
+    <!-- Title -->
+    <h2 style="
+      font-size:28px;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 8px 0;
+    ">
+      You made a sale
+    </h2>
+
+    <p style="
+      font-size:14px;
+      color:#4b5563;
+      margin:0 0 24px 0;
+    ">
+      <strong>${sellerName}</strong> a new purchase was just completed.
+    </p>
+
+    <!-- Content -->
+    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:12px;">
+      <strong>${name}</strong> has been purchased.
+    </p>
+
+    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
+      Buyer email: <strong>${buyerEmail}</strong>
+    </p>
+
+    <!-- Footer -->
+    <p style="
+      font-size:13px;
+      color:#6b7280;
+      margin-top:24px;
+      text-align:center;
+    ">
+      This sale was processed through Cre8tly Studio
+    </p>
+
+  </div>
+</div>
+`;
+        console.log("➡️ Attempting to send seller email to:", sellerEmail);
+        await sendOutLookMail({
+          to: sellerEmail,
+          subject: `You made a sale: ${name}`,
+          html: sellerHtml,
+        });
+        console.log("✅ Seller email sendOutLookMail resolved");
+        console.log(`💰 Seller notified: ${sellerEmail}`);
+      }
+    } catch (sellerErr) {
+      console.error("⚠️ Seller notification failed:", sellerErr);
+    }
   } catch (err) {
     console.error("❌ deliverDigitalProduct error:", err);
   }
