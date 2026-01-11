@@ -100,6 +100,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     const {
       bookId,
       prompt,
+      sections,
       pages = 10,
       link,
       coverImage,
@@ -170,6 +171,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       userId,
       bookId,
       prompt,
+      sections,
       pages,
       link,
       coverImage,

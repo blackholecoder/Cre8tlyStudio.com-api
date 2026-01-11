@@ -42,3 +42,21 @@ export async function saveBookPartText({
     throw err;
   }
 }
+
+export async function saveBookPartSections({
+  userId,
+  bookId,
+  partNumber,
+  sections,
+}) {
+  const db = connect();
+
+  if (!Array.isArray(sections) || !sections.length) return;
+
+  await db.execute(
+    `UPDATE book_parts
+     SET sections_json = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = ? AND book_id = ? AND part_number = ?`,
+    [JSON.stringify(sections), userId, bookId, partNumber]
+  );
+}

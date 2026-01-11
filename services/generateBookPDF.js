@@ -77,18 +77,26 @@ export async function generateBookPDF({
   `
     : "";
 
+  const safeChapters = chapters.filter(
+    (c) => c?.content && typeof c.content === "string" && c.content.trim()
+  );
+
   const content =
-    chapters
+    safeChapters
       .map(
         (c) => `
   <div class="page">
     <div class="page-inner">
       <div class="chapter">
         <h2 class="chapter-title">${c.title}</h2>
-        ${c.content
-          .split(/\n+/)
-          .map((p) => `<p>${p.trim()}</p>`)
-          .join("")}
+        ${
+          c.content.trim().startsWith("<")
+            ? c.content
+            : c.content
+                .split(/\n+/)
+                .map((p) => `<p>${p.trim()}</p>`)
+                .join("")
+        }
       </div>
     </div>
   </div>

@@ -393,17 +393,25 @@ export async function getBookParts(bookId, userId) {
 
   try {
     const [rows] = await db.query(
-      `SELECT id, part_number, title, file_url, pages, created_at 
+      `SELECT 
+         id,
+         part_number,
+         title,
+         file_url,
+         pages,
+         created_at,
+         gpt_output,
+         sections_json
        FROM book_parts
        WHERE book_id = ? AND user_id = ?
        ORDER BY part_number ASC`,
       [bookId, userId]
     );
+
     return rows;
   } finally {
   }
 }
-
 export async function updateBookInfo(
   bookId,
   userId,

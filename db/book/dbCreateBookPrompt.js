@@ -11,6 +11,7 @@ import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import {
   getLastBookPartText,
+  saveBookPartSections,
   saveBookPartText,
 } from "./getLastBookPartText.js";
 import { getBookTypeById, saveBookPdf } from "./dbBooks.js";
@@ -18,6 +19,7 @@ import { normalizePunctuation } from "../../utils/normalizePunctuation.js";
 
 export async function createBookPrompt({
   prompt,
+  sections = null,
   pages = 10,
   link,
   coverImage,
@@ -35,8 +37,13 @@ export async function createBookPrompt({
   console.log(`✍️ Running Book GPT Engine (Part ${partNumber})...`);
   const db = connect();
 
-  if (!prompt || typeof prompt !== "string") {
-    throw new Error("Prompt text is required to create a book section");
+  if (
+    (!prompt || typeof prompt !== "string" || !prompt.trim()) &&
+    (!Array.isArray(sections) || !sections.some((s) => s.content?.trim()))
+  ) {
+    throw new Error(
+      "Either prompt text or section content is required to create a book section"
+    );
   }
 
   // ✅ Generate or reuse Book ID
@@ -59,29 +66,63 @@ export async function createBookPrompt({
 
     console.log("BOOK TYPE:", resolvedBookType);
 
-    // ✅ 3. Choose correct GPT engine based on type
-    let gptOutput = "";
-    if (resolvedBookType === "fiction") {
-      gptOutput = await askBookGPTFiction(prompt, previousText, "", partNumber);
-    } else if (resolvedBookType === "non-fiction") {
-      gptOutput = await askBookGPT(prompt, previousText, "", partNumber);
-    } else if (resolvedBookType === "educational") {
-      gptOutput = await askBookGPTEducational(
-        prompt,
-        previousText,
-        "",
-        partNumber
-      );
-    } else {
-      console.log("⚠️ Unknown type, defaulting to non-fiction GPT");
-      gptOutput = await askBookGPT(prompt, previousText, "", partNumber);
+    // ✅ 3. Generate GPT output PER SECTION (authoritative structure)
+    const generatedSections = [];
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      if (!section.content?.trim()) continue;
+
+      let sectionOutput = "";
+
+      if (resolvedBookType === "fiction") {
+        sectionOutput = await askBookGPTFiction(
+          section.content,
+          previousText,
+          "",
+          partNumber
+        );
+      } else if (resolvedBookType === "non-fiction") {
+        sectionOutput = await askBookGPT(
+          section.content,
+          previousText,
+          "",
+          partNumber
+        );
+      } else if (resolvedBookType === "educational") {
+        sectionOutput = await askBookGPTEducational(
+          section.content,
+          previousText,
+          "",
+          partNumber
+        );
+      } else {
+        sectionOutput = await askBookGPT(
+          section.content,
+          previousText,
+          "",
+          partNumber
+        );
+      }
+
+      sectionOutput = normalizePunctuation(sectionOutput);
+
+      if (!sectionOutput || typeof sectionOutput !== "string") {
+        throw new Error(`GPT failed for section ${i + 1}`);
+      }
+
+      generatedSections.push({
+        title: section.title?.trim() || `Section ${i + 1}`,
+        content: sectionOutput.replace(/<h[12][^>]*>.*?<\/h[12]>/gi, "").trim(),
+      });
+
+      // 🔁 Continuity moves forward section by section
+      previousText = sectionOutput;
     }
 
-    gptOutput = normalizePunctuation(gptOutput);
-
-    if (!gptOutput || typeof gptOutput !== "string") {
-      throw new Error("GPT did not return valid text for the book section");
-    }
+    const finalChapterText = generatedSections
+      .map((s) => s.content)
+      .join("\n\n");
 
     // ✅ 3. Temporary cover handling
     let tempCoverPath = null;
@@ -119,17 +160,21 @@ export async function createBookPrompt({
       }
     }
 
-    // ✅ 4. Parse chapters
-    const cleanedContent = gptOutput
-      .replace(/<h[12][^>]*>.*?<\/h[12]>/gi, "") // strip GPT headings
-      .trim();
+    // ✅ 4. Build chapters directly from generated sections
+    const chapters = generatedSections.length
+      ? generatedSections
+      : Array.isArray(sections) && sections.some((s) => s.content?.trim())
+      ? sections
+          .filter((s) => s.content?.trim())
+          .map((s, i) => ({
+            title: s.title?.trim() || `Chapter ${partNumber}.${i + 1}`,
+            content: s.content.trim(),
+          }))
+      : [];
 
-    const chapters = [
-      {
-        title: title?.trim() || `Chapter ${partNumber}`, // ← from frontend
-        content: cleanedContent,
-      },
-    ];
+    if (!chapters.length) {
+      throw new Error("No valid sections were generated for PDF output");
+    }
 
     // ✅ 5. Fallbacks
     let finalTitle = bookName?.trim() || null;
@@ -181,13 +226,31 @@ export async function createBookPrompt({
     if (fs.existsSync(localPdfPath)) fs.unlinkSync(localPdfPath);
 
     // ✅ 9. Save text for continuity
+
     await saveBookPartText({
       userId,
       bookId: thisBookId,
       partNumber,
-      text: gptOutput,
+      text: finalChapterText,
       can_edit: isEditing ? 0 : 1,
     });
+
+    // new — only if sections were sent
+    if (Array.isArray(generatedSections) && generatedSections.length) {
+      const gptSections = generatedSections.map((section, index) => ({
+        id: `gpt-section-${index + 1}`,
+        title: section.title,
+        content: section.content,
+        source: "gpt", // 👈 THIS IS THE KEY
+      }));
+
+      await saveBookPartSections({
+        userId,
+        bookId: thisBookId,
+        partNumber,
+        sections: gptSections,
+      });
+    }
 
     await db.query(
       `UPDATE generated_books 
@@ -203,7 +266,7 @@ export async function createBookPrompt({
       fileUrl: uploaded.Location,
       partNumber,
       bookId: thisBookId,
-      gptOutput,
+      gptOutput: finalChapterText,
       actualPages: pageCount || pages,
       font_name,
       font_file,
@@ -247,6 +310,7 @@ export async function processBookPrompt({
   userId,
   bookId,
   prompt,
+  sections = null,
   pages,
   link,
   coverImage,
@@ -265,6 +329,7 @@ export async function processBookPrompt({
     userId,
     bookId,
     prompt,
+    sections,
     pages,
     link,
     coverImage,
