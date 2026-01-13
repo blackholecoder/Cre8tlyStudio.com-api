@@ -12,20 +12,16 @@ export async function optimizeImageUpload(buffer, mimetype, options = {}) {
   const { purpose = "content", maxWidth = 1800 } = options;
 
   try {
-    const isJpeg = mimetype.includes("jpeg") || mimetype.includes("jpg");
+    const image = sharp(buffer);
+    const metadata = await image.metadata();
+
+    const hasAlpha = Boolean(metadata.hasAlpha);
     const isPng = mimetype.includes("png");
     const isWebp = mimetype.includes("webp");
 
-    // PNGs → keep full quality + transparency
-    if (isPng) {
-      const pipeline = sharp(buffer);
-
-      // 🚫 Do NOT trim profile / avatar images
-      if (purpose !== "profile") {
-        pipeline.trim();
-      }
-
-      const optimizedBuffer = await pipeline
+    // ✅ PNG WITH TRANSPARENCY → keep PNG
+    if (isPng && hasAlpha) {
+      const optimizedBuffer = await image
         .resize({ width: maxWidth, withoutEnlargement: true })
         .png({
           compressionLevel: 0,
@@ -33,21 +29,33 @@ export async function optimizeImageUpload(buffer, mimetype, options = {}) {
         })
         .toBuffer();
 
-      return { optimizedBuffer, format: "png", mimetype: "image/png" };
+      return {
+        optimizedBuffer,
+        format: "png",
+        mimetype: "image/png",
+        hasAlpha: true,
+      };
     }
 
-    // JPG / WEBP optimization
-    const format = isWebp ? "webp" : "jpeg";
-    const optimizedBuffer = await sharp(buffer)
+    // ❗ PNG WITHOUT TRANSPARENCY OR JPG/WEBP → convert to JPEG
+    const optimizedBuffer = await image
       .resize({ width: maxWidth, withoutEnlargement: true })
-      [format]({ quality: 80 })
+      .jpeg({ quality: 82 })
       .toBuffer();
 
-    const outputMime = format === "webp" ? "image/webp" : "image/jpeg";
-
-    return { optimizedBuffer, format, mimetype: outputMime };
+    return {
+      optimizedBuffer,
+      format: "jpeg",
+      mimetype: "image/jpeg",
+      hasAlpha: false,
+    };
   } catch (err) {
     console.error("❌ Sharp optimization failed:", err);
-    return { optimizedBuffer: buffer, format: "original", mimetype };
+    return {
+      optimizedBuffer: buffer,
+      format: "original",
+      mimetype,
+      hasAlpha: false,
+    };
   }
 }

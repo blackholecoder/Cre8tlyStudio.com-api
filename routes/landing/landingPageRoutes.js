@@ -543,6 +543,7 @@ router.post("/upload-media-block", async (req, res) => {
     }
 
     let bufferToUpload;
+    let hasAlpha = false;
 
     if (file.tempFilePath) {
       bufferToUpload = fs.readFileSync(file.tempFilePath);
@@ -554,7 +555,7 @@ router.post("/upload-media-block", async (req, res) => {
 
     // 🖼 If it's an image, optimize first
     if (isImage) {
-      const { optimizedBuffer } = await optimizeImageUpload(
+      const { optimizedBuffer, hasAlpha } = await optimizeImageUpload(
         bufferToUpload,
         file.mimetype,
         { purpose: "profile" }
@@ -620,6 +621,7 @@ router.post("/upload-media-block", async (req, res) => {
         : `https://${result.Location}`,
       originalName: file.name,
       type: isImage ? "image" : "audio",
+      has_alpha: hasAlpha,
     });
   } catch (err) {
     console.error("❌ Error uploading media block:", err);

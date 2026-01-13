@@ -24,13 +24,27 @@ export function renderProfileCardBlock(block) {
   const hasContact = Boolean(contact_value);
 
   return `
-<div style="
+  <style>
+  .profile-card-desktop-spacer {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .profile-card-desktop-spacer {
+      display: block;
+      height: 24px;
+    }
+  }
+</style>
+
+<div class="profile-card-image" style="
   text-align:${alignment};
   margin:12px 0;
   padding:8px;
   position:relative;
   user-select:none;
 " oncontextmenu="return false">
+<div class="profile-card-desktop-spacer"></div>
 
   <!-- 🔒 Anti-save overlay -->
   <div style="

@@ -12,6 +12,7 @@ export function renderImageBlock(block) {
     shadow_depth = 25,
     shadow_offset = 10,
     shadow_angle = 135,
+    has_alpha = false,
   } = block;
 
   if (!image_url) return "";

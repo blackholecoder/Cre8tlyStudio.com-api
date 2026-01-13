@@ -24,8 +24,9 @@ export function renderOfferPreviewPage({
 
   const productSource = block.product_source || "internal";
 
-  const imageSrc =
-    block.image_url || block.cover_url || block.pdf_cover_image || "";
+  const imageSrc = block.use_pdf_cover
+    ? block.cover_url
+    : block.image_url || "";
 
   const textColor = block.text_color || "#ffffff";
 

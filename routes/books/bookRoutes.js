@@ -29,6 +29,17 @@ import {
 
 const router = express.Router();
 
+const MAX_CHAPTER_WORDS = 3000;
+
+function getWordCount(text = "") {
+  return text
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean).length;
+}
+
 // ✅ Create empty book slot
 router.post("/", authenticateToken, async (req, res) => {
   try {
@@ -113,6 +124,25 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       font_file = "/fonts/Montserrat-Regular.ttf",
       isEditing = false,
     } = req.body;
+
+    let totalWords = 0;
+
+    if (Array.isArray(sections) && sections.length > 0) {
+      totalWords = sections.reduce(
+        (sum, s) => sum + getWordCount(s.content || ""),
+        0
+      );
+    } else {
+      totalWords = getWordCount(prompt);
+    }
+
+    if (totalWords > MAX_CHAPTER_WORDS) {
+      return res.status(400).json({
+        message: `Chapter exceeds the maximum allowed length. 
+${totalWords.toLocaleString()} words provided, limit is ${MAX_CHAPTER_WORDS.toLocaleString()} words.
+Please split this into another chapter.`,
+      });
+    }
 
     console.log("cover image", coverImage);
 

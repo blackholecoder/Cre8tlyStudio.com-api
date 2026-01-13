@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { pdfThemes } from "./pdfThemes.js";
+import QRCode from "qrcode";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,20 @@ export async function generatePDF({
   bgTheme = bgTheme || "modern";
   font_file = font_file || "/fonts/Montserrat-Regular.ttf";
 
+  let qrCodeDataUrl = null;
+
+  if (link) {
+    qrCodeDataUrl = await QRCode.toDataURL(link, {
+      errorCorrectionLevel: "H",
+      margin: 1,
+      width: 300,
+      color: {
+        dark: "#000000",
+        light: "#ffffff",
+      },
+    });
+  }
+
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -89,6 +104,11 @@ export async function generatePDF({
     const regexUrl = new RegExp(link.replace(/\//g, "\\/"), "gi");
     cleanedPrompt = cleanedPrompt.replace(regexUrl, "");
   }
+
+  cleanedPrompt = cleanedPrompt.replace(
+    /\*\*(.*?)\*\*/g,
+    "<strong>$1</strong>"
+  );
 
   if (isHtml) {
     content = cleanedPrompt;
@@ -315,28 +335,57 @@ export async function generatePDF({
             }
             ${
               link
-                ? `<div class="footer-link" style="margin-top:20px;">
-                    <a href="${link}" target="_blank" class="link-button" style="
-                      display:inline-block;
-                      background:${ctaBg};
-                      color:${ctaText};
-                      padding:14px 30px;
-                      font-weight:600;
-                      font-size:16px;
-                      border-radius:30px;
-                      text-decoration:none;
-                      box-shadow:none;
-                      border:2px solid ${
-                        getReadableTextColor(bgColor) === "#ffffff"
-                          ? "#fff"
-                          : "#000"
-                      };
-                    ">
-                      Visit ${new URL(link).hostname.replace(/^www\\./, "")}
-                    </a>
-                  </div>`
+                ? `<div class="footer-link" style="
+        margin-top:20px;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap:20px;
+      ">
+        <a href="${link}" target="_blank" class="link-button" style="
+          display:inline-block;
+          background:${ctaBg};
+          color:${ctaText};
+          padding:14px 30px;
+          font-weight:600;
+          font-size:16px;
+          border-radius:30px;
+          text-decoration:none;
+          border:2px solid ${
+            getReadableTextColor(bgColor) === "#ffffff" ? "#fff" : "#000"
+          };
+        ">
+          Visit ${new URL(link).hostname.replace(/^www\\./, "")}
+        </a>
+
+        ${
+          qrCodeDataUrl
+            ? `<div class="qr-wrapper" style="margin-top:10px;text-align:center;">
+                <p style="
+                  font-size:14px;
+                  margin-bottom:10px;
+                  opacity:0.8;
+                ">
+                  Reading a printed copy? Scan here
+                </p>
+                <img
+                  src="${qrCodeDataUrl}"
+                  alt="QR Code"
+                  style="
+                    width:120px;
+                    height:120px;
+                    background:#fff;
+                    padding:10px;
+                    border-radius:12px;
+                  "
+                />
+              </div>`
+            : ""
+        }
+      </div>`
                 : ""
             }
+
             <p class="signature-footer" style="
               margin-top:28px;
               font-style:italic;

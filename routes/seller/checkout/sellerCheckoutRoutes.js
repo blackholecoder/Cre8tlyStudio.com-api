@@ -68,7 +68,7 @@ router.post("/create-checkout-session", async (req, res) => {
       price_in_cents ||
       (checkoutBlock.price ? Math.round(checkoutBlock.price * 100) : null);
 
-    if (!price) {
+    if (price === null || price === undefined) {
       return res.status(400).json({
         success: false,
         message: "Missing price information",
@@ -97,7 +97,11 @@ router.post("/create-checkout-session", async (req, res) => {
         ? await getLeadMagnetByPdfUrl(downloadUrl)
         : null;
 
-    const productImage = leadMagnet?.cover_image
+    const productImage = checkoutBlock.product_image_url
+      ? [checkoutBlock.product_image_url]
+      : checkoutBlock.image_url
+      ? [checkoutBlock.image_url]
+      : leadMagnet?.cover_image
       ? [leadMagnet.cover_image]
       : [
           landingPage.cover_image_url ||
@@ -110,12 +114,17 @@ router.post("/create-checkout-session", async (req, res) => {
     // INTERNAL = lead magnet title
     if (productSource === "internal") {
       productTitle =
-        leadMagnet?.title || landingPage.title || "Digital Download";
+        checkoutBlock.product_name ||
+        leadMagnet?.title ||
+        landingPage.title ||
+        "Digital Download";
     }
 
-    // EXTERNAL = file name
     if (productSource === "external") {
-      productTitle = checkoutBlock.external_file_name || "Digital Download";
+      productTitle =
+        checkoutBlock.product_name ||
+        checkoutBlock.external_file_name ||
+        "Digital Download";
     }
 
     const session = await stripe.checkout.sessions.create({

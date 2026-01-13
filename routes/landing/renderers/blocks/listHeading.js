@@ -11,7 +11,8 @@ export function renderListHeadingBlock(block, landingPage) {
 
   return `<p style="
     ${containerStyle}
-    padding-bottom:${padding / 2}px;
+    padding:${padding}px 24px;
+    padding-bottom: 5px;
     font-weight:${landingPage.font_weight_label || 700};
     font-size:1.15rem;
     text-align:${alignment};

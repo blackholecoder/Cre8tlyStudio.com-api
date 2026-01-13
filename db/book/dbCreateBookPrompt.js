@@ -1,4 +1,5 @@
 import connect from "../connect.js";
+import OpenAI from "openai";
 import { generateBookPDF } from "../../services/generateBookPDF.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import {
@@ -10,12 +11,17 @@ import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import {
-  getLastBookPartText,
   saveBookPartSections,
   saveBookPartText,
 } from "./getLastBookPartText.js";
 import { getBookTypeById, saveBookPdf } from "./dbBooks.js";
 import { normalizePunctuation } from "../../utils/normalizePunctuation.js";
+import { getUserById } from "../dbUser.js";
+import { sendContentReadyEmail } from "../../services/leadMagnetService.js";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function createBookPrompt({
   prompt,
@@ -51,11 +57,11 @@ export async function createBookPrompt({
 
   try {
     // ✅ 1. Fetch previous text for continuity
-    let previousText = null;
-    if (userId && bookId && partNumber > 1) {
-      previousText = await getLastBookPartText(bookId, userId);
-      if (previousText) {
-        console.log("📖 Found previous part text for continuity");
+    let previousSummary = null;
+    if (userId && thisBookId && partNumber > 1) {
+      previousSummary = await getLastContinuitySummary(thisBookId, userId);
+      if (previousSummary) {
+        console.log("📖 Found previous continuity summary");
       }
     }
 
@@ -78,28 +84,28 @@ export async function createBookPrompt({
       if (resolvedBookType === "fiction") {
         sectionOutput = await askBookGPTFiction(
           section.content,
-          previousText,
+          previousSummary,
           "",
           partNumber
         );
       } else if (resolvedBookType === "non-fiction") {
         sectionOutput = await askBookGPT(
           section.content,
-          previousText,
+          previousSummary,
           "",
           partNumber
         );
       } else if (resolvedBookType === "educational") {
         sectionOutput = await askBookGPTEducational(
           section.content,
-          previousText,
+          previousSummary,
           "",
           partNumber
         );
       } else {
         sectionOutput = await askBookGPT(
           section.content,
-          previousText,
+          previousSummary,
           "",
           partNumber
         );
@@ -115,9 +121,6 @@ export async function createBookPrompt({
         title: section.title?.trim() || `Section ${i + 1}`,
         content: sectionOutput.replace(/<h[12][^>]*>.*?<\/h[12]>/gi, "").trim(),
       });
-
-      // 🔁 Continuity moves forward section by section
-      previousText = sectionOutput;
     }
 
     const finalChapterText = generatedSections
@@ -235,6 +238,18 @@ export async function createBookPrompt({
       can_edit: isEditing ? 0 : 1,
     });
 
+    const continuitySummary = await generateContinuitySummary({
+      fullChapterText: finalChapterText,
+      chapterNumber: partNumber,
+    });
+
+    await saveContinuitySummary({
+      userId,
+      bookId: thisBookId,
+      partNumber,
+      summary: continuitySummary,
+    });
+
     // new — only if sections were sent
     if (Array.isArray(generatedSections) && generatedSections.length) {
       const gptSections = generatedSections.map((section, index) => ({
@@ -258,6 +273,34 @@ export async function createBookPrompt({
        WHERE id = ? AND user_id = ?`,
       [font_name, font_file, thisBookId, userId]
     );
+
+    try {
+      if (!userId) {
+        console.warn("⚠️ userId missing, cannot send email");
+      } else {
+        const user = await getUserById(userId);
+
+        if (!user?.email) {
+          console.warn(
+            `⚠️ No email found for user ${userId}, skipping notification`
+          );
+        } else {
+          console.log("📧 Sending content-ready email to:", user.email);
+
+          await sendContentReadyEmail({
+            name: user.name || "there",
+            email: user.email,
+            label: "new chapter", // ✅ hard-coded, correct
+          });
+        }
+      }
+    } catch (err) {
+      // Email failures should NEVER fail generation
+      console.error(
+        `⚠️ Failed to send content-ready email for user ${userId}`,
+        err
+      );
+    }
 
     // ✅ 10. Return metadata
     return {
@@ -380,4 +423,111 @@ export async function processBookPrompt({
   );
 
   return generated;
+}
+
+export async function generateContinuitySummary({
+  fullChapterText,
+  chapterNumber,
+}) {
+  const response = await client.chat.completions.create({
+    model: "gpt-4.1",
+    temperature: 0.2, // intentionally low to suppress creativity
+    messages: [
+      {
+        role: "system",
+        content: `
+You are generating a CONTINUITY SUMMARY for a book.
+
+IMPORTANT:
+This is NOT prose.
+This is NOT narrative writing.
+This is NOT a rewrite or paraphrase.
+
+Your task is to extract STRUCTURED CONTINUITY INFORMATION ONLY.
+
+STRICT RULES:
+• Do NOT write paragraphs.
+• Do NOT use descriptive or emotional language.
+• Do NOT include imagery, metaphors, or dialogue.
+• Do NOT restate or closely paraphrase sentences from the chapter.
+• Do NOT embellish or interpret beyond what is explicitly stated.
+• Use bullet points ONLY.
+• Be concise and factual.
+
+Return ONLY the following format, nothing else:
+
+PREVIOUS CONTINUITY SUMMARY (DO NOT REPEAT):
+
+Timeline:
+• ...
+
+Emotional Arc:
+• ...
+
+Unresolved Threads:
+• ...
+
+Narrative Tone:
+• ...
+
+Maximum length: 300–400 tokens.
+        `,
+      },
+      {
+        role: "user",
+        content: `
+Here is Chapter ${chapterNumber}.
+Extract the continuity summary from the text below.
+
+CHAPTER TEXT:
+${fullChapterText}
+        `,
+      },
+    ],
+  });
+
+  return response.choices[0]?.message?.content || "";
+}
+
+// helpers/books/saveContinuitySummary.js
+
+export async function saveContinuitySummary({
+  userId,
+  bookId,
+  partNumber,
+  summary,
+}) {
+  if (!summary?.trim()) return;
+
+  const db = connect();
+
+  await db.query(
+    `
+    UPDATE book_parts
+    SET continuity_summary = ?
+    WHERE user_id = ?
+      AND book_id = ?
+      AND part_number = ?
+    `,
+    [summary, userId, bookId, partNumber]
+  );
+}
+
+export async function getLastContinuitySummary(bookId, userId) {
+  const db = connect();
+
+  const [rows] = await db.query(
+    `
+    SELECT continuity_summary
+    FROM book_parts
+    WHERE book_id = ?
+      AND user_id = ?
+      AND continuity_summary IS NOT NULL
+    ORDER BY part_number DESC
+    LIMIT 1
+    `,
+    [bookId, userId]
+  );
+
+  return rows.length ? rows[0].continuity_summary : null;
 }
