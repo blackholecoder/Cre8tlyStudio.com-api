@@ -5,7 +5,6 @@ import {
   markProductDelivered,
 } from "../db/seller/dbSeller.js";
 import { deliverDigitalProduct } from "../services/deliveryService.js";
-import { getLandingPageById } from "../db/landing/dbLanding.js";
 import { sendOutLookMail } from "../utils/sendOutllokMail.js";
 import { hasDeliveryBySessionId, insertDelivery } from "../db/dbDeliveries.js";
 
@@ -27,6 +26,25 @@ export async function handleAccountUpdated(account) {
 export async function handleExternalAccountChange(event) {
   console.log(`🔄 External account event: ${event.type}`);
   // Optional: could notify seller or log it
+}
+
+export async function insertLandingAnalytics({
+  landing_page_id,
+  event_type,
+  ip_address = null,
+  user_agent = null,
+}) {
+  const db = connect();
+
+  await db.query(
+    `
+    INSERT INTO landing_analytics
+      (landing_page_id, event_type, ip_address, user_agent)
+    VALUES
+      (?, ?, ?, ?)
+    `,
+    [landing_page_id, event_type, ip_address, user_agent]
+  );
 }
 
 // 💰 Buyer successfully purchased a product
@@ -91,6 +109,13 @@ export async function handleCheckoutCompleted(session) {
         cover_url: session.metadata?.cover_url || null,
         buyer_email: buyerEmail,
         stripe_session_id: session.id,
+      });
+
+      await insertLandingAnalytics({
+        landing_page_id: landingPageId,
+        event_type: "download",
+        ip_address: null,
+        user_agent: "stripe-webhook",
       });
 
       // Send email to buyer
@@ -263,6 +288,13 @@ export async function handleCheckoutCompleted(session) {
         download_url: downloadUrl,
         buyer_email: buyerEmail,
         stripe_session_id: session.id,
+      });
+
+      await insertLandingAnalytics({
+        landing_page_id: landingPageId,
+        event_type: "download",
+        ip_address: null,
+        user_agent: "stripe-webhook",
       });
 
       const emailHtml = `

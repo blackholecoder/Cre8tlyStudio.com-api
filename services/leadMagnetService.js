@@ -34,11 +34,34 @@ export async function processPromptFlow(
   bgTheme,
   pages = 5,
   logo,
-  link,
+  safeLink,
   coverImage,
   cta,
   contentType
 ) {
+  const getLinkCTA = (safeLink) => {
+    try {
+      if (!safeLink) {
+        return { verb: "Visit", label: "link" };
+      }
+
+      if (safeLink.startsWith("mailto:")) {
+        return {
+          verb: "Email",
+          label: safeLink.replace(/^mailto:/i, ""),
+        };
+      }
+
+      const url = new URL(safeLink);
+      return {
+        verb: "Visit",
+        label: url.hostname.replace(/^www\./, ""),
+      };
+    } catch {
+      return { verb: "Visit", label: "link" };
+    }
+  };
+
   const user = await getUserById(userId);
   const isFreeTier = user?.has_free_magnet === 1 && user?.magnet_slots === 1;
 
@@ -214,7 +237,7 @@ ${brandTone.slice(0, 4000)}
       font_file,
       bgTheme,
       logo: finalLogoUrl,
-      link,
+      safeLink,
       coverImage: finalCoverUrl,
       cta,
       isHtml: true,
@@ -274,6 +297,8 @@ ${brandTone.slice(0, 4000)}
       ? `<div class="cover-page"><img src="${coverSrc}" alt="Cover Image" class="cover-img" /></div>`
       : "";
 
+    const { verb, label } = getLinkCTA(safeLink);
+
     let htmlContent = `
 <html>
   <head>
@@ -297,14 +322,14 @@ ${brandTone.slice(0, 4000)}
               ${cta}
             </p>
             ${
-              link
+              safeLink
                 ? `
-                  <a href="${link}" target="_blank" class="link-button" style="
+                  <a href="${safeLink}" target="_blank" class="link-button" style="
                     background:${ctaBg};
                     color:${ctaText};
                     border:2px solid ${isDarkBg ? "#fff" : "#000"};
                   ">
-                    Visit ${new URL(link).hostname.replace(/^www\\./, "")}
+                    ${verb} ${label}
                   </a>
                 `
                 : ""
@@ -329,7 +354,7 @@ ${brandTone.slice(0, 4000)}
       htmlContent,
       bgTheme,
       finalLogoUrl,
-      link,
+      safeLink,
       finalCoverUrl,
       cta,
       safePages

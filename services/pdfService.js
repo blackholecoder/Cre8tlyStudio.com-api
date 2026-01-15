@@ -43,17 +43,40 @@ export async function generatePDF({
   bgTheme = "modern",
   isHtml = false,
   logo,
-  link,
+  safeLink,
   coverImage,
   cta,
 }) {
+  const getLinkCTA = (safeLink) => {
+    try {
+      if (!safeLink) {
+        return { verb: "Visit", label: "link" };
+      }
+
+      if (safeLink.startsWith("mailto:")) {
+        return {
+          verb: "Email",
+          label: safeLink.replace(/^mailto:/i, ""),
+        };
+      }
+
+      const url = new URL(safeLink);
+      return {
+        verb: "Visit",
+        label: url.hostname.replace(/^www\./, ""),
+      };
+    } catch {
+      return { verb: "Visit", label: "link" };
+    }
+  };
+
   bgTheme = bgTheme || "modern";
   font_file = font_file || "/fonts/Montserrat-Regular.ttf";
 
   let qrCodeDataUrl = null;
 
-  if (link) {
-    qrCodeDataUrl = await QRCode.toDataURL(link, {
+  if (safeLink) {
+    qrCodeDataUrl = await QRCode.toDataURL(safeLink, {
       errorCorrectionLevel: "H",
       margin: 1,
       width: 300,
@@ -93,15 +116,16 @@ export async function generatePDF({
   }
 
   // Remove link if AI added its own "Visit..." or URL section
-  if (link) {
-    const domain = new URL(link).hostname.replace(/^www\./, "");
+  if (safeLink && safeLink.startsWith("http")) {
+    const domain = new URL(safeLink).hostname.replace(/^www\./, "");
 
     // Remove patterns like "Visit example.com"
     const regexVisit = new RegExp(`Visit\\s+${domain}[\\s\\S]*?$`, "gi");
     cleanedPrompt = cleanedPrompt.replace(regexVisit, "");
 
     // Remove raw URL if AI inserted it inside the guide
-    const regexUrl = new RegExp(link.replace(/\//g, "\\/"), "gi");
+    const escapedLink = safeLink.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regexUrl = new RegExp(escapedLink, "gi");
     cleanedPrompt = cleanedPrompt.replace(regexUrl, "");
   }
 
@@ -259,6 +283,8 @@ export async function generatePDF({
     }
   `;
 
+  const { verb, label } = getLinkCTA(safeLink);
+
   const html = `
 <html>
   <head>
@@ -271,7 +297,7 @@ export async function generatePDF({
   ${content}
 </div>
    ${
-     cta || link
+     cta || safeLink
        ? (() => {
            const linkedCta = cta
              ? cta
@@ -334,7 +360,7 @@ export async function generatePDF({
                 : ""
             }
             ${
-              link
+              safeLink
                 ? `<div class="footer-link" style="
         margin-top:20px;
         display:flex;
@@ -342,7 +368,7 @@ export async function generatePDF({
         align-items:center;
         gap:20px;
       ">
-        <a href="${link}" target="_blank" class="link-button" style="
+        <a href="${safeLink}" target="_blank" class="link-button" style="
           display:inline-block;
           background:${ctaBg};
           color:${ctaText};
@@ -355,7 +381,7 @@ export async function generatePDF({
             getReadableTextColor(bgColor) === "#ffffff" ? "#fff" : "#000"
           };
         ">
-          Visit ${new URL(link).hostname.replace(/^www\\./, "")}
+          ${verb} ${label}
         </a>
 
         ${

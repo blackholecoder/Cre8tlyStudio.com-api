@@ -12,6 +12,7 @@ import { authenticateToken } from "../middleware/authMiddleware.js";
 import { askGPT } from "../helpers/gptHelper.js";
 import { getUserBrandFile } from "../db/dbUploads.js";
 import { getUserById } from "../db/dbUser.js";
+import { normalizeLink } from "../utils/normalizeLinks.js";
 
 const router = express.Router();
 
@@ -79,6 +80,18 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       contentType,
     } = req.body;
 
+    let safeLink = null;
+
+    try {
+      safeLink = normalizeLink(link);
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid link format. Please enter a valid website URL or email address.",
+      });
+    }
+
     // 🧩 1️⃣ Fetch user to determine tier
     const user = await getUserById(req.user.id);
 
@@ -124,7 +137,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       bgTheme,
       safePages,
       logo,
-      link,
+      safeLink,
       coverImage,
       cta,
       contentType

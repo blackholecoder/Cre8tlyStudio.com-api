@@ -5,7 +5,7 @@ export function renderLandingAnalyticsScript({ landingPage }) {
 <script>
   const ownerPreview = new URLSearchParams(window.location.search).get("owner_preview");
 
-  async function trackEvent(eventType) {
+  async function trackEvent(eventType, meta = {}) {
     try {
       await fetch("https://cre8tlystudio.com/api/landing-analytics/track", {
         method: "POST",
@@ -13,7 +13,8 @@ export function renderLandingAnalyticsScript({ landingPage }) {
         body: JSON.stringify({
           landing_page_id: "${landingPageId}",
           event_type: eventType,
-          owner_preview: ownerPreview
+          owner_preview: ownerPreview,
+          meta
         }),
       });
     } catch (err) {
@@ -22,23 +23,32 @@ export function renderLandingAnalyticsScript({ landingPage }) {
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    // VIEW
     trackEvent("view");
 
-    document.querySelectorAll("a.btn").forEach(btn => {
-      btn.addEventListener("click", () => trackEvent("click"));
-    });
+    // GLOBAL CLICK LISTENER
+    document.addEventListener("click", (e) => {
+      const el = e.target.closest("a, button");
+      if (!el) return;
 
-    document.querySelectorAll('a[href$=".pdf"]').forEach(link => {
-      link.addEventListener("click", () => trackEvent("download"));
-    });
+      // Track ALL CTA-like clicks
+      if (
+        el.tagName === "BUTTON" ||
+        el.classList.contains("btn") ||
+        el.getAttribute("role") === "button"
+      ) {
+        trackEvent("click", {
+          tag: el.tagName,
+          text: el.innerText?.slice(0, 50) || null
+        });
+      }
 
-    const leadForm = document.getElementById("leadForm");
-    if (leadForm) {
-      leadForm.addEventListener("submit", async () => {
-        await trackEvent("click");
-        await trackEvent("download");
-      });
-    }
+      // Track file downloads
+      const href = el.getAttribute("href");
+      if (href && href.toLowerCase().endsWith(".pdf")) {
+        trackEvent("download", { href });
+      }
+    });
   });
 </script>
 `;
