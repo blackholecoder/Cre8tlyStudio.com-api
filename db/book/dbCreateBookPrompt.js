@@ -326,7 +326,6 @@ export function validateBookPromptInput(bookId, prompt) {
     return "Your input is too long. Please shorten your prompt.";
   return null;
 }
-
 /**
  * Check if book exists and hasn’t exceeded its page limit.
  */
