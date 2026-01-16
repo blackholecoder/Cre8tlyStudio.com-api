@@ -125,6 +125,10 @@ router.post("/prompt", authenticateToken, async (req, res) => {
       isEditing = false,
     } = req.body;
 
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ message: "Invalid chapter content" });
+    }
+
     let totalWords = 0;
 
     if (Array.isArray(sections) && sections.length > 0) {
@@ -143,8 +147,6 @@ ${totalWords.toLocaleString()} words provided, limit is ${MAX_CHAPTER_WORDS.toLo
 Please split this into another chapter.`,
       });
     }
-
-    console.log("cover image", coverImage);
 
     const userId = req.user.id;
 

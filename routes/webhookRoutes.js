@@ -39,28 +39,25 @@ router.post("/", async (req, res) => {
 
       if (!email || !product) {
         console.warn("⚠️ Missing metadata on Stripe session");
-        return res.sendStatus(400);
+        return res.sendStatus(200);
       }
+
+      res.sendStatus(200);
 
       let handledUpgrade = false;
 
       switch (product) {
         case "author":
-          console.log(`📚 Author’s Assistant upgrade for: ${email}`);
           await upgradeUserToBooks(email);
           handledUpgrade = true;
           break;
 
         case "business_builder_pack":
-          console.log(
-            `🏗️ Business Builder Pack (${billingCycle}) for: ${email}`
-          );
           await activateBusinessBuilder(email, billingCycle);
           handledUpgrade = true;
           break;
 
         case "business_basic_builder":
-          console.log(`🧱 Business Basic Builder (annual) for: ${email}`);
           await activateBusinessBasicBuilder(email);
           handledUpgrade = true;
           break;

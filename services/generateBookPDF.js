@@ -18,6 +18,13 @@ export async function generateBookPDF({
   font_name = "AdobeArabic",
   font_file = "/fonts/AdobeArabic-Regular.ttf",
 }) {
+  function renderChapterContent(raw) {
+    if (!raw) return "";
+
+    // Just add a class to blockquotes for styling
+    return raw.replace(/<blockquote>/g, '<blockquote class="book-quote">');
+  }
+
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -83,25 +90,18 @@ export async function generateBookPDF({
 
   const content =
     safeChapters
-      .map(
-        (c) => `
-  <div class="page">
-    <div class="page-inner">
-      <div class="chapter">
-        <h2 class="chapter-title">${c.title}</h2>
-        ${
-          c.content.trim().startsWith("<")
-            ? c.content
-            : c.content
-                .split(/\n+/)
-                .map((p) => `<p>${p.trim()}</p>`)
-                .join("")
-        }
-      </div>
-    </div>
-  </div>
-`
-      )
+      .map((c) => {
+        return `
+        <div class="page">
+          <div class="page-inner">
+            <div class="chapter">
+              <h2 class="chapter-title">${c.title}</h2>
+              ${renderChapterContent(c.content)}
+            </div>
+          </div>
+        </div>
+      `;
+      })
       .join("") + learnMore;
 
   const titlePage =
@@ -205,6 +205,23 @@ export async function generateBookPDF({
   page-break-inside: avoid;
   break-inside: avoid;
 }
+
+    .book-quote {
+      margin: 24px 0;
+      padding: 16px 20px;
+      border-left: 4px solid #3a3a3a;
+      background: rgba(0, 0, 0, 0.03);
+      font-style: italic;
+      page-break-inside: avoid;
+    }
+
+    .book-quote p {
+      margin: 0 0 8px 0;
+    }
+
+    .book-quote p:last-child {
+      margin-bottom: 0;
+    }
     </style>
   </head>
   <body>
