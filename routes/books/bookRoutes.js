@@ -20,12 +20,15 @@ import {
   lockBookPartEdit,
   updateEditedChapter,
   getBookPartDraft,
+  getBookForEPUB,
+  finalizeBook,
 } from "../../db/book/dbBooks.js";
 import {
   enforcePageLimit,
   processBookPrompt,
   validateBookPromptInput,
 } from "../../db/book/dbCreateBookPrompt.js";
+import { generateBookEPUB } from "../../services/generateBookEPUB.js";
 
 const router = express.Router();
 
@@ -387,5 +390,68 @@ router.get(
     }
   }
 );
+
+// EPUB ROUTES
+
+router.post("/:bookId/epub/generate", authenticateToken, async (req, res) => {
+  try {
+    const { bookId } = req.params;
+    const userId = req.user.id;
+
+    const { epubPath } = await generateBookEPUB({ bookId, userId });
+
+    res.json({
+      success: true,
+      epubPath,
+    });
+  } catch (err) {
+    console.error("EPUB generation error:", err.message);
+
+    res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+router.get("/:bookId/epub/prepare", authenticateToken, async (req, res) => {
+  try {
+    const { bookId } = req.params;
+    const userId = req.user.id;
+
+    const epubData = await getBookForEPUB({ bookId, userId });
+
+    res.json({
+      success: true,
+      book: epubData.book,
+      chapterCount: epubData.chapters.length,
+    });
+  } catch (err) {
+    console.error("EPUB prep error:", err.message);
+
+    res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+router.post("/:bookId/finalize", authenticateToken, async (req, res) => {
+  try {
+    const { bookId } = req.params;
+    const userId = req.user.id;
+
+    await finalizeBook({ bookId, userId });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Finalize book error:", err.message);
+
+    res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
 
 export default router;

@@ -51,15 +51,16 @@ export async function getAllReports() {
     ORDER BY last_created_at DESC;
   `);
 
+  // NEW: fetch book chapters once
+  const bookPartsByUser = await getBookPartsByUser();
+
   return rows.map((r) => {
     let leadMagnets = [];
     let landing_url = null;
 
     if (r.landing_custom_domain) {
-      // If user has a custom domain configured
       landing_url = `https://${r.landing_custom_domain}`;
     } else if (r.landing_username) {
-      // Default Cre8tly subdomain
       landing_url = `https://${r.landing_username}.cre8tlystudio.com`;
     }
 
@@ -78,7 +79,40 @@ export async function getAllReports() {
     return {
       ...r,
       lead_magnets: leadMagnets,
+      book_parts: bookPartsByUser[r.user_id] || [], // ✅ NEW
       landing_url,
     };
   });
+}
+
+export async function getBookPartsByUser() {
+  const db = connect();
+
+  const [rows] = await db.query(`
+    SELECT
+      bp.id,
+      bp.user_id,
+      bp.book_id,
+      bp.part_number,
+      bp.title,
+      bp.pages,
+      bp.file_url,
+      bp.can_edit,
+      bp.created_at,
+      bp.updated_at,
+      gb.book_name
+    FROM book_parts bp
+    JOIN generated_books gb ON gb.id = bp.book_id
+    WHERE gb.deleted_at IS NULL
+    ORDER BY bp.updated_at DESC
+  `);
+
+  const map = {};
+
+  for (const row of rows) {
+    if (!map[row.user_id]) map[row.user_id] = [];
+    map[row.user_id].push(row);
+  }
+
+  return map;
 }

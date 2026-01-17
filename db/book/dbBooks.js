@@ -3,6 +3,7 @@ import connect from "../connect.js";
 import { generateBookPDF } from "../../services/generateBookPDF.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import fs from "fs";
+import { normalizeHtmlForEPUB } from "../../helpers/normalizeHtmlForEPUB.js";
 
 // ✅ Create a new empty book slot for a user
 export async function createBook(
@@ -80,6 +81,8 @@ export async function getBooksByUser(userId) {
       g.last_saved_at,
       g.font_name,    
       g.font_file, 
+      g.is_complete, 
+      g.epub_url, 
       -- ✅ NEW: tell us if Part 1 already exists
 
       (
@@ -168,7 +171,9 @@ export async function getBookById(id) {
     bookType: book.book_type,
     font_name: book.font_name,
     font_file: book.font_file,
-    can_edit: book.can_edit, // ⚡ NEW
+    epub_url: book.epub_url,
+    is_complete: Boolean(book.is_complete),
+    can_edit: book.can_edit,
     ...book,
   };
 }
@@ -190,6 +195,43 @@ export async function updateEditedChapter({
     .trim();
 
   const db = connect();
+
+  const [[book]] = await db.query(
+    `
+    SELECT is_complete
+    FROM generated_books
+    WHERE id = ? AND user_id = ?
+    LIMIT 1
+    `,
+    [bookId, userId]
+  );
+
+  if (!book) {
+    throw new Error("Book not found or access denied");
+  }
+
+  if (book.is_complete) {
+    throw new Error("This book has been finalized and can no longer be edited");
+  }
+
+  // 🔒 1. Guard: chapter must be editable
+  const [[part]] = await db.query(
+    `
+    SELECT can_edit
+    FROM book_parts
+    WHERE book_id = ? AND user_id = ? AND part_number = ?
+    LIMIT 1
+    `,
+    [bookId, userId, partNumber]
+  );
+
+  if (!part) {
+    throw new Error("Chapter not found");
+  }
+
+  if (part.can_edit === 0) {
+    throw new Error("This chapter is locked and cannot be edited");
+  }
 
   if (bookName) {
     await db.query(
@@ -393,25 +435,31 @@ export async function getBookParts(bookId, userId) {
 
   try {
     const [rows] = await db.query(
-      `SELECT 
-         id,
-         part_number,
-         title,
-         file_url,
-         pages,
-         created_at,
-         gpt_output,
-         sections_json
-       FROM book_parts
-       WHERE book_id = ? AND user_id = ?
-       ORDER BY part_number ASC`,
+      `
+      SELECT 
+        id,
+        part_number,
+        title,
+        file_url,
+        pages,
+        created_at,
+        gpt_output,
+        sections_json,
+        can_edit
+      FROM book_parts
+      WHERE book_id = ? AND user_id = ?
+      ORDER BY part_number ASC
+      `,
       [bookId, userId]
     );
 
     return rows;
-  } finally {
+  } catch (err) {
+    console.error("❌ Failed to fetch book parts:", err);
+    throw new Error("Failed to load book parts");
   }
 }
+
 export async function updateBookInfo(
   bookId,
   userId,
@@ -717,4 +765,150 @@ export async function getBookPartDraft(bookId, partNumber, userId) {
   );
 
   return rows[0] || null;
+}
+
+// EPUB LOGIC
+
+export async function getBookForEPUB({ bookId, userId }) {
+  const db = connect();
+
+  // 1. Fetch book metadata
+  const [[book]] = await db.query(
+    `
+    SELECT
+      id,
+      book_name,
+      author_name,
+      cover_image,
+      link
+    FROM generated_books
+    WHERE id = ?
+      AND user_id = ?
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [bookId, userId]
+  );
+
+  if (!book) {
+    throw new Error("Book not found or access denied");
+  }
+
+  if (!book.book_name || !book.author_name) {
+    throw new Error("Book title or author is missing");
+  }
+
+  // 2. Fetch finalized chapters (gpt_output is the source of truth)
+  const [chapters] = await db.query(
+    `
+    SELECT
+      part_number,
+      title,
+      gpt_output AS content
+    FROM book_parts
+    WHERE book_id = ?
+      AND user_id = ?
+      AND gpt_output IS NOT NULL
+      AND gpt_output != ''
+    ORDER BY part_number ASC
+    `,
+    [bookId, userId]
+  );
+
+  if (!chapters.length) {
+    throw new Error("No finalized chapters found for this book");
+  }
+
+  // 3. Validate chapter continuity
+  chapters.forEach((chapter, index) => {
+    const expectedPart = index + 1;
+
+    if (chapter.part_number !== expectedPart) {
+      throw new Error(
+        `Chapter sequence error: expected part ${expectedPart}, got ${chapter.part_number}`
+      );
+    }
+
+    if (!chapter.content || !chapter.content.trim()) {
+      throw new Error(`Chapter ${chapter.part_number} has empty content`);
+    }
+  });
+
+  // 4. Normalize return shape (EPUB ready payload)
+  return {
+    book: {
+      id: book.id,
+      title: book.book_name,
+      author: book.author_name,
+      coverImage: book.cover_image,
+      link: book.link,
+    },
+    chapters: chapters.map((c) => ({
+      order: c.part_number,
+      title: c.title || `Chapter ${c.part_number}`,
+      content: normalizeHtmlForEPUB(c.content),
+    })),
+  };
+}
+
+export async function finalizeBook({ bookId, userId }) {
+  const db = connect();
+
+  // 1. Fetch book
+  const [[book]] = await db.query(
+    `
+    SELECT id, is_complete
+    FROM generated_books
+    WHERE id = ? AND user_id = ?
+    LIMIT 1
+    `,
+    [bookId, userId]
+  );
+
+  if (!book) {
+    throw new Error("Book not found or access denied");
+  }
+
+  if (book.is_complete) {
+    throw new Error("Book is already finalized");
+  }
+
+  // 2. Ensure there is at least one finalized chapter
+  const [[count]] = await db.query(
+    `
+    SELECT COUNT(*) AS total
+    FROM book_parts
+    WHERE book_id = ?
+      AND user_id = ?
+      AND gpt_output IS NOT NULL
+      AND gpt_output != ''
+    `,
+    [bookId, userId]
+  );
+
+  if (count.total === 0) {
+    throw new Error("Cannot finalize an empty book");
+  }
+
+  // 3. Lock ALL chapters
+  await db.query(
+    `
+    UPDATE book_parts
+    SET can_edit = 0
+    WHERE book_id = ? AND user_id = ?
+    `,
+    [bookId, userId]
+  );
+
+  // 4. Mark book as complete (irreversible)
+  await db.query(
+    `
+    UPDATE generated_books
+    SET is_complete = 1, updated_at = NOW()
+    WHERE id = ? AND user_id = ?
+    `,
+    [bookId, userId]
+  );
+
+  return { success: true };
 }
