@@ -102,15 +102,23 @@ router.post("/login", async (req, res) => {
     }
 
     // 🧩 Step 1: Check if 2FA is enabled for this account
-    if (user.twofa_enabled) {
-      // issue a short-lived temporary token (2 minutes)
+    const isSuperAdmin =
+      process.env.SUPER_ADMIN_ID && user.id === process.env.SUPER_ADMIN_ID;
+
+    const isDev = process.env.NODE_ENV !== "production";
+
+    if (isSuperAdmin && isDev) {
+      console.log("⚠️ 2FA bypassed for SUPER ADMIN in dev mode");
+    }
+
+    // 🔓 Allow super admin to bypass 2FA in dev only
+    if (user.twofa_enabled && !(isSuperAdmin && isDev)) {
       const twofaToken = jwt.sign(
         { id: user.id, email: user.email, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: "2m" }
       );
 
-      // don't log them in yet — prompt frontend for 2FA code
       return res.json({
         requires2FA: true,
         twofaToken,
