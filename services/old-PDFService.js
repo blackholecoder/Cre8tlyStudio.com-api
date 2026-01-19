@@ -135,13 +135,6 @@ export async function generatePDF({
   );
 
   if (isHtml) {
-    cleanedPrompt = cleanedPrompt.replace(
-      /<div\s+class=["']page-break["']\s*><\/div>/gi,
-      ""
-    );
-  }
-
-  if (isHtml) {
     content = cleanedPrompt;
   } else {
     const paragraphs = cleanedPrompt

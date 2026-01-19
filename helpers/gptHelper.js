@@ -35,7 +35,15 @@ Every piece should sound natural, confident, and conversational, while still bei
 
 Rules:
 • Do NOT invent random people, case studies, or characters.
-• Avoid filler examples like “Imagine Sarah, a coach…” or “Think of a small business owner who…”.
+• Avoid filler examples like “Imagine Sarah, a coach…” or “Think of a small business
+Do NOT invent people, businesses, anecdotes, or fictional case studies.
+• AVOID “imagine someone who…”
+• AVOID placeholder stories.
+• AVOID synthetic narratives.
+• AVOID unnecessary adjectives and adverbs
+• AVOID metaphores and cliches
+• AVOID generalizations owner who…”.
+
 • Write directly to the reader — use “you” and “your,” not third-person examples.
 • Focus on real, actionable value, phrased naturally.
 • Keep rhythm, punch, and clarity — short sentences mixed with longer lines for flow.
@@ -55,6 +63,10 @@ Important:
 • Let this tone drive every sentence — vocabulary, phrasing, and vibe must feel 100% like them.
 • Do not revert to formal or academic tone.
 • Match their energy, slang, and emotion naturally, even if it's casual or raw.
+- Use clear, simple language.
+- use short, impactful sentences.
+- use active voice, avoid passive voice.
+- use "you" and "your" to directly address the reader.
 `;
   }
 
@@ -169,9 +181,11 @@ The writing must be grounded in:
 • Documented systems, behaviors, or failures
 
 Do NOT invent people, businesses, anecdotes, or fictional case studies.
-No “imagine someone who…”
-No placeholder stories.
-No synthetic narratives.
+• AVOID “imagine someone who…”
+• AVOID placeholder stories.
+• AVOID synthetic narratives.
+• AVOID unnecessary adjectives and adverbs
+• AVOID generalizations
 
 If a claim cannot be grounded in lived experience, documented reality, or widely observed practice, do not include it.
 
@@ -196,13 +210,17 @@ Write a full, structured document that teaches, explains, and explores a single 
 ### 🧠 Writing Style
 - For code: include <pre><code> examples.
 - Write like a world-class mentor authoring a definitive book.  
+- Use clear, simple language.
+- use short, impactful sentences.
+- use active voice, avoid passive voice.
+- use "you" and "your" to directly address the reader.
 - Do **not** include shallow teaching labels like “Recap,” “Practice,” “Objectives,” or “Overview.”  
-- No fictional anecdotes or invented characters.
-- No inspirational filler.
-- No vague generalities.
-- No moralizing language.  
+• AVOID fictional anecdotes or invented characters.
+• AVOID inspirational filler.
+• AVOID vague generalities.
+• AVOID moralizing language.  
 - Use concrete examples, data, or scenarios to demonstrate mastery.  
-- Avoid using any dashes or hyphens, use commas instead. 
+• AVOID using any dashes or hyphens, use commas instead. 
 - Every section must stand alone with depth and completeness.   
 - Maintain a professional, book-quality tone suitable for experts.
 - Assume the reader is intelligent and skeptical.

@@ -159,7 +159,7 @@ export async function commitLeadMagnetEdit(
 
     // 🔥 Remove trailing blank blocks, breaks, leftover wrappers
     cleanHtml = cleanHtml
-      .replace(/(<div class="page-break"><\/div>\s*)+$/gi, "")
+      .replace(/(<!--PAGEBREAK-->\s*)+$/gi, "")
       .replace(/(<p>\s*<\/p>\s*)+$/gi, "")
       .replace(/(<div>\s*<\/div>\s*)+$/gi, "");
 
