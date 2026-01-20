@@ -15,6 +15,7 @@ import {
   saveAdminRefreshToken,
   saveRefreshToken,
   saveWebAuthnCredentials,
+  updateUserTheme,
   updateWebAuthnChallenge,
   updateWebAuthnCounter,
 } from "../db/dbUser.js";
@@ -174,6 +175,7 @@ router.post("/login", async (req, res) => {
         has_passkey: user.has_passkey,
         plan: user.plan,
         basic_annual: user.basic_annual,
+        theme: user.theme,
       },
       accessToken,
       refreshToken,
@@ -313,6 +315,7 @@ router.get("/me", authenticateToken, async (req, res) => {
       referral_slug: user.referral_slug || null,
       plan: user.plan,
       basic_annual: user.basic_annual,
+      theme: user.theme,
     });
   } catch (err) {
     console.error("❌ Error in /me:", err);
@@ -1018,6 +1021,23 @@ router.post("/webauthn/remove-passkey", authenticateToken, async (req, res) => {
   }
 });
 
-// TRACK IP FOR WEBSITE
+// THEME TOGGLE FOR USER
+
+router.post("/theme", authenticateToken, async (req, res) => {
+  try {
+    const { theme } = req.body;
+
+    if (!["light", "dark"].includes(theme)) {
+      return res.status(400).json({ message: "Invalid theme" });
+    }
+
+    await updateUserTheme(req.user.id, theme);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Save theme error:", err);
+    res.status(500).json({ message: "Failed to save theme" });
+  }
+});
 
 export default router;

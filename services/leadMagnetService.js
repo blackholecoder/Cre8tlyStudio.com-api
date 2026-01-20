@@ -342,6 +342,11 @@ ${brandTone.slice(0, 4000)}
 </html>
 `;
 
+    console.log(
+      "EDITOR contains page wrappers:",
+      formattedAnswer.includes('class="page"')
+    );
+
     await saveLeadMagnetPdf(
       magnetId,
       userId,

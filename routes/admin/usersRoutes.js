@@ -10,10 +10,9 @@ const router = express.Router();
 
 router.get("/", authenticateAdminToken, requireAdmin, async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
-   const page = parseInt(req.query.page) || 1;
-   const limit = parseInt(req.query.limit) || 20;
-   
     const { users, total } = await getAllUsers(page, limit);
     res.json({
       success: true,
@@ -58,7 +57,6 @@ router.delete(
   }
 );
 
-
 router.post("/create-referral", authenticateAdminToken, async (req, res) => {
   try {
     const { employeeId, slug } = req.body;
@@ -75,9 +73,8 @@ router.post("/create-referral", authenticateAdminToken, async (req, res) => {
     return res.json({
       success: true,
       slug: result.slug,
-      link: `https://cre8tlystudio.com/r/${result.slug}`
+      link: `https://cre8tlystudio.com/r/${result.slug}`,
     });
-
   } catch (err) {
     console.error("❌ create-referral error:", err);
     res.status(500).json({
@@ -86,8 +83,5 @@ router.post("/create-referral", authenticateAdminToken, async (req, res) => {
     });
   }
 });
-
-
-
 
 export default router;

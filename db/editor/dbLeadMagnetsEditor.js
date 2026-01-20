@@ -149,6 +149,14 @@ export async function commitLeadMagnetEdit(
   let editableHtml = null;
 
   if (updatedHtml) {
+    console.log("🧪 COMMIT INPUT", {
+      hasUpdatedHtml: !!updatedHtml,
+      updatedHtmlLength: updatedHtml?.length,
+      containsCtaText: record.cta
+        ? updatedHtml.includes(record.cta.slice(0, 20))
+        : false,
+    });
+
     const window = new JSDOM("").window;
     const DOMPurify = createDOMPurify(window);
     let safeHtml = DOMPurify.sanitize(updatedHtml || "");
@@ -162,6 +170,14 @@ export async function commitLeadMagnetEdit(
       .replace(/(<!--PAGEBREAK-->\s*)+$/gi, "")
       .replace(/(<p>\s*<\/p>\s*)+$/gi, "")
       .replace(/(<div>\s*<\/div>\s*)+$/gi, "");
+
+    console.log("🧼 CLEAN HTML", {
+      length: cleanHtml.length,
+      containsFooterBlock: cleanHtml.includes("footer-link"),
+      containsCtaText: record.cta
+        ? cleanHtml.includes(record.cta.slice(0, 20))
+        : false,
+    });
 
     let finalCoverPath = record.cover_image;
     if (record.cover_image?.startsWith("http")) {
@@ -178,6 +194,14 @@ export async function commitLeadMagnetEdit(
       fs.writeFileSync(finalCoverPath, Buffer.from(response.data));
     }
 
+    console.log("🎨 PDF INPUT", {
+      hasCta: !!record.cta,
+      hasSafeLink: !!record.link,
+      bgTheme: record.bg_theme,
+      hasLogo: !!record.logo,
+      hasCover: !!finalCoverPath,
+    });
+
     const localPath = await generatePDF({
       id: leadMagnetId,
       prompt: cleanHtml,
@@ -185,7 +209,7 @@ export async function commitLeadMagnetEdit(
       theme: record.theme,
       bgTheme: record.bg_theme,
       logo: record.logo,
-      link: record.link,
+      safeLink: record.link,
       coverImage: finalCoverPath,
       cta: record.cta,
     });

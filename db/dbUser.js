@@ -441,7 +441,8 @@ export async function getUserByEmail(email) {
          has_passkey,
          is_admin_employee,
          plan,
-         basic_annual
+         basic_annual,
+         theme
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -641,7 +642,7 @@ export async function getUserById(id) {
     u.is_admin_employee,
     u.plan,
     u.basic_annual,
-
+    u.theme,
     rs.slug AS referral_slug
 
   FROM users u
@@ -1102,4 +1103,10 @@ export async function uploadUserAvatar(userId, profileImage) {
   ]);
 
   return { profileImage: upload.Location };
+}
+
+// Light Mode Toggle
+export async function updateUserTheme(userId, theme) {
+  const db = connect();
+  await db.query(`UPDATE users SET theme = ? WHERE id = ?`, [theme, userId]);
 }

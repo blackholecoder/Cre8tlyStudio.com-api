@@ -47,6 +47,13 @@ export async function generatePDF({
   coverImage,
   cta,
 }) {
+  console.log("🖨️ GENERATE PDF", {
+    hasCta: !!cta,
+    hasSafeLink: !!safeLink,
+    isHtml,
+    promptLength: prompt?.length,
+  });
+
   const getLinkCTA = (safeLink) => {
     try {
       if (!safeLink) {
