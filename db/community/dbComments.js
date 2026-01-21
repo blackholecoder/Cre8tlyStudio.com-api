@@ -2,7 +2,6 @@ import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
 import { saveNotification } from "./notifications/notifications.js";
 
-
 export async function addComment(postId, userId, body) {
   try {
     const db = connect();
@@ -11,7 +10,7 @@ export async function addComment(postId, userId, body) {
     // 1️⃣ Fetch post owner
     const [postRows] = await db.query(
       `SELECT user_id FROM community_posts WHERE id = ?`,
-      [postId]
+      [postId],
     );
 
     if (!postRows.length) throw new Error("Post not found");
@@ -22,19 +21,19 @@ export async function addComment(postId, userId, body) {
     await db.query(
       `INSERT INTO community_comments (id, post_id, user_id, body, admin_seen)
        VALUES (?, ?, ?, ?, 0)`,
-      [commentId, postId, userId, body.trim()]
+      [commentId, postId, userId, body.trim()],
     );
 
     // 3️⃣ Save notification (if not the owner)
     if (postOwner !== userId) {
       await saveNotification({
-        userId: postOwner,     // person receiving the notification
-        actorId: userId,       // person who made the comment
+        userId: postOwner, // person receiving the notification
+        actorId: userId, // person who made the comment
         type: "comment",
-        postId,                // ⭐ needed to open the correct post
-        parentId: null,        // ⭐ top-level comment
-        commentId,             // ⭐ the comment itself
-        message: `commented on your post.`
+        postId, // ⭐ needed to open the correct post
+        parentId: null, // ⭐ top-level comment
+        commentId, // ⭐ the comment itself
+        message: `commented on your post.`,
       });
     }
 
@@ -42,16 +41,13 @@ export async function addComment(postId, userId, body) {
       id: commentId,
       post_id: postId,
       user_id: userId,
-      body
+      body,
     };
-
   } catch (error) {
     console.error("❌ Error in addComment:", error);
     throw error;
   }
 }
-
-
 
 export async function getCommentsByPost(postId, userId) {
   try {
@@ -77,7 +73,7 @@ export async function getCommentsByPost(postId, userId) {
   WHERE c.post_id = ? AND c.parent_id IS NULL
   ORDER BY c.created_at ASC
   `,
-      [userId, postId] // reqUserId must come from auth in your route file
+      [userId, postId], // reqUserId must come from auth in your route file
     );
 
     return rows;
@@ -91,7 +87,7 @@ export async function getCommentsPaginated(
   postId,
   userId,
   page = 1,
-  limit = 10
+  limit = 10,
 ) {
   try {
     const db = connect();
@@ -118,7 +114,7 @@ export async function getCommentsPaginated(
   ORDER BY c.created_at ASC
   LIMIT ? OFFSET ?
   `,
-      [userId, postId, limit, offset]
+      [userId, postId, limit, offset],
     );
 
     for (let c of comments) {
@@ -136,7 +132,7 @@ export async function getCommentsPaginated(
         WHERE r.parent_id = ?
         ORDER BY r.created_at ASC
         `,
-        [c.id]
+        [c.id],
       );
 
       c.replies = replies;
@@ -149,42 +145,13 @@ export async function getCommentsPaginated(
   }
 }
 
-// Replies
-
-// export async function createReply(userId, postId, parentId, body, parentUserId) {
-//   try {
-//     const db = connect();
-//     const replyId = crypto.randomUUID();
-
-//     await db.query(
-//       `
-//       INSERT INTO community_comments (id, user_id, post_id, parent_id, body)
-//       VALUES (?, ?, ?, ?, ?)
-//       `,
-//       [replyId, userId, postId, parentId, body]
-//     );
-
-//     // 🔔 Notify the comment owner (not self)
-//     if (parentUserId !== userId) {
-//       await saveNotification({
-//         userId: parentUserId,
-//         actorId: userId,
-//         type: "reply",
-//         postId,
-//         parentId,     // the original comment
-//         commentId: replyId,
-//         message: `replied to your comment`
-//       });
-//     }
-
-//     return replyId;
-//   } catch (err) {
-//     console.error("❌ createReply failed:", err);
-//     throw err;
-//   }
-// }
-
-export async function createReply(userId, postId, parentId, body, parentUserId) {
+export async function createReply(
+  userId,
+  postId,
+  parentId,
+  body,
+  parentUserId,
+) {
   try {
     const db = connect();
     const replyId = crypto.randomUUID();
@@ -194,7 +161,7 @@ export async function createReply(userId, postId, parentId, body, parentUserId) 
       INSERT INTO community_comments (id, user_id, post_id, parent_id, body)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [replyId, userId, postId, parentId, body]
+      [replyId, userId, postId, parentId, body],
     );
 
     // 🔔 Send notification only if replying to someone else
@@ -206,7 +173,7 @@ export async function createReply(userId, postId, parentId, body, parentUserId) 
         postId,
         parentId,
         commentId: replyId,
-        message: "replied to your comment"
+        message: "replied to your comment",
       });
     }
 
@@ -217,19 +184,16 @@ export async function createReply(userId, postId, parentId, body, parentUserId) 
   }
 }
 
-
 export async function getParentCommentUserId(commentId) {
   const db = connect();
 
   const [rows] = await db.query(
     "SELECT user_id FROM community_comments WHERE id = ?",
-    [commentId]
+    [commentId],
   );
 
   return rows?.[0]?.user_id || null;
 }
-
-
 
 export async function getRepliesPaginated(parentId, userId, limit, offset) {
   const db = connect();
@@ -266,7 +230,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     ORDER BY c.created_at DESC, c.id DESC
     LIMIT ? OFFSET ?
     `,
-    [userId, parentId, limit, offset]
+    [userId, parentId, limit, offset],
   );
 
   const [[totalRow]] = await db.query(
@@ -275,7 +239,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     FROM community_comments
     WHERE parent_id = ?
     `,
-    [parentId]
+    [parentId],
   );
 
   return {
@@ -300,7 +264,7 @@ export async function updateComment(commentId, userId, body) {
       SET body = ?, updated_at = NOW()
       WHERE id = ? AND (user_id = ? OR ? = 'admin')
       `,
-      [body, commentId, userId, userId]
+      [body, commentId, userId, userId],
     );
 
     return true;
@@ -317,7 +281,7 @@ export async function deleteComment(commentId, userId, role) {
     // Check who owns the comment
     const [rows] = await db.query(
       `SELECT user_id FROM community_comments WHERE id = ?`,
-      [commentId]
+      [commentId],
     );
 
     if (rows.length === 0) {
@@ -353,14 +317,14 @@ export async function likeComment(commentId, userId) {
       INSERT IGNORE INTO community_comment_likes (id, comment_id, user_id)
       VALUES (UUID(), ?, ?)
       `,
-      [commentId, userId]
+      [commentId, userId],
     );
 
     // OPTIONAL: Send notification
     // Get the comment owner
     const [rows] = await db.query(
       `SELECT user_id FROM community_comments WHERE id = ?`,
-      [commentId]
+      [commentId],
     );
 
     if (rows.length) {
@@ -385,7 +349,6 @@ export async function likeComment(commentId, userId) {
   }
 }
 
-
 // --- Remove Like ---
 export async function unlikeComment(commentId, userId) {
   const db = connect();
@@ -396,7 +359,7 @@ export async function unlikeComment(commentId, userId) {
       DELETE FROM community_comment_likes 
       WHERE comment_id = ? AND user_id = ?
       `,
-      [commentId, userId]
+      [commentId, userId],
     );
 
     return true;
@@ -405,7 +368,6 @@ export async function unlikeComment(commentId, userId) {
     throw err;
   }
 }
-
 
 // --- Count Likes ---
 export async function getLikesForComment(commentId) {
@@ -418,7 +380,7 @@ export async function getLikesForComment(commentId) {
       FROM community_comment_likes 
       WHERE comment_id = ?
       `,
-      [commentId]
+      [commentId],
     );
 
     return rows[0]?.likes || 0;
@@ -427,7 +389,6 @@ export async function getLikesForComment(commentId) {
     throw err;
   }
 }
-
 
 // --- Check if user already liked ---
 export async function userLikedComment(commentId, userId) {
@@ -441,7 +402,7 @@ export async function userLikedComment(commentId, userId) {
       WHERE comment_id = ? AND user_id = ?
       LIMIT 1
       `,
-      [commentId, userId]
+      [commentId, userId],
     );
 
     return rows.length > 0;
@@ -450,4 +411,3 @@ export async function userLikedComment(commentId, userId) {
     throw err;
   }
 }
-

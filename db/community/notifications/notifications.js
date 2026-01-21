@@ -6,7 +6,7 @@ export async function createNotification({
   actorId = null,
   type,
   referenceId,
-  message
+  message,
 }) {
   const db = connect();
   const id = uuidv4();
@@ -16,7 +16,7 @@ export async function createNotification({
       `INSERT INTO user_notifications
         (id, user_id, actor_id, type, reference_id, message)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, userId, actorId, type, referenceId, message]
+      [id, userId, actorId, type, referenceId, message],
     );
 
     return { success: true, id };
@@ -41,7 +41,7 @@ export async function getUserNotifications(userId, limit = 50, offset = 0) {
       ORDER BY n.created_at DESC
       LIMIT ? OFFSET ?
       `,
-      [userId, limit, offset]
+      [userId, limit, offset],
     );
 
     return rows;
@@ -51,24 +51,21 @@ export async function getUserNotifications(userId, limit = 50, offset = 0) {
   }
 }
 
-export async function markNotificationRead(id, userId) {
+export async function markNotificationsRead(userId, ids = []) {
+  if (!ids.length) return;
+
   const db = connect();
 
-  try {
-    const [result] = await db.query(
-      `
-      UPDATE user_notifications
-      SET is_read = 1
-      WHERE id = ? AND user_id = ?
-      `,
-      [id, userId]
-    );
-
-    return result.affectedRows > 0;
-  } catch (err) {
-    console.error("❌ markNotificationRead error:", err);
-    throw err;
-  }
+  await db.query(
+    `
+    UPDATE user_notifications
+    SET is_read = 1
+    WHERE user_id = ?
+      AND id IN (?)
+      AND is_read = 0
+    `,
+    [userId, ids],
+  );
 }
 
 export async function getUnreadNotificationCount(userId) {
@@ -81,7 +78,7 @@ export async function getUnreadNotificationCount(userId) {
       FROM user_notifications
       WHERE user_id = ? AND is_read = 0
       `,
-      [userId]
+      [userId],
     );
 
     return row.count || 0;
@@ -94,16 +91,22 @@ export async function getUnreadNotificationCount(userId) {
 export async function saveNotification({
   userId,
   actorId,
-  type,          // "comment" or "reply"
+  type, // "comment" or "reply"
   postId,
   parentId = null,
   commentId,
-  referenceId, 
-  message
+  referenceId,
+  message,
 }) {
   try {
     const db = connect();
     const id = crypto.randomUUID();
+
+    const resolvedReferenceId = referenceId ?? commentId ?? parentId ?? postId;
+
+    if (!resolvedReferenceId) {
+      throw new Error("Notification reference_id could not be resolved");
+    }
 
     await db.query(
       `
@@ -117,11 +120,11 @@ export async function saveNotification({
         actorId,
         type,
         message,
-        referenceId, 
+        resolvedReferenceId,
         postId,
         parentId,
-        commentId
-      ]
+        commentId,
+      ],
     );
 
     return id;

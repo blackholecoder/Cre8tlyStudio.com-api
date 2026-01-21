@@ -1,5 +1,10 @@
 import express from "express";
-import { getUserSettings, removeUserBrandFile, updateUserCta, uploadBrandIdentity } from "../db/dbUploads.js";
+import {
+  getUserSettings,
+  removeUserBrandFile,
+  updateUserCta,
+  uploadBrandIdentity,
+} from "../db/dbUploads.js";
 import { uploadBrandFileSchema } from "../middleware/uploadBrandFileSchema.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { uploadUserAvatar } from "../db/dbUser.js";
@@ -10,7 +15,9 @@ router.post("/user/settings/upload", authenticateToken, async (req, res) => {
   try {
     const { error, value } = uploadBrandFileSchema.validate(req.body);
     if (error) {
-      return res.status(400).json({ success: false, message: error.details[0].message });
+      return res
+        .status(400)
+        .json({ success: false, message: error.details[0].message });
     }
 
     const { user_id, file_name, file_data } = value;
@@ -31,18 +38,23 @@ router.get("/user/settings/:id", authenticateToken, async (req, res) => {
   }
 });
 
-router.delete("/user/settings/remove/:id", authenticateToken, async (req, res) => {
-  try {
-    const result = await removeUserBrandFile(req.params.id);
-    res.status(200).json(result);
-  } catch (err) {
-    console.error("Error removing brand file:", err);
-    res.status(500).json({ success: false, message: "Failed to remove brand file" });
-  }
-});
+router.delete(
+  "/user/settings/remove/:id",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const result = await removeUserBrandFile(req.params.id);
+      res.status(200).json(result);
+    } catch (err) {
+      console.error("Error removing brand file:", err);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to remove brand file" });
+    }
+  },
+);
 
 router.put("/user/settings/update-cta", authenticateToken, async (req, res) => {
-  console.log("API HIT CTA")
   try {
     const { userId, cta } = req.body;
 
@@ -76,18 +88,10 @@ router.post("/upload-avatar", async (req, res) => {
       success: true,
       profileImage: result.profileImage,
     });
-
   } catch (err) {
     console.error("Avatar upload failed:", err);
     res.status(500).json({ error: "Failed to upload avatar" });
   }
 });
-
-
-
-
-
-
-
 
 export default router;

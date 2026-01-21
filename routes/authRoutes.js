@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import * as bcrypt from "bcryptjs";
 
 import {
+  createCommunityUser,
   createUser,
   getUserByEmail,
   getUserById,
@@ -55,7 +56,8 @@ const router = express.Router();
 
 router.post("/signup", async (req, res) => {
   try {
-    const { name, email, password, refSlug } = req.body;
+    const { name, password, refSlug } = req.body;
+    const email = req.body.email?.toLowerCase();
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
@@ -86,9 +88,57 @@ router.post("/signup", async (req, res) => {
   }
 });
 
+// FREE COMMUNITY MEMBER
+router.post("/signup-community", async (req, res) => {
+  try {
+    const { name, email, password, refSlug } = req.body;
+
+    // 🔒 Guards
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    const existing = await getUserByEmail(email);
+    if (existing) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    // 👤 Create community user
+    const user = await createCommunityUser({
+      name,
+      email,
+      password,
+    });
+
+    // 👥 Optional referral logging (same behavior as trial signup)
+    if (refSlug) {
+      logEmployeeReferral(refSlug, email, user.id)
+        .then((logged) => {
+          if (logged) {
+            console.log(
+              `👥 Community referral logged via slug ${refSlug} → ${email}`,
+            );
+          }
+        })
+        .catch((err) =>
+          console.error("Community referral logging error:", err.message),
+        );
+    }
+
+    res.status(201).json({
+      message: "Community account created",
+      userId: user.id,
+    });
+  } catch (err) {
+    console.error("Community signup error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email?.toLowerCase();
 
     const user = await getUserByEmail(email);
     if (!user) {
@@ -117,7 +167,7 @@ router.post("/login", async (req, res) => {
       const twofaToken = jwt.sign(
         { id: user.id, email: user.email, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: "2m" }
+        { expiresIn: "2m" },
       );
 
       return res.json({
@@ -131,13 +181,13 @@ router.post("/login", async (req, res) => {
     const accessToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "15m" },
     );
 
     const refreshToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     await saveRefreshToken(user.id, refreshToken);
@@ -176,6 +226,7 @@ router.post("/login", async (req, res) => {
         plan: user.plan,
         basic_annual: user.basic_annual,
         theme: user.theme,
+        is_member: user.is_member,
       },
       accessToken,
       refreshToken,
@@ -224,13 +275,13 @@ router.post("/refresh", async (req, res) => {
     const newAccessToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "15m" },
     );
 
     const newRefreshToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     const rotated = await rotateRefreshToken(user.id, newRefreshToken, token);
@@ -273,7 +324,7 @@ router.get("/me", authenticateToken, async (req, res) => {
     let stripeStatus = { connected: false, details_submitted: false };
     if (user.stripe_connect_account_id) {
       stripeStatus = await getStripeConnectStatus(
-        user.stripe_connect_account_id
+        user.stripe_connect_account_id,
       );
     }
 
@@ -316,6 +367,7 @@ router.get("/me", authenticateToken, async (req, res) => {
       plan: user.plan,
       basic_annual: user.basic_annual,
       theme: user.theme,
+      is_member: user.is_member,
     });
   } catch (err) {
     console.error("❌ Error in /me:", err);
@@ -356,7 +408,7 @@ router.post("/user/verify-login-2fa", async (req, res) => {
     if (user.stripe_connect_account_id) {
       try {
         stripeStatus = await getStripeConnectStatus(
-          user.stripe_connect_account_id
+          user.stripe_connect_account_id,
         );
       } catch (err) {
         console.error("Stripe status fetch error:", err);
@@ -367,13 +419,13 @@ router.post("/user/verify-login-2fa", async (req, res) => {
     const accessToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "15m" },
     );
 
     const refreshToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     await saveRefreshToken(user.id, refreshToken);
@@ -462,14 +514,14 @@ router.post(
       const accessToken = jwt.sign(
         { id: user.id, email: user.email, role: user.role },
         process.env.ADMIN_JWT_SECRET,
-        { expiresIn: "15m" }
+        { expiresIn: "15m" },
       );
 
       // Issue ADMIN refresh token
       const refreshToken = jwt.sign(
         { id: user.id, email: user.email, role: user.role },
         process.env.ADMIN_JWT_REFRESH_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
       // Save refresh token in DB
@@ -502,7 +554,7 @@ router.post(
         .set("Content-Type", "application/json") // 🔥 THE FIX
         .json({ success: false, message });
     }
-  }
+  },
 );
 
 router.put("/admin/update", authenticateAdminToken, async (req, res) => {
@@ -547,7 +599,7 @@ router.post(
           role: req.user.role,
         },
         process.env.ADMIN_JWT_SECRET,
-        { expiresIn: "2h" }
+        { expiresIn: "2h" },
       );
 
       res.json({
@@ -559,7 +611,7 @@ router.post(
       console.error("2FA verify error:", err);
       res.status(401).json({ message: err.message || "Invalid 2FA code" });
     }
-  }
+  },
 );
 
 router.put("/admin/upload-image", authenticateAdminToken, async (req, res) => {
@@ -670,12 +722,12 @@ router.post("/webauthn/register-verify", async (req, res) => {
       if (err.message.includes("Credential ID was not base64url-encoded")) {
         // --- Safari short ID fix ---
         console.warn(
-          "⚠️ Safari short ID — force re-encode and retry verification"
+          "⚠️ Safari short ID — force re-encode and retry verification",
         );
 
         // Force-encode and rebuild attestation
         const reEncodedId = Buffer.from(attestation.rawId).toString(
-          "base64url"
+          "base64url",
         );
         const retryAttestation = {
           ...attestation,
@@ -692,7 +744,7 @@ router.post("/webauthn/register-verify", async (req, res) => {
           });
         } catch (retryErr) {
           console.warn(
-            "⚠️ Retry still failed, final bypass (accepting Safari short ID)"
+            "⚠️ Retry still failed, final bypass (accepting Safari short ID)",
           );
           verification = {
             verified: true,
@@ -718,7 +770,7 @@ router.post("/webauthn/register-verify", async (req, res) => {
 
     if (!credentialPublicKey || credentialPublicKey.length === 0) {
       console.warn(
-        "⚠️ No public key returned (Safari/iCloud Keychain). Storing ID only."
+        "⚠️ No public key returned (Safari/iCloud Keychain). Storing ID only.",
       );
       await saveWebAuthnCredentials({
         userId: user.id,
@@ -859,13 +911,13 @@ router.post("/webauthn/login-verify", async (req, res) => {
       type: response.type,
       response: {
         authenticatorData: decodeBase64URL(
-          encodeBase64URL(response.response.authenticatorData)
+          encodeBase64URL(response.response.authenticatorData),
         ),
         clientDataJSON: decodeBase64URL(
-          encodeBase64URL(response.response.clientDataJSON)
+          encodeBase64URL(response.response.clientDataJSON),
         ),
         signature: decodeBase64URL(
-          encodeBase64URL(response.response.signature)
+          encodeBase64URL(response.response.signature),
         ),
         userHandle: response.response.userHandle || null,
       },
@@ -885,7 +937,7 @@ router.post("/webauthn/login-verify", async (req, res) => {
     } catch (err) {
       if (err.message.includes("Cannot read properties of undefined")) {
         console.warn(
-          "⚠️ No authenticator object (Safari path) — bypassing strict verification"
+          "⚠️ No authenticator object (Safari path) — bypassing strict verification",
         );
         verification = {
           verified: true,
@@ -895,7 +947,7 @@ router.post("/webauthn/login-verify", async (req, res) => {
         err.message.includes("Credential ID was not base64url-encoded")
       ) {
         console.warn(
-          "⚠️ Final fallback — accepting normalized short credential"
+          "⚠️ Final fallback — accepting normalized short credential",
         );
         verification = {
           verified: true,
@@ -914,7 +966,7 @@ router.post("/webauthn/login-verify", async (req, res) => {
     if (verification.authenticationInfo?.newCounter !== undefined) {
       await updateWebAuthnCounter(
         user.id,
-        verification.authenticationInfo.newCounter
+        verification.authenticationInfo.newCounter,
       );
     }
 
@@ -922,13 +974,13 @@ router.post("/webauthn/login-verify", async (req, res) => {
     const accessToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "15m" },
     );
 
     const refreshToken = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     await saveRefreshToken(user.id, refreshToken);
@@ -947,7 +999,7 @@ router.post("/webauthn/login-verify", async (req, res) => {
     let stripeStatus = { connected: false, details_submitted: false };
     if (user.stripe_connect_account_id) {
       stripeStatus = await getStripeConnectStatus(
-        user.stripe_connect_account_id
+        user.stripe_connect_account_id,
       );
     }
     // --- Return consistent structure ---

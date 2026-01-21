@@ -1,7 +1,10 @@
 import express from "express";
 import { authenticateToken } from "../../../middleware/authMiddleware.js";
-import { getUnreadNotificationCount, getUserNotifications, markNotificationRead } from "../../../db/community/notifications/notifications.js";
-
+import {
+  getUnreadNotificationCount,
+  getUserNotifications,
+  markNotificationsRead,
+} from "../../../db/community/notifications/notifications.js";
 
 const router = express.Router();
 
@@ -21,16 +24,22 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
-
 // 🔥 Mark one notification read
-router.post("/read/:id", authenticateToken, async (req, res) => {
+router.post("/mark-read", authenticateToken, async (req, res) => {
   try {
-    const ok = await markNotificationRead(req.params.id, req.user.id);
-    if (!ok) return res.status(404).json({ message: "Not found" });
+    const userId = req.user.id;
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.json({ success: true });
+    }
+
+    await markNotificationsRead(userId, ids);
 
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ message: "Failed to update notification" });
+    console.error("❌ Failed to mark notifications read", err);
+    res.status(500).json({ error: "Failed to mark notifications read" });
   }
 });
 
@@ -43,7 +52,5 @@ router.get("/count", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Failed to load count" });
   }
 });
-
-
 
 export default router;

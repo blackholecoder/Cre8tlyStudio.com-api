@@ -268,7 +268,7 @@ export async function createUser({ name, email, password }) {
      NULL,
      NOW()
    )`,
-      [id, name, email, hashedPassword]
+      [id, name, email, hashedPassword],
     );
 
     // 🔹 2. Initialize 7-day free trial
@@ -283,7 +283,7 @@ export async function createUser({ name, email, password }) {
              is_free_user = 1,
              free_trial_expires_at = ?
        WHERE id = ?`,
-      [expiresAt, id]
+      [expiresAt, id],
     );
 
     // 🔹 3. Create default free lead magnet slot
@@ -292,7 +292,7 @@ export async function createUser({ name, email, password }) {
       `INSERT INTO lead_magnets
          (id, user_id, prompt, title, pdf_url, theme, font_name, font_file, created_at)
        VALUES (?, ?, '', 'Free Starter', '', 'modern', 'Montserrat', '/fonts/Montserrat-Regular.ttf', NOW())`,
-      [freeMagnetId, id]
+      [freeMagnetId, id],
     );
 
     await sendFreeTrialNotification({
@@ -338,13 +338,77 @@ export async function createUser({ name, email, password }) {
   }
 }
 
+export async function createCommunityUser({ name, email, password }) {
+  const db = connect();
+  const id = uuidv4();
+  const hashedPassword = await bcrypt.hash(password, 12);
+
+  try {
+    await db.query(
+      `INSERT INTO users (
+        id,
+        name,
+        email,
+        password_hash,
+        role,
+        is_member,
+        is_free_user,
+        has_magnet,
+        magnet_slots,
+        has_book,
+        book_slots,
+        has_memory,
+        has_completed_book_onboarding,
+        pro_covers,
+        plan,
+        basic_annual,
+        pro_status,
+        billing_type,
+        pro_expiration,
+        free_trial_expires_at,
+        created_at
+      )
+      VALUES (
+        ?, ?, ?, ?, 'customer',
+        1,           -- is_member
+        1,           -- is_free_user
+        0, 0,
+        0, 0,
+        0, 0,
+        0,
+        NULL,
+        0,
+        'inactive',
+        NULL,
+        NULL,
+        NULL,
+        NOW()
+      )`,
+      [id, name, email, hashedPassword],
+    );
+
+    return {
+      id,
+      name,
+      email,
+      role: "customer",
+      is_member: 1,
+      is_free_user: 1,
+      created_at: new Date(),
+    };
+  } catch (err) {
+    console.error("❌ Error creating community user:", err);
+    throw err;
+  }
+}
+
 export async function logEmployeeReferral(refSlug, email, referredUserId) {
   const db = connect();
 
   // 1. Look up real employee_id using the slug
   const [slugRows] = await db.query(
     "SELECT employee_id FROM referral_slugs WHERE slug = ? LIMIT 1",
-    [refSlug]
+    [refSlug],
   );
 
   if (slugRows.length === 0) {
@@ -357,7 +421,7 @@ export async function logEmployeeReferral(refSlug, email, referredUserId) {
   // 2. Verify employee is an admin employee
   const [employeeRows] = await db.query(
     "SELECT id FROM users WHERE id = ? AND is_admin_employee = 1",
-    [employeeId]
+    [employeeId],
   );
 
   if (employeeRows.length === 0) {
@@ -368,7 +432,7 @@ export async function logEmployeeReferral(refSlug, email, referredUserId) {
   // 3. Log referral
   await db.query(
     "INSERT INTO employee_referrals (id, employee_id, referred_user_id, referred_email, created_at) VALUES (UUID(), ?, ?, ?, NOW())",
-    [employeeId, referredUserId, email]
+    [employeeId, referredUserId, email],
   );
 
   return true;
@@ -382,7 +446,7 @@ export async function getReferralsByEmployee(employeeId) {
      LEFT JOIN users u ON er.employee_id = u.id
      WHERE er.employee_id = ?
      ORDER BY er.created_at DESC`,
-    [employeeId]
+    [employeeId],
   );
   return rows;
 }
@@ -442,11 +506,12 @@ export async function getUserByEmail(email) {
          is_admin_employee,
          plan,
          basic_annual,
-         theme
+         theme,
+         is_member
        FROM users
        WHERE email = ?
        LIMIT 1`,
-      [email]
+      [email],
     );
 
     return rows[0] || null;
@@ -478,7 +543,7 @@ export async function logUserActivity({
     if (ipAddress) {
       // Do NOT override IPv6
       const { data: geo } = await axios.get(
-        `http://ip-api.com/json/${ipAddress}`
+        `http://ip-api.com/json/${ipAddress}`,
       );
 
       if (geo?.status === "success") {
@@ -500,7 +565,7 @@ export async function logUserActivity({
       `INSERT INTO user_activity_log 
        (user_id, event_type, ip_address, user_agent, country, region, city)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, eventType, ipAddress, userAgent, country, region, city]
+      [userId, eventType, ipAddress, userAgent, country, region, city],
     );
   } catch (err) {
     console.error("🔥 Failed to log activity:", err);
@@ -511,7 +576,7 @@ export async function getUserByRefreshToken(refreshToken) {
   const db = connect();
   const [rows] = await db.query(
     "SELECT * FROM users WHERE refresh_token=? LIMIT 1",
-    [refreshToken]
+    [refreshToken],
   );
   return rows[0] || null;
 }
@@ -532,7 +597,7 @@ export async function rotateRefreshToken(userId, newToken, oldToken) {
       WHERE id = ?
         AND (refresh_token = ? OR previous_refresh_token = ?)
       `,
-      [newToken, oldToken, userId, oldToken, oldToken]
+      [newToken, oldToken, userId, oldToken, oldToken],
     );
 
     return result.affectedRows === 1;
@@ -563,7 +628,7 @@ export async function isRefreshTokenValid(userId, token) {
         )
       LIMIT 1
       `,
-      [userId, token, token]
+      [userId, token, token],
     );
 
     return rows.length > 0;
@@ -581,7 +646,7 @@ export async function getAdminByRefreshToken(refreshToken) {
     const db = connect();
     const [rows] = await db.query(
       "SELECT * FROM users WHERE admin_refresh_token = ? LIMIT 1",
-      [refreshToken]
+      [refreshToken],
     );
     return rows[0] || null;
   } catch (err) {
@@ -643,6 +708,7 @@ export async function getUserById(id) {
     u.plan,
     u.basic_annual,
     u.theme,
+    u.is_member,
     rs.slug AS referral_slug
 
   FROM users u
@@ -650,7 +716,7 @@ export async function getUserById(id) {
     ON rs.employee_id = u.id
   WHERE u.id = ?
   `,
-      [id]
+      [id],
     );
 
     const user = rows[0] || null;
@@ -662,7 +728,7 @@ export async function getUserById(id) {
       user.trial_expired = now > expires;
       user.trial_days_remaining = Math.max(
         0,
-        Math.ceil((expires - now) / (1000 * 60 * 60 * 24))
+        Math.ceil((expires - now) / (1000 * 60 * 60 * 24)),
       );
     } else {
       user.trial_expired = false;
@@ -703,7 +769,7 @@ export async function upgradeUserToBooks(email) {
   try {
     const [rows] = await db.query(
       "SELECT id, book_slots FROM users WHERE email = ?",
-      [email]
+      [email],
     );
 
     if (!rows.length) {
@@ -716,7 +782,7 @@ export async function upgradeUserToBooks(email) {
 
     await db.query(
       "UPDATE users SET has_book = 1, pro_covers = 1, book_slots = ? WHERE email = ?",
-      [newSlots, email]
+      [newSlots, email],
     );
 
     console.log(`📚 Activated Book slot + Pro Covers for ${email}`);
@@ -732,7 +798,7 @@ export async function activatePromptMemory(email) {
     const db = connect();
     const [result] = await db.query(
       "UPDATE users SET has_memory = 1 WHERE email = ?",
-      [email]
+      [email],
     );
     if (result.affectedRows === 0) {
       console.warn(`⚠️ No user found for activation with email: ${email}`);
@@ -742,7 +808,7 @@ export async function activatePromptMemory(email) {
   } catch (err) {
     console.error(
       `❌ Error activating Prompt Memory for ${email}:`,
-      err.message
+      err.message,
     );
     throw err;
   }
@@ -753,7 +819,7 @@ export async function upgradeUserToMagnets(email, slotLimit = 15) {
   try {
     const [rows] = await db.query(
       "SELECT id, magnet_slots FROM users WHERE email = ?",
-      [email]
+      [email],
     );
 
     if (!rows.length) {
@@ -773,7 +839,7 @@ export async function upgradeUserToMagnets(email, slotLimit = 15) {
            has_free_magnet = 0,
            free_trial_expires_at = NULL
        WHERE email = ?`,
-      [newSlots, email]
+      [newSlots, email],
     );
 
     console.log(`🎯 Set lead magnet slots to ${newSlots} for ${email}`);
@@ -814,7 +880,7 @@ export async function activateBusinessBuilder(email, billingCycle = "annual") {
            basic_annual = 0,
            basic_expiration = NULL
        WHERE id = ?`,
-      [billingCycle, lockedUntil, lockedUntil, userId]
+      [billingCycle, lockedUntil, lockedUntil, userId],
     );
 
     await Promise.all([
@@ -852,7 +918,7 @@ export async function deactivateBusinessBuilder(email) {
            locked_until = NULL,
            pro_expiration = NULL
        WHERE email = ?`,
-      [email]
+      [email],
     );
     await db.query(
       `
@@ -861,7 +927,7 @@ export async function deactivateBusinessBuilder(email) {
       JOIN users u ON cd.user_id = u.id
       WHERE u.email = ?
       `,
-      [email]
+      [email],
     );
 
     await db.query("COMMIT");
@@ -905,7 +971,7 @@ export async function activateBusinessBasicBuilder(email) {
           basic_expiration = ?
       WHERE id = ?
       `,
-      [expiresAt, expiresAt, expiresAt, userId]
+      [expiresAt, expiresAt, expiresAt, userId],
     );
 
     await Promise.all([
@@ -941,7 +1007,7 @@ export async function deactivateBusinessBasicBuilder(email) {
            locked_until = NULL
        WHERE email = ?
          AND pro_status = 'inactive'`,
-      [email]
+      [email],
     );
 
     console.log(`🚫 Business Basic Builder deactivated for ${email}`);
@@ -955,7 +1021,7 @@ export async function getLeadMagnetByPdfUrl(pdfUrl) {
     const db = connect();
     const [rows] = await db.query(
       "SELECT * FROM lead_magnets WHERE pdf_url = ? OR original_pdf_url = ? LIMIT 1",
-      [pdfUrl, pdfUrl]
+      [pdfUrl, pdfUrl],
     );
     return rows[0] || null;
   } catch (err) {
@@ -991,7 +1057,7 @@ export async function saveWebAuthnCredentials({
         webauthn_public_key = ?, 
         webauthn_counter = ? 
        WHERE id = ?`,
-      [credentialID, credentialPublicKey, counter, userId]
+      [credentialID, credentialPublicKey, counter, userId],
     );
 
     // ✅ Mark user as having a passkey
@@ -1015,7 +1081,7 @@ export async function getWebAuthnCredentials(email) {
        FROM users 
        WHERE email = ? AND webauthn_id IS NOT NULL 
        LIMIT 1`,
-      [email]
+      [email],
     );
 
     return rows[0] || null;
@@ -1047,7 +1113,7 @@ export async function removeUserPasskey(userId) {
            webauthn_counter = 0, 
            has_passkey = 0 
        WHERE id = ?`,
-      [userId]
+      [userId],
     );
     return { success: true };
   } catch (err) {
@@ -1060,7 +1126,7 @@ export async function updateStripeAccountId(userId, accountId) {
   const db = connect();
   await db.query(
     "UPDATE users SET stripe_connect_account_id = ? WHERE id = ?",
-    [accountId, userId]
+    [accountId, userId],
   );
   return true;
 }
@@ -1071,7 +1137,7 @@ export async function uploadUserAvatar(userId, profileImage) {
   // Remove prefix & decode base64
   const base64Data = Buffer.from(
     profileImage.replace(/^data:image\/\w+;base64,/, ""),
-    "base64"
+    "base64",
   );
   const type = profileImage.split(";")[0].split("/")[1];
 
