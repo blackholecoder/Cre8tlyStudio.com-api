@@ -9,6 +9,15 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function escapeHtml(str = "") {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 import indexRoutes from "./routes/indexRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
@@ -76,12 +85,12 @@ const port = 3001;
 app.use(
   "/api/webhook",
   bodyParser.raw({ type: "application/json" }),
-  webhookRoutes
+  webhookRoutes,
 );
 app.use(
   "/api/seller/webhook",
   bodyParser.raw({ type: "application/json" }),
-  sellerWebhookRoute
+  sellerWebhookRoute,
 );
 
 app.use(express.urlencoded({ extended: true }));
@@ -96,7 +105,7 @@ app.use(
     createParentPath: true,
     limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // 10GB
     abortOnLimit: true,
-  })
+  }),
 );
 
 const corsOptions = {
@@ -156,7 +165,7 @@ app.get("/r/:slug", async (req, res) => {
     const db = connect();
     const [rows] = await db.query(
       "SELECT employee_id FROM referral_slugs WHERE slug = ? LIMIT 1",
-      [slug]
+      [slug],
     );
 
     if (!rows.length) {
@@ -223,6 +232,121 @@ app.use("/api/admin/referral", referralRoutes);
 app.use("/api/admin/email", adminEmailRoutes);
 
 app.use("/api/admin/community", adminCommunityRoutes);
+
+app.get("/share/community/post/:postId", async (req, res) => {
+  const { postId } = req.params;
+
+  try {
+    const db = connect();
+    const [rows] = await db.query(
+      `SELECT title, subtitle, image_url, body
+       FROM community_posts
+       WHERE id = ? AND is_locked = 0
+       LIMIT 1`,
+      [postId],
+    );
+
+    if (!rows.length) {
+      return res.status(404).send("Post not found");
+    }
+
+    const post = rows[0];
+    const description =
+      post.subtitle || post.body.replace(/<[^>]+>/g, "").slice(0, 160);
+
+    res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${post.title}</title>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="${escapeHtml(post.title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  <meta property="og:image" content="${post.image_url}" />
+  <meta property="og:url" content="https://cre8tlystudio.com/share/community/post/${postId}" />
+
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${escapeHtml(post.title)}" />
+  <meta name="twitter:description" content="${escapeHtml(description)}" />
+  <meta name="twitter:image" content="${post.image_url}" />
+
+  <meta http-equiv="refresh" content="0; url=/community/post/${postId}" />
+</head>
+<body></body>
+</html>
+    `);
+  } catch (err) {
+    console.error("OG share error:", err);
+    res.status(500).send("Error");
+  }
+});
+
+app.get("/p/:identifier", async (req, res) => {
+  const { identifier } = req.params;
+
+  try {
+    const db = connect();
+
+    const [rows] = await db.query(
+      `
+      SELECT id, slug, title, subtitle, image_url, body
+      FROM community_posts
+      WHERE (slug = ? OR id = ?)
+        AND is_locked = 0
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [identifier, identifier],
+    );
+
+    if (!rows.length) {
+      return res.status(404).send("Post not found");
+    }
+
+    const post = rows[0];
+
+    const description =
+      post.subtitle || post.body?.replace(/<[^>]+>/g, "").slice(0, 160) || "";
+
+    const canonicalUrl = `https://cre8tlystudio.com/p/${post.slug}`;
+
+    res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(post.title)}</title>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="${escapeHtml(post.title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  ${post.image_url ? `<meta property="og:image" content="${post.image_url}" />` : ""}
+  <meta property="og:url" content="${canonicalUrl}" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${escapeHtml(post.title)}" />
+  <meta name="twitter:description" content="${escapeHtml(description)}" />
+  ${post.image_url ? `<meta name="twitter:image" content="${post.image_url}" />` : ""}
+
+
+  <!-- Redirect humans -->
+  <meta http-equiv="refresh" content="2; url=/community/post/${post.slug}" />
+</head>
+<body></body>
+</html>
+    `);
+  } catch (err) {
+    console.error("Share page error:", err);
+    res.status(500).send("Error");
+  }
+});
 
 app.all("*", (req, res) => {
   res.status(404).send("<h1>404 not found</h1>");

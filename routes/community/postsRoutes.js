@@ -3,6 +3,10 @@ import {
   createPost,
   getPostsByTopic,
   getPostById,
+  getAllUserPosts,
+  updateUserPost,
+  deletePost,
+  incrementPostView,
 } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import {
@@ -33,6 +37,21 @@ router.get("/topics/:topicId/posts", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("GET /community/topics/:id/posts error:", error);
     res.status(500).json({ success: false, message: "Failed to load posts" });
+  }
+});
+
+router.get("/posts/user", authenticateToken, async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const posts = await getAllUserPosts(req.user.id);
+
+    res.json({ posts });
+  } catch (err) {
+    console.error("GET /community/posts/user error:", err);
+    res.status(500).json({ message: "Failed to fetch posts" });
   }
 });
 
@@ -72,16 +91,18 @@ router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
 });
 
 // GET single post
-router.get("/posts/:postId", authenticateToken, async (req, res) => {
+router.get("/posts/:identifier", authenticateToken, async (req, res) => {
   try {
-    const { postId } = req.params;
+    const { identifier } = req.params;
 
-    const post = await getPostById(postId);
+    const post = await getPostById(identifier);
     if (!post) {
       return res
         .status(404)
         .json({ success: false, message: "Post not found" });
     }
+
+    await incrementPostView(post.id, req.user.id);
 
     res.json({ success: true, post });
   } catch (error) {
@@ -156,6 +177,46 @@ router.post("/upload-image", authenticateToken, async (req, res) => {
       success: false,
       message: "Failed to upload post image",
     });
+  }
+});
+
+// Editing Posts Route
+router.put("/posts/:postId", authenticateToken, async (req, res) => {
+  try {
+    const success = await updateUserPost(
+      req.user.id,
+      req.params.postId,
+      req.body,
+    );
+
+    if (!success) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("PUT /community/posts/:postId error:", err);
+    res.status(500).json({ message: "Failed to update post" });
+  }
+});
+
+// delete posts
+router.delete("/posts/:id", authenticateToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.id;
+    const role = req.user.role;
+
+    const result = await deletePost(postId, userId, role);
+
+    if (!result.success) {
+      return res.status(403).json(result);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DELETE /community/posts/:id error:", err);
+    res.status(500).json({ message: "Failed to delete post" });
   }
 });
 

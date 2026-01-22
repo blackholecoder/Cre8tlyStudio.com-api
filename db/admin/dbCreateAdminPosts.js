@@ -1,7 +1,11 @@
 import connect from "../connect.js";
 
-
-export async function createAdminCommunityPost({ topic_id, title, body, adminId }) {
+export async function createAdminCommunityPost({
+  topic_id,
+  title,
+  body,
+  adminId,
+}) {
   try {
     const db = connect();
 
@@ -49,7 +53,7 @@ export async function getAdminCommunityPosts(offset, limit) {
       ORDER BY p.created_at DESC
       LIMIT ?, ?
       `,
-      [Number(offset), Number(limit)]
+      [Number(offset), Number(limit)],
     );
 
     return rows;
@@ -79,7 +83,7 @@ export async function getAllComments(offset = 0, limit = 20) {
       ORDER BY c.created_at DESC
       LIMIT ?, ?
       `,
-      [offset, limit]
+      [offset, limit],
     );
     return rows;
   } catch (err) {
@@ -94,7 +98,7 @@ export async function markAllCommentsSeen(postId) {
 
     await db.query(
       `UPDATE community_comments SET admin_seen = 1 WHERE post_id = ?`,
-      [postId]
+      [postId],
     );
 
     return true;
@@ -147,6 +151,7 @@ export async function getUnseenPostCount() {
 export async function getAllPosts(offset = 0, limit = 20) {
   try {
     const db = connect();
+
     const [rows] = await db.query(
       `
       SELECT 
@@ -161,11 +166,13 @@ export async function getAllPosts(offset = 0, limit = 20) {
       FROM community_posts p
       LEFT JOIN community_topics t ON t.id = p.topic_id
       LEFT JOIN users u ON u.id = p.user_id
+      WHERE p.deleted_at IS NULL
       ORDER BY p.created_at DESC
       LIMIT ?, ?
       `,
-      [offset, limit]
+      [offset, limit],
     );
+
     return rows;
   } catch (err) {
     console.error("getAllPosts error:", err);
@@ -188,9 +195,10 @@ export async function getPostsByTopic(topicId) {
         p.admin_seen
       FROM community_posts p
       WHERE p.topic_id = ?
+        AND p.deleted_at IS NULL
       ORDER BY p.created_at DESC
       `,
-      [topicId]
+      [topicId],
     );
 
     return rows;
@@ -221,7 +229,7 @@ export async function getCommentsForAdminPost(postId) {
       WHERE c.post_id = ?
       ORDER BY c.created_at ASC
       `,
-      [postId]
+      [postId],
     );
 
     // ✅ Force all admin comments to display as "Cre8tly Studio"
@@ -250,11 +258,11 @@ export async function createAdminComment({ postId, adminId, body, parent_id }) {
         (UUID(), ?, ?, ?, ?, 1)
       `,
       [
-        postId,                // post_id
-        parent_id || null,     // parent_id
-        adminId,               // user_id
-        body,                  // body
-      ]
+        postId, // post_id
+        parent_id || null, // parent_id
+        adminId, // user_id
+        body, // body
+      ],
     );
   } catch (err) {
     console.error("createAdminComment error:", err);
@@ -275,7 +283,7 @@ export async function getUnseenCommentMapByPost(topicId) {
       WHERE p.topic_id = ?
       GROUP BY p.id
       `,
-      [topicId]
+      [topicId],
     );
 
     const map = {};
@@ -304,7 +312,7 @@ export async function getUnseenCommentCountByTopic() {
         ON c.post_id = p.id 
         AND c.admin_seen = 0
       GROUP BY p.topic_id
-      `
+      `,
     );
 
     const map = {};
@@ -328,7 +336,7 @@ export async function deleteAdminComment(commentId) {
       DELETE FROM community_comments
       WHERE id = ?
       `,
-      [commentId]
+      [commentId],
     );
   } catch (err) {
     console.error("deleteAdminComment error:", err);
@@ -346,7 +354,7 @@ export async function updateAdminComment(commentId, newBody) {
       SET body = ?, updated_at = NOW()
       WHERE id = ?
       `,
-      [newBody, commentId]
+      [newBody, commentId],
     );
   } catch (err) {
     console.error("updateAdminComment error:", err);
@@ -374,8 +382,10 @@ export async function getAdminSinglePost(postId) {
       LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN community_topics t ON t.id = p.topic_id
       WHERE p.id = ?
+      AND deleted_at IS NULL
+
       `,
-      [postId]
+      [postId],
     );
 
     if (!rows.length) return null;
@@ -388,15 +398,8 @@ export async function getAdminSinglePost(postId) {
     }
 
     return post;
-
   } catch (err) {
     console.error("getAdminSinglePost error:", err);
     throw err;
   }
 }
-
-
-
-
-
-

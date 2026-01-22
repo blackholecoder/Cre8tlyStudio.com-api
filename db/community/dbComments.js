@@ -24,13 +24,24 @@ export async function addComment(postId, userId, body) {
       [commentId, postId, userId, body.trim()],
     );
 
+    // 3️⃣ Increment cached comment count
+    await db.query(
+      `
+      INSERT INTO community_post_stats (post_id, comment_count)
+      VALUES (?, 1)
+      ON DUPLICATE KEY UPDATE
+        comment_count = comment_count + 1
+      `,
+      [postId],
+    );
+
     // 3️⃣ Save notification (if not the owner)
     if (postOwner !== userId) {
       await saveNotification({
         userId: postOwner, // person receiving the notification
         actorId: userId, // person who made the comment
         type: "comment",
-        postId, // ⭐ needed to open the correct post
+        postId,
         parentId: null, // ⭐ top-level comment
         commentId, // ⭐ the comment itself
         message: `commented on your post.`,
@@ -55,25 +66,44 @@ export async function getCommentsByPost(postId, userId) {
 
     const [rows] = await db.query(
       `
-  SELECT 
-    c.id,
-    c.body,
-    c.created_at,
-    u.name AS author,
-    u.role AS author_role,
-    u.profile_image_url AS author_image,
+      SELECT 
+        c.id,
+        c.body,
+        c.created_at,
+        u.name AS author,
+        u.role AS author_role,
+        u.profile_image_url AS author_image,
 
-    (SELECT COUNT(*) FROM community_comments r WHERE r.parent_id = c.id) AS reply_count,
+        -- replies (exclude deleted)
+        (
+          SELECT COUNT(*)
+          FROM community_comments r
+          WHERE r.parent_id = c.id
+            AND r.deleted_at IS NULL
+        ) AS reply_count,
 
-    (SELECT COUNT(*) FROM community_comment_likes l WHERE l.comment_id = c.id) AS like_count,
-    (SELECT COUNT(*) FROM community_comment_likes l WHERE l.comment_id = c.id AND l.user_id = ?) AS user_liked
+        -- likes
+        (
+          SELECT COUNT(*)
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+        ) AS like_count,
 
-  FROM community_comments c
-  JOIN users u ON c.user_id = u.id
-  WHERE c.post_id = ? AND c.parent_id IS NULL
-  ORDER BY c.created_at ASC
-  `,
-      [userId, postId], // reqUserId must come from auth in your route file
+        (
+          SELECT COUNT(*)
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+            AND l.user_id = ?
+        ) AS user_liked
+
+      FROM community_comments c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.post_id = ?
+        AND c.parent_id IS NULL
+        AND c.deleted_at IS NULL
+      ORDER BY c.created_at ASC
+      `,
+      [userId, postId],
     );
 
     return rows;
@@ -95,25 +125,44 @@ export async function getCommentsPaginated(
 
     const [comments] = await db.query(
       `
-  SELECT 
-    c.id,
-    c.body,
-    c.created_at,
-    u.name AS author,
-    u.role AS author_role,
-    u.profile_image_url AS author_image,
+      SELECT 
+        c.id,
+        c.body,
+        c.created_at,
+        u.name AS author,
+        u.role AS author_role,
+        u.profile_image_url AS author_image,
 
-    (SELECT COUNT(*) FROM community_comments r WHERE r.parent_id = c.id) AS reply_count,
+        -- reply count (exclude deleted)
+        (
+          SELECT COUNT(*)
+          FROM community_comments r
+          WHERE r.parent_id = c.id
+            AND r.deleted_at IS NULL
+        ) AS reply_count,
 
-    (SELECT COUNT(*) FROM community_comment_likes l WHERE l.comment_id = c.id) AS like_count,
-    (SELECT COUNT(*) FROM community_comment_likes l WHERE l.comment_id = c.id AND l.user_id = ?) AS user_liked
+        -- likes
+        (
+          SELECT COUNT(*)
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+        ) AS like_count,
 
-  FROM community_comments c
-  JOIN users u ON c.user_id = u.id
-  WHERE c.post_id = ? AND c.parent_id IS NULL
-  ORDER BY c.created_at ASC
-  LIMIT ? OFFSET ?
-  `,
+        (
+          SELECT COUNT(*)
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+            AND l.user_id = ?
+        ) AS user_liked
+
+      FROM community_comments c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.post_id = ?
+        AND c.parent_id IS NULL
+        AND c.deleted_at IS NULL
+      ORDER BY c.created_at ASC
+      LIMIT ? OFFSET ?
+      `,
       [userId, postId, limit, offset],
     );
 
@@ -130,6 +179,7 @@ export async function getCommentsPaginated(
         FROM community_comments r
         JOIN users u ON r.user_id = u.id
         WHERE r.parent_id = ?
+          AND r.deleted_at IS NULL
         ORDER BY r.created_at ASC
         `,
         [c.id],
@@ -162,6 +212,16 @@ export async function createReply(
       VALUES (?, ?, ?, ?, ?)
       `,
       [replyId, userId, postId, parentId, body],
+    );
+
+    await db.query(
+      `
+      INSERT INTO community_post_stats (post_id, comment_count)
+      VALUES (?, 1)
+      ON DUPLICATE KEY UPDATE
+        comment_count = comment_count + 1
+      `,
+      [postId],
     );
 
     // 🔔 Send notification only if replying to someone else
@@ -210,23 +270,32 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
       u.profile_image_url AS author_image,
 
       /* ❤️ Total likes */
-      (SELECT COUNT(*) 
-       FROM community_comment_likes l 
-       WHERE l.comment_id = c.id) AS like_count,
+      (
+        SELECT COUNT(*)
+        FROM community_comment_likes l
+        WHERE l.comment_id = c.id
+      ) AS like_count,
 
       /* ❤️ Whether user liked */
-      (SELECT COUNT(*) 
-       FROM community_comment_likes l 
-       WHERE l.comment_id = c.id AND l.user_id = ?) AS user_liked,
+      (
+        SELECT COUNT(*)
+        FROM community_comment_likes l
+        WHERE l.comment_id = c.id
+          AND l.user_id = ?
+      ) AS user_liked,
 
-      /* 🔥 Correct reply count for ANY depth */
-      (SELECT COUNT(*) 
-       FROM community_comments cc2 
-       WHERE cc2.parent_id = c.id) AS reply_count
+      /* 🔥 Reply count (exclude deleted) */
+      (
+        SELECT COUNT(*)
+        FROM community_comments cc2
+        WHERE cc2.parent_id = c.id
+          AND cc2.deleted_at IS NULL
+      ) AS reply_count
 
     FROM community_comments c
     JOIN users u ON c.user_id = u.id
     WHERE c.parent_id = ?
+      AND c.deleted_at IS NULL
     ORDER BY c.created_at DESC, c.id DESC
     LIMIT ? OFFSET ?
     `,
@@ -238,6 +307,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     SELECT COUNT(*) AS total
     FROM community_comments
     WHERE parent_id = ?
+      AND deleted_at IS NULL
     `,
     [parentId],
   );
@@ -257,17 +327,17 @@ export async function updateComment(commentId, userId, body) {
   try {
     const db = connect();
 
-    // Only allow editing your own comment OR admin editing anything
-    await db.query(
+    const [result] = await db.query(
       `
       UPDATE community_comments
       SET body = ?, updated_at = NOW()
-      WHERE id = ? AND (user_id = ? OR ? = 'admin')
+      WHERE id = ?
+        AND user_id = ?
       `,
-      [body, commentId, userId, userId],
+      [body.trim(), commentId, userId],
     );
 
-    return true;
+    return result.affectedRows > 0;
   } catch (error) {
     console.error("Error updating comment:", error);
     throw error;
@@ -278,29 +348,65 @@ export async function deleteComment(commentId, userId, role) {
   try {
     const db = connect();
 
-    // Check who owns the comment
+    // 1️⃣ Fetch comment + post
     const [rows] = await db.query(
-      `SELECT user_id FROM community_comments WHERE id = ?`,
+      `
+      SELECT id, user_id, post_id
+      FROM community_comments
+      WHERE id = ? AND deleted_at IS NULL
+      `,
       [commentId],
     );
 
-    if (rows.length === 0) {
+    if (!rows.length) {
       return { success: false, message: "Comment not found" };
     }
 
-    const ownerId = rows[0].user_id;
+    const { user_id: ownerId, post_id: postId } = rows[0];
 
-    // Only author OR admin can delete
+    // 2️⃣ Permission check
     if (ownerId !== userId && role !== "admin") {
       return { success: false, message: "Unauthorized" };
     }
 
-    // Delete (replies cascade if you're using ON DELETE CASCADE)
-    await db.query(`DELETE FROM community_comments WHERE id = ?`, [commentId]);
+    // 3️⃣ Count parent + replies (only non-deleted)
+    const [countRows] = await db.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM community_comments
+      WHERE deleted_at IS NULL
+        AND (id = ? OR parent_id = ?)
+      `,
+      [commentId, commentId],
+    );
 
-    return { success: true };
+    const deleteCount = countRows[0]?.total || 0;
+
+    // 4️⃣ Soft delete parent + replies
+    await db.query(
+      `
+      UPDATE community_comments
+      SET deleted_at = NOW()
+      WHERE id = ? OR parent_id = ?
+      `,
+      [commentId, commentId],
+    );
+
+    // 5️⃣ Decrement cached count
+    if (deleteCount > 0) {
+      await db.query(
+        `
+        UPDATE community_post_stats
+        SET comment_count = GREATEST(comment_count - ?, 0)
+        WHERE post_id = ?
+        `,
+        [deleteCount, postId],
+      );
+    }
+
+    return { success: true, deleted: deleteCount };
   } catch (err) {
-    console.error("Error deleting comment:", err);
+    console.error("Error soft deleting comment:", err);
     throw err;
   }
 }

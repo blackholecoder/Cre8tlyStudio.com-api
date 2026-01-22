@@ -387,6 +387,19 @@ export async function createCommunityUser({ name, email, password }) {
       [id, name, email, hashedPassword],
     );
 
+    try {
+      await sendCommunitySignupNotification({ name, email });
+    } catch (err) {
+      console.error("⚠️ Community signup notification failed:", err);
+    }
+
+    // 📩 welcome USER
+    try {
+      await sendCommunityWelcomeEmail({ name, email });
+    } catch (err) {
+      console.error("⚠️ Community welcome email failed:", err);
+    }
+
     return {
       id,
       name,
@@ -1175,4 +1188,134 @@ export async function uploadUserAvatar(userId, profileImage) {
 export async function updateUserTheme(userId, theme) {
   const db = connect();
   await db.query(`UPDATE users SET theme = ? WHERE id = ?`, [theme, userId]);
+}
+
+// Create Community Sign Up Email
+// helpers/emails/sendCommunitySignupNotification.js
+export async function sendCommunitySignupNotification({ name, email }) {
+  const communitySignupHtml = `
+<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+  <div style="
+    max-width:420px;
+    margin:0 auto;
+    background:#ffffff;
+    padding:32px;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+  ">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+      <img
+        src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+        width="40"
+        height="40"
+        style="display:block;"
+        alt="Cre8tly Studio"
+      />
+      <div style="font-size:18px;font-weight:600;color:#111827;">
+        Cre8tly Studio
+      </div>
+    </div>
+
+    <!-- Title -->
+    <h2 style="
+      font-size:26px;
+      font-weight:700;
+      color:#111827;
+      margin-bottom:8px;
+    ">
+      New Community Signup
+    </h2>
+
+    <!-- Subtitle -->
+    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+      A new user just joined the community.
+    </p>
+
+    <!-- Content -->
+    <p style="font-size:15px;color:#111827;margin-bottom:10px;">
+      Name: <strong>${name}</strong>
+    </p>
+
+    <p style="font-size:15px;color:#111827;margin-bottom:20px;">
+      Email: <strong>${email}</strong>
+    </p>
+
+    <!-- Footer -->
+    <p style="font-size:13px;color:#6b7280;text-align:center;">
+      Cre8tly Studio Community
+    </p>
+  </div>
+</div>
+`;
+
+  await sendOutLookMail({
+    to: "business@aluredigital.com", // your inbox
+    subject: "New Community Signup",
+    html: communitySignupHtml,
+  });
+}
+
+export async function sendCommunityWelcomeEmail({ name, email }) {
+  const communityWelcomeHtml = `
+<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+  <div style="
+    max-width:420px;
+    margin:0 auto;
+    background:#ffffff;
+    padding:32px;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+  ">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+      <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="40" />
+      <div style="font-size:18px;font-weight:600;color:#111827;">
+        Cre8tly Studio
+      </div>
+    </div>
+
+    <h2 style="font-size:26px;font-weight:700;color:#111827;margin-bottom:8px;">
+      Welcome to the Community
+    </h2>
+
+    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+      You’re officially in.
+    </p>
+
+    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
+      Hi <strong>${name}</strong>,  
+      welcome to the Cre8tly Studio community.
+    </p>
+
+    <div style="text-align:center;margin:30px 0;">
+      <a
+        href="https://cre8tlystudio.com/community"
+        target="_blank"
+        style="
+          background:#7bed9f;
+          color:#000;
+          padding:14px 36px;
+          border-radius:8px;
+          text-decoration:none;
+          font-weight:700;
+        "
+      >
+        Enter the Community
+      </a>
+    </div>
+
+    <p style="font-size:13px;color:#6b7280;text-align:center;">
+      — Cre8tly Studio
+    </p>
+  </div>
+</div>
+`;
+
+  await sendOutLookMail({
+    to: email,
+    subject: "Welcome to the Cre8tly Studio Community",
+    html: communityWelcomeHtml,
+  });
 }
