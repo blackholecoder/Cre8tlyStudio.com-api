@@ -98,10 +98,18 @@ export async function saveNotification({
   referenceId,
   message,
 }) {
-  try {
-    const db = connect();
-    const id = crypto.randomUUID();
+  if (!postId) {
+    console.warn("⚠️ Notification missing postId", {
+      type,
+      referenceId,
+      userId,
+      actorId,
+    });
+  }
+  const db = connect();
+  const id = crypto.randomUUID();
 
+  try {
     const resolvedReferenceId = referenceId ?? commentId ?? parentId ?? postId;
 
     if (!resolvedReferenceId) {

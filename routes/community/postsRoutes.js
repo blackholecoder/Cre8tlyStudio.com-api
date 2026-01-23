@@ -7,6 +7,8 @@ import {
   updateUserPost,
   deletePost,
   incrementPostView,
+  getAllCommunityPosts,
+  markCommunityPostViewed,
 } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import {
@@ -19,6 +21,29 @@ import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { optimizeImageUpload } from "../../helpers/optimizeImageUpload.js";
 
 const router = express.Router();
+
+// Get all posts
+
+router.get("/posts", authenticateToken, async (req, res) => {
+  try {
+    const posts = await getAllCommunityPosts(req.user.id);
+    res.json({ posts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load posts" });
+  }
+});
+
+// Viewed Posts
+router.post("/posts/:postId/view", authenticateToken, async (req, res) => {
+  try {
+    await markCommunityPostViewed(req.user.id, req.params.postId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to mark post viewed" });
+  }
+});
 
 // GET all posts in a topic
 router.get("/topics/:topicId/posts", authenticateToken, async (req, res) => {

@@ -19,6 +19,66 @@ async function generateUniqueSlug(db, title) {
   }
 }
 
+export async function getAllCommunityPosts(userId) {
+  const db = connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT
+        p.id,
+        p.title,
+        p.subtitle,
+        p.created_at,
+        p.image_url,
+        p.topic_id,
+        p.user_id,
+
+        COALESCE(s.views, 0) AS views,
+        COALESCE(s.comment_count, 0) AS comment_count,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN 'Cre8tly Studio'
+          ELSE u.name
+        END AS author,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN '/cre8tly-logo-white.png'
+          ELSE u.profile_image_url
+        END AS author_image,
+
+        t.name AS topic_name,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN 1
+          WHEN ap.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS author_has_profile,
+
+        v.viewed_at IS NULL AS is_unread
+
+      FROM community_posts p
+      LEFT JOIN users u ON u.id = p.user_id
+      LEFT JOIN community_topics t ON t.id = p.topic_id
+      LEFT JOIN community_post_stats s ON s.post_id = p.id
+      LEFT JOIN author_profiles ap ON ap.user_id = u.id
+      LEFT JOIN community_post_views v
+        ON v.post_id = p.id
+        AND v.user_id = ?
+
+      WHERE p.deleted_at IS NULL
+      ORDER BY p.created_at DESC
+      LIMIT 50
+      `,
+      [userId],
+    );
+
+    return rows;
+  } catch (err) {
+    throw err;
+  }
+}
+
 export async function createPost(
   userId,
   topicId,
@@ -74,7 +134,7 @@ export async function getPostsByTopic(topicId) {
 
     const [rows] = await db.query(
       `
-      SELECT 
+      SELECT
         p.id,
         p.title,
         p.subtitle,
@@ -84,10 +144,38 @@ export async function getPostsByTopic(topicId) {
         p.updated_at,
         p.is_pinned,
         p.is_locked,
-        u.name AS author,
-        u.role AS author_role
+        p.topic_id,
+        p.user_id,
+
+        COALESCE(s.views, 0) AS views,
+        COALESCE(s.comment_count, 0) AS comment_count,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN 'Cre8tly Studio'
+          ELSE u.name
+        END AS author,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN 'admin'
+          ELSE u.role
+        END AS author_role,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN '/cre8tly-logo-white.png'
+          ELSE u.profile_image_url
+        END AS author_image,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN 1
+          WHEN ap.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS author_has_profile
+
       FROM community_posts p
-      JOIN users u ON p.user_id = u.id
+      LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN community_post_stats s ON s.post_id = p.id
+      LEFT JOIN author_profiles ap ON ap.user_id = u.id
+
       WHERE p.topic_id = ?
         AND p.deleted_at IS NULL
       ORDER BY p.is_pinned DESC, p.created_at DESC
@@ -127,13 +215,21 @@ export async function getPostById(identifier) {
         CASE 
           WHEN p.is_admin_post = 1 THEN '/cre8tly-logo-white.png'
           ELSE u.profile_image_url
-        END AS author_image
+        END AS author_image,
 
-      FROM community_posts p
-      LEFT JOIN users u 
-        ON p.user_id = u.id
-      LEFT JOIN community_post_stats s
-        ON s.post_id = p.id
+        CASE
+        WHEN p.is_admin_post = 1 THEN 1
+        WHEN ap.user_id IS NOT NULL THEN 1
+        ELSE 0
+      END AS author_has_profile
+
+        FROM community_posts p
+        LEFT JOIN users u 
+          ON p.user_id = u.id
+        LEFT JOIN community_post_stats s
+          ON s.post_id = p.id
+        LEFT JOIN author_profiles ap
+          ON ap.user_id = u.id
 
       WHERE 
         (p.slug = ? OR p.id = ?)
@@ -214,6 +310,23 @@ export async function lockPost(postId, state = 1) {
   } catch (error) {
     console.error("Error in lockPost:", error);
     throw error;
+  }
+}
+
+// Viewed Posts
+export async function markCommunityPostViewed(userId, postId) {
+  const db = connect();
+
+  try {
+    await db.query(
+      `
+      INSERT IGNORE INTO community_post_views (user_id, post_id)
+      VALUES (?, ?)
+      `,
+      [userId, postId],
+    );
+  } catch (err) {
+    throw err;
   }
 }
 

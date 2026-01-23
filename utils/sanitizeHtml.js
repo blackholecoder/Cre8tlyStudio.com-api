@@ -10,6 +10,7 @@ export function sanitizeHtml(html) {
     ALLOWED_TAGS: [
       "p",
       "br",
+      "hr", // ✅ allow divider
       "strong",
       "em",
       "u",

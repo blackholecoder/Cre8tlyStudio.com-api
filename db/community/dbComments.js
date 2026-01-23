@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import { saveNotification } from "./notifications/notifications.js";
 import { incrementSubscriberActivity } from "./subscriptions/dbSubscribers.js";
 import { ACTIVITY_POINTS } from "../../helpers/activityPoints.js";
+import { getCommentPreview } from "../../utils/getCommentPreview.js";
+import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
 
 export async function addComment(postId, userId, body) {
   try {
@@ -58,12 +60,33 @@ export async function addComment(postId, userId, body) {
       });
     }
 
-    return {
-      id: commentId,
-      post_id: postId,
-      user_id: userId,
-      body,
-    };
+    // ✅ 6️⃣ HYDRATE the comment before returning
+    const hydratedComment = await getCommentById(commentId, userId);
+
+    if (postOwner !== userId) {
+      try {
+        const [[author]] = await db.query(
+          `SELECT email, name FROM users WHERE id = ? LIMIT 1`,
+          [postOwner],
+        );
+
+        if (author?.email) {
+          const preview = getCommentPreview(body);
+
+          await sendNewCommentEmail({
+            to: author.email,
+            commenterName: hydratedComment.author || "Someone",
+            commentPreview: preview,
+            postSlug: hydratedComment.post_slug,
+          });
+        }
+      } catch (err) {
+        console.error("⚠️ Comment email failed:", err);
+        // DO NOT throw
+      }
+    }
+
+    return hydratedComment;
   } catch (error) {
     console.error("❌ Error in addComment:", error);
     throw error;
@@ -77,6 +100,7 @@ export async function getCommentsByPost(postId, userId) {
       `
       SELECT 
         c.id,
+        c.user_id, 
         c.body,
         c.created_at,
         u.name AS author,
@@ -121,6 +145,55 @@ export async function getCommentsByPost(postId, userId) {
     throw error;
   }
 }
+
+export async function getCommentById(commentId, userId) {
+  try {
+    const db = connect();
+
+    const [rows] = await db.query(
+      `
+      SELECT 
+        c.id,
+        c.user_id,
+        c.body,
+        c.created_at,
+        p.slug AS post_slug,
+        u.name AS author,
+        u.role AS author_role,
+        u.profile_image_url AS author_image,
+
+        0 AS reply_count,
+
+        (
+          SELECT COUNT(*)
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+        ) AS like_count,
+
+        (
+          SELECT COUNT(*)
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+            AND l.user_id = ?
+        ) AS user_liked
+
+      FROM community_comments c
+      JOIN users u ON c.user_id = u.id
+      JOIN community_posts p ON c.post_id = p.id
+      WHERE c.id = ?
+        AND c.deleted_at IS NULL
+      LIMIT 1
+      `,
+      [userId, commentId],
+    );
+
+    return rows[0] || null;
+  } catch (error) {
+    console.error("Error in getCommentById:", error);
+    throw error;
+  }
+}
+
 export async function getCommentsPaginated(
   postId,
   userId,
@@ -220,13 +293,16 @@ export async function createReply(
     );
 
     if (!postRows.length) throw new Error("Post not found");
+
+    const postOwner = postRows[0].user_id;
+
     // 2️⃣ Save reply
     await db.query(
       `
       INSERT INTO community_comments (id, user_id, post_id, parent_id, body)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [replyId, userId, postId, parentId, body],
+      [replyId, userId, postId, parentId, body.trim()],
     );
 
     // 2.5️⃣ Increment activity score (reply > comment)
@@ -261,7 +337,28 @@ export async function createReply(
       });
     }
 
-    return replyId;
+    const hydratedReply = await getCommentById(replyId, userId);
+
+    // 📧 Email notification for reply
+    if (parentUserId && parentUserId !== userId) {
+      const [[parentUser]] = await db.query(
+        `SELECT email FROM users WHERE id = ? LIMIT 1`,
+        [parentUserId],
+      );
+
+      if (parentUser?.email) {
+        const preview = getCommentPreview(body);
+
+        await sendNewReplyEmail({
+          to: parentUser.email,
+          replierName: hydratedReply.author || "Someone",
+          replyPreview: preview,
+          postSlug: hydratedReply.post_slug,
+        });
+      }
+    }
+
+    return hydratedReply;
   } catch (err) {
     console.error("❌ createReply failed:", err);
     throw err;
@@ -454,7 +551,8 @@ export async function likeComment(commentId, userId) {
       `
       SELECT
         c.user_id AS comment_owner,
-        p.user_id AS post_owner
+        p.user_id AS post_owner,
+        c.post_id AS post_id
       FROM community_comments c
       JOIN community_posts p ON p.id = c.post_id
       WHERE c.id = ?
@@ -464,7 +562,7 @@ export async function likeComment(commentId, userId) {
 
     if (!rows.length) return true;
 
-    const { comment_owner, post_owner } = rows[0];
+    const { comment_owner, post_owner, post_id } = rows[0];
 
     // 3️⃣ Increment activity (likes are low weight)
     if (post_owner !== userId) {
@@ -480,6 +578,7 @@ export async function likeComment(commentId, userId) {
       await saveNotification({
         userId: comment_owner,
         actorId: userId,
+        postId: post_id,
         type: "like",
         referenceId: commentId,
         message: "liked your comment.",
@@ -551,4 +650,228 @@ export async function userLikedComment(commentId, userId) {
     console.error("❌ Error in userLikedComment:", err);
     throw err;
   }
+}
+
+// Email template
+
+export async function sendNewCommentEmail({
+  to,
+  commenterName,
+  commentPreview,
+  postSlug,
+}) {
+  if (!to) {
+    throw new Error("No email recipient provided to sendNewCommentEmail");
+  }
+
+  const html = `
+<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+  <div style="
+    max-width:420px;
+    margin:0 auto;
+    background:#ffffff;
+    padding:32px;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+  ">
+    <!-- Brand -->
+    <div style="margin-bottom:32px;">
+      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="padding-right:10px;vertical-align:middle;">
+            <img
+              src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              width="36"
+              height="36"
+              alt="Cre8tly Studio"
+              style="display:block;"
+            />
+          </td>
+          <td style="vertical-align:middle;">
+            <div style="
+              font-size:20px;
+              font-weight:700;
+              color:#111827;
+              line-height:1;
+            ">
+              Cre8tly Studio
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Heading -->
+    <h2 style="font-size:24px;font-weight:700;color:#111827;margin:8px 0;">
+      New comment on your post
+    </h2>
+
+    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+      Someone joined the conversation
+    </p>
+
+    <!-- Body -->
+    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:12px;">
+      <strong>${commenterName || "Someone"}</strong> commented:
+    </p>
+
+    <blockquote style="
+      margin:0 0 24px;
+      padding-left:14px;
+      border-left:3px solid #e5e7eb;
+      color:#374151;
+      font-size:14px;
+      line-height:1.6;
+    ">
+      ${commentPreview}
+    </blockquote>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin:30px 0;">
+      <a
+        href="https://cre8tlystudio.com/p/${postSlug}"
+        target="_blank"
+        style="
+          background:#7bed9f;
+          color:#000;
+          padding:14px 36px;
+          border-radius:8px;
+          text-decoration:none;
+          font-weight:700;
+          display:inline-block;
+        "
+      >
+        View the conversation
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <p style="font-size:13px;color:#6b7280;text-align:center;">
+      You’re receiving this because someone replied to your post.
+    </p>
+
+    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
+      — Cre8tly Studio
+    </p>
+  </div>
+</div>
+`;
+
+  await sendOutLookMail({
+    to,
+    subject: "New comment on your post",
+    html,
+  });
+}
+// Reply email
+export async function sendNewReplyEmail({
+  to,
+  replierName,
+  replyPreview,
+  postSlug,
+}) {
+  if (!to) {
+    throw new Error("No email recipient provided to sendNewReplyEmail");
+  }
+
+  const html = `
+<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+  <div style="
+    max-width:420px;
+    margin:0 auto;
+    background:#ffffff;
+    padding:32px;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+  ">
+    <!-- Brand -->
+    <div style="margin-bottom:32px;">
+      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="padding-right:10px;vertical-align:middle;">
+            <img
+              src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              width="36"
+              height="36"
+              alt="Cre8tly Studio"
+              style="display:block;"
+            />
+          </td>
+          <td style="vertical-align:middle;">
+            <div style="
+              font-size:20px;
+              font-weight:700;
+              color:#111827;
+              line-height:1;
+            ">
+              Cre8tly Studio
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Heading -->
+    <h2 style="font-size:24px;font-weight:700;color:#111827;margin:8px 0;">
+      New reply to your comment
+    </h2>
+
+    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+      Someone continued the conversation
+    </p>
+
+    <!-- Body -->
+    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:12px;">
+      <strong>${replierName || "Someone"}</strong> replied:
+    </p>
+
+    <blockquote style="
+      margin:0 0 24px;
+      padding-left:14px;
+      border-left:3px solid #e5e7eb;
+      color:#374151;
+      font-size:14px;
+      line-height:1.6;
+    ">
+      ${replyPreview}
+    </blockquote>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin:30px 0;">
+      <a
+        href="https://cre8tlystudio.com/p/${postSlug}"
+        target="_blank"
+        style="
+          background:#7bed9f;
+          color:#000;
+          padding:14px 36px;
+          border-radius:8px;
+          text-decoration:none;
+          font-weight:700;
+          display:inline-block;
+        "
+      >
+        View the reply
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <p style="font-size:13px;color:#6b7280;text-align:center;">
+      You’re receiving this because someone replied to your comment.
+    </p>
+
+    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
+      — Cre8tly Studio
+    </p>
+  </div>
+</div>
+`;
+
+  await sendOutLookMail({
+    to,
+    subject: "New reply to your comment",
+    html,
+  });
 }

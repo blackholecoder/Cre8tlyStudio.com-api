@@ -71,14 +71,18 @@ export async function subscribeToAuthor(authorUserId, subscriberUserId) {
       actorId: subscriberUserId,
       type: "subscription",
       referenceId: subscriberUserId,
-      message: "started following you",
+      message: "subscribed to you",
     });
 
     // 📧 Email notification
-    await sendSubscriptionEmail({
-      to: author.email,
-      authorName: author.name,
-    });
+    try {
+      await sendNewSubscriberEmail({
+        to: author.email,
+        subscriberName: author.name,
+      });
+    } catch (emailErr) {
+      console.error("⚠️ Subscriber email failed:", emailErr);
+    }
 
     return {
       subscribed: true,
@@ -433,7 +437,7 @@ export async function incrementSubscriberActivity({
     const [result] = await db.query(
       `
       UPDATE author_subscriptions
-      SET activity = LEAST(activity + ?, 5)
+      SET activity = LEAST(activity + ?, 5),
       last_activity_at = NOW()
       WHERE author_user_id = ?
         AND subscriber_user_id = ?
@@ -577,7 +581,11 @@ export async function sendCommunityInviteEmail({
   }
 }
 
-export async function sendNewSubscriberEmail({ email, subscriberName }) {
+export async function sendNewSubscriberEmail({ to, subscriberName }) {
+  if (!to) {
+    throw new Error("No email recipient provided to sendNewSubscriberEmail");
+  }
+
   const html = `
 <div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
   <div style="
@@ -666,7 +674,7 @@ export async function sendNewSubscriberEmail({ email, subscriberName }) {
 `;
 
   await sendOutLookMail({
-    to: email,
+    to,
     subject: "You have a new subscriber on Cre8tly",
     html,
   });

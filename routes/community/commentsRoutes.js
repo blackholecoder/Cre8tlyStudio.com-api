@@ -75,7 +75,7 @@ router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
       postId,
       req.user.id,
       page,
-      limit
+      limit,
     );
 
     res.json({
@@ -92,7 +92,6 @@ router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
 });
 
 // Replies
-
 
 router.post(
   "/comments/:commentId/reply",
@@ -112,22 +111,21 @@ router.post(
       const parentUserId = await getParentCommentUserId(commentId);
 
       // 🧼 Clean helper call to create reply + notification
-      const replyId = await createReply(
+      const reply = await createReply(
         req.user.id,
         postId,
         commentId,
         body,
-        parentUserId
+        parentUserId,
       );
 
-      res.json({ success: true, replyId });
+      res.json({ success: true, reply });
     } catch (error) {
       console.error("POST /community/comments/:commentId/reply error:", error);
       res.status(500).json({ success: false, message: "Failed to post reply" });
     }
-  }
+  },
 );
-
 
 router.get(
   "/comments/:commentId/replies",
@@ -145,7 +143,7 @@ router.get(
         commentId,
         userId,
         limit,
-        offset
+        offset,
       );
 
       const nextPage = offset + limit < total ? page + 1 : null;
@@ -161,7 +159,7 @@ router.get(
         .status(500)
         .json({ success: false, message: "Failed to load replies" });
     }
-  }
+  },
 );
 
 router.put("/comments/:id", authenticateToken, async (req, res) => {
