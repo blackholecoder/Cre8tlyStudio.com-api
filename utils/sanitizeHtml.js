@@ -27,6 +27,8 @@ export function sanitizeHtml(html) {
       "h5",
       "h6",
       "span",
+      "pre",
+      "code",
     ],
 
     // ⚠️ IMPORTANT: use ARRAY, not object

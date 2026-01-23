@@ -1,6 +1,8 @@
 import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
 import { saveNotification } from "./notifications/notifications.js";
+import { incrementSubscriberActivity } from "./subscriptions/dbSubscribers.js";
+import { ACTIVITY_POINTS } from "../../helpers/activityPoints.js";
 
 export async function addComment(postId, userId, body) {
   try {
@@ -23,6 +25,14 @@ export async function addComment(postId, userId, body) {
        VALUES (?, ?, ?, ?, 0)`,
       [commentId, postId, userId, body.trim()],
     );
+
+    if (postOwner !== userId) {
+      await incrementSubscriberActivity({
+        authorUserId: postOwner,
+        subscriberUserId: userId,
+        points: ACTIVITY_POINTS.COMMENT,
+      });
+    }
 
     // 3️⃣ Increment cached comment count
     await db.query(
@@ -59,7 +69,6 @@ export async function addComment(postId, userId, body) {
     throw error;
   }
 }
-
 export async function getCommentsByPost(postId, userId) {
   try {
     const db = connect();
@@ -112,7 +121,6 @@ export async function getCommentsByPost(postId, userId) {
     throw error;
   }
 }
-
 export async function getCommentsPaginated(
   postId,
   userId,
@@ -194,7 +202,6 @@ export async function getCommentsPaginated(
     throw error;
   }
 }
-
 export async function createReply(
   userId,
   postId,
@@ -206,6 +213,14 @@ export async function createReply(
     const db = connect();
     const replyId = crypto.randomUUID();
 
+    // 1️⃣ Fetch post owner
+    const [postRows] = await db.query(
+      `SELECT user_id FROM community_posts WHERE id = ?`,
+      [postId],
+    );
+
+    if (!postRows.length) throw new Error("Post not found");
+    // 2️⃣ Save reply
     await db.query(
       `
       INSERT INTO community_comments (id, user_id, post_id, parent_id, body)
@@ -213,6 +228,15 @@ export async function createReply(
       `,
       [replyId, userId, postId, parentId, body],
     );
+
+    // 2.5️⃣ Increment activity score (reply > comment)
+    if (postOwner !== userId) {
+      await incrementSubscriberActivity({
+        authorUserId: postOwner,
+        subscriberUserId: userId,
+        points: ACTIVITY_POINTS.REPLY,
+      });
+    }
 
     await db.query(
       `
@@ -243,7 +267,6 @@ export async function createReply(
     throw err;
   }
 }
-
 export async function getParentCommentUserId(commentId) {
   const db = connect();
 
@@ -254,7 +277,6 @@ export async function getParentCommentUserId(commentId) {
 
   return rows?.[0]?.user_id || null;
 }
-
 export async function getRepliesPaginated(parentId, userId, limit, offset) {
   const db = connect();
 
@@ -322,7 +344,6 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     total: totalRow.total,
   };
 }
-
 export async function updateComment(commentId, userId, body) {
   try {
     const db = connect();
@@ -343,7 +364,6 @@ export async function updateComment(commentId, userId, body) {
     throw error;
   }
 }
-
 export async function deleteComment(commentId, userId, role) {
   try {
     const db = connect();
@@ -410,15 +430,13 @@ export async function deleteComment(commentId, userId, role) {
     throw err;
   }
 }
-
 // LIKES
-
 export async function likeComment(commentId, userId) {
   const db = connect();
 
   try {
-    // Insert like
-    await db.query(
+    // 1️⃣ Insert like (ignore duplicates)
+    const [result] = await db.query(
       `
       INSERT IGNORE INTO community_comment_likes (id, comment_id, user_id)
       VALUES (UUID(), ?, ?)
@@ -426,26 +444,46 @@ export async function likeComment(commentId, userId) {
       [commentId, userId],
     );
 
-    // OPTIONAL: Send notification
-    // Get the comment owner
+    // If nothing was inserted, don't increment activity or notify
+    if (result.affectedRows === 0) {
+      return true;
+    }
+
+    // 2️⃣ Fetch comment + post owner
     const [rows] = await db.query(
-      `SELECT user_id FROM community_comments WHERE id = ?`,
+      `
+      SELECT
+        c.user_id AS comment_owner,
+        p.user_id AS post_owner
+      FROM community_comments c
+      JOIN community_posts p ON p.id = c.post_id
+      WHERE c.id = ?
+      `,
       [commentId],
     );
 
-    if (rows.length) {
-      const ownerId = rows[0].user_id;
+    if (!rows.length) return true;
 
-      // Don't notify yourself
-      if (ownerId !== userId) {
-        await saveNotification({
-          userId: ownerId,
-          actorId: userId,
-          type: "like",
-          referenceId: commentId,
-          message: `Someone liked your comment.`,
-        });
-      }
+    const { comment_owner, post_owner } = rows[0];
+
+    // 3️⃣ Increment activity (likes are low weight)
+    if (post_owner !== userId) {
+      await incrementSubscriberActivity({
+        authorUserId: post_owner,
+        subscriberUserId: userId,
+        points: ACTIVITY_POINTS.LIKE,
+      });
+    }
+
+    // 4️⃣ Notify comment owner (if not self)
+    if (comment_owner !== userId) {
+      await saveNotification({
+        userId: comment_owner,
+        actorId: userId,
+        type: "like",
+        referenceId: commentId,
+        message: "liked your comment.",
+      });
     }
 
     return true;
@@ -454,7 +492,6 @@ export async function likeComment(commentId, userId) {
     throw err;
   }
 }
-
 // --- Remove Like ---
 export async function unlikeComment(commentId, userId) {
   const db = connect();
@@ -474,7 +511,6 @@ export async function unlikeComment(commentId, userId) {
     throw err;
   }
 }
-
 // --- Count Likes ---
 export async function getLikesForComment(commentId) {
   const db = connect();
@@ -495,7 +531,6 @@ export async function getLikesForComment(commentId) {
     throw err;
   }
 }
-
 // --- Check if user already liked ---
 export async function userLikedComment(commentId, userId) {
   const db = connect();

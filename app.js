@@ -70,6 +70,8 @@ import customDomainRoutes from "./routes/customDomainRoutes/customDomainRoutes.j
 import communityTopics from "./routes/community/topicsRoutes.js";
 import communityPosts from "./routes/community/postsRoutes.js";
 import communityComments from "./routes/community/commentsRoutes.js";
+import communitySubscriptions from "./routes/community/subscriptions/subscriberRoutes.js";
+import communityAuthors from "./routes/community/authors/authorsRoutes.js";
 import notificationsRoutes from "./routes/community/notifications/notificationsRoutes.js";
 import careersRoutes from "./routes/careers/careeersRoutes.js";
 import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js";
@@ -77,6 +79,8 @@ import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js
 import cors from "cors";
 import { detectTenantFromHost } from "./middleware/detectDomain.js";
 import { attachTenant } from "./middleware/attachTenant.js";
+import redis from "./lib/redis.js";
+import { scheduleWeeklyActivityDecay } from "./jobs/scheduleActivityDecay.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -207,6 +211,8 @@ app.use("/api/careers", careersRoutes);
 app.use("/api/community/topics", communityTopics);
 app.use("/api/community", communityPosts);
 app.use("/api/community", communityComments);
+app.use("/api/community/subscriptions", communitySubscriptions);
+app.use("/api/community/authors", communityAuthors);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/domains", customDomainRoutes);
 
