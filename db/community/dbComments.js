@@ -92,6 +92,7 @@ export async function addComment(postId, userId, body) {
     throw error;
   }
 }
+
 export async function getCommentsByPost(postId, userId) {
   try {
     const db = connect();
@@ -103,9 +104,16 @@ export async function getCommentsByPost(postId, userId) {
         c.user_id, 
         c.body,
         c.created_at,
+
         u.name AS author,
         u.role AS author_role,
         u.profile_image_url AS author_image,
+
+        CASE
+          WHEN u.role = 'admin' THEN 1
+          WHEN ap.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS author_has_profile,
 
         -- replies (exclude deleted)
         (
@@ -131,6 +139,7 @@ export async function getCommentsByPost(postId, userId) {
 
       FROM community_comments c
       JOIN users u ON c.user_id = u.id
+      LEFT JOIN author_profiles ap ON ap.user_id = u.id
       WHERE c.post_id = ?
         AND c.parent_id IS NULL
         AND c.deleted_at IS NULL
@@ -564,6 +573,17 @@ export async function likeComment(commentId, userId) {
 
     const { comment_owner, post_owner, post_id } = rows[0];
 
+    // 2.5️⃣ Increment post like count
+    await db.query(
+      `
+  INSERT INTO community_post_stats (post_id, like_count)
+  VALUES (?, 1)
+  ON DUPLICATE KEY UPDATE
+    like_count = like_count + 1
+  `,
+      [post_id],
+    );
+
     // 3️⃣ Increment activity (likes are low weight)
     if (post_owner !== userId) {
       await incrementSubscriberActivity({
@@ -596,12 +616,44 @@ export async function unlikeComment(commentId, userId) {
   const db = connect();
 
   try {
-    await db.query(
+    // 1️⃣ Find post_id before delete
+    const [[row]] = await db.query(
       `
-      DELETE FROM community_comment_likes 
+      SELECT c.post_id
+      FROM community_comments c
+      JOIN community_comment_likes l
+        ON l.comment_id = c.id
+      WHERE c.id = ?
+        AND l.user_id = ?
+      `,
+      [commentId, userId],
+    );
+
+    // If no like existed, do nothing
+    if (!row) return true;
+
+    const { post_id } = row;
+
+    // 2️⃣ Delete the like
+    const [result] = await db.query(
+      `
+      DELETE FROM community_comment_likes
       WHERE comment_id = ? AND user_id = ?
       `,
       [commentId, userId],
+    );
+
+    // If nothing was deleted, don't touch stats
+    if (result.affectedRows === 0) return true;
+
+    // 3️⃣ Decrement post like count safely
+    await db.query(
+      `
+      UPDATE community_post_stats
+      SET like_count = GREATEST(like_count - 1, 0)
+      WHERE post_id = ?
+      `,
+      [post_id],
     );
 
     return true;
@@ -610,6 +662,7 @@ export async function unlikeComment(commentId, userId) {
     throw err;
   }
 }
+
 // --- Count Likes ---
 export async function getLikesForComment(commentId) {
   const db = connect();

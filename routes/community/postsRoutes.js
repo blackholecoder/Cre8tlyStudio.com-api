@@ -19,6 +19,7 @@ import {
 import fs from "fs";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { optimizeImageUpload } from "../../helpers/optimizeImageUpload.js";
+import { postEmailQueue } from "../../queues/postEmailQueue.js";
 
 const router = express.Router();
 
@@ -84,7 +85,7 @@ router.get("/posts/user", authenticateToken, async (req, res) => {
 router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
   try {
     const { topicId } = req.params;
-    const { title, subtitle, body, image_url } = req.body;
+    const { title, subtitle, body, image_url, relatedTopicIds } = req.body;
 
     if (!title) {
       return res
@@ -106,7 +107,17 @@ router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
       subtitle || null,
       body,
       image_url,
+      relatedTopicIds,
     );
+
+    await postEmailQueue.add("send-post-email", {
+      authorUserId: req.user.id,
+      authorName: req.user.name,
+      postTitle: post.title,
+      postBody: body,
+      postImageUrl: image_url,
+      postUrl: `${process.env.FRONTEND_URL}/community/post/${post.slug}`,
+    });
 
     res.json({ success: true, post });
   } catch (error) {

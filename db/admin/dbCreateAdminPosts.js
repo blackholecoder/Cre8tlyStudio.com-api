@@ -233,11 +233,6 @@ export async function getCommentsForAdminPost(postId) {
     );
 
     // ✅ Force all admin comments to display as "Cre8tly Studio"
-    rows.forEach((c) => {
-      if (c.author_role === "admin") {
-        c.author = "Cre8tly Studio";
-      }
-    });
 
     return rows; // keep flat list, tree built in frontend
   } catch (err) {

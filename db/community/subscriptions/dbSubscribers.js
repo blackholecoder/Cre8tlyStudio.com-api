@@ -4,6 +4,8 @@ import { sendOutLookMail } from "../../../utils/sendOutllokMail.js";
 import { getUserById } from "../../dbUser.js";
 import { emailQueue } from "../../../queues/emailQueue.js";
 import { saveNotification } from "../notifications/notifications.js";
+import { renderAuthorEmailTemplate } from "../../../emails/renderAuthorEmailTemplate.js";
+import { getAuthorEmailTemplateByType } from "../authors/dbAuthors.js";
 
 /**
  * Subscribe to an author
@@ -25,6 +27,16 @@ export async function subscribeToAuthor(authorUserId, subscriberUserId) {
       LIMIT 1
       `,
       [authorUserId],
+    );
+
+    const [[subscriber]] = await db.query(
+      `
+  SELECT name, email
+  FROM users
+  WHERE id = ?
+  LIMIT 1
+  `,
+      [subscriberUserId],
     );
 
     // Check existing subscription
@@ -75,13 +87,38 @@ export async function subscribeToAuthor(authorUserId, subscriberUserId) {
     });
 
     // 📧 Email notification
+
     try {
       await sendNewSubscriberEmail({
         to: author.email,
-        subscriberName: author.name,
+        subscriberName: subscriber.name,
       });
     } catch (emailErr) {
-      console.error("⚠️ Subscriber email failed:", emailErr);
+      console.error("⚠️ Author email failed:", emailErr);
+    }
+
+    try {
+      const template = await getAuthorEmailTemplateByType(
+        authorUserId,
+        "free_subscriber_welcome",
+      );
+
+      if (template) {
+        const rendered = renderAuthorEmailTemplate(template, {
+          subscriber_name: subscriber.name,
+          author_name: author.name,
+        });
+
+        if (rendered) {
+          await sendOutLookMail({
+            to: subscriber.email,
+            subject: rendered.subject,
+            html: rendered.html,
+          });
+        }
+      }
+    } catch (emailErr) {
+      console.error("⚠️ Subscriber welcome email failed:", emailErr);
     }
 
     return {
@@ -101,6 +138,27 @@ export async function unsubscribeFromAuthor(authorUserId, subscriberUserId) {
   try {
     const db = connect();
 
+    // Fetch author info for email
+    const [[author]] = await db.query(
+      `
+      SELECT email
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [authorUserId],
+    );
+
+    const [[subscriber]] = await db.query(
+      `
+      SELECT name
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [subscriberUserId],
+    );
+
     await db.query(
       `
       UPDATE author_subscriptions
@@ -111,6 +169,16 @@ export async function unsubscribeFromAuthor(authorUserId, subscriberUserId) {
       `,
       [authorUserId, subscriberUserId],
     );
+
+    // 📧 Email notification (fire and forget)
+    try {
+      await sendFreeUnsubscribedEmail({
+        to: author.email,
+        subscriberName: subscriber?.name,
+      });
+    } catch (emailErr) {
+      console.error("⚠️ Unsubscribe email failed:", emailErr);
+    }
 
     return { subscribed: false };
   } catch (err) {
@@ -676,6 +744,105 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
   await sendOutLookMail({
     to,
     subject: "You have a new subscriber on Cre8tly",
+    html,
+  });
+}
+
+export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
+  if (!to) {
+    throw new Error("No email recipient provided to sendFreeUnsubscribedEmail");
+  }
+
+  const html = `
+<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+  <div style="
+    max-width:420px;
+    margin:0 auto;
+    background:#ffffff;
+    padding:32px;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+  ">
+    <!-- Brand -->
+    <div style="margin-bottom:32px;">
+      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="padding-right:10px;vertical-align:middle;">
+            <img
+              src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              width="36"
+              height="36"
+              alt="Cre8tly Studio"
+              style="display:block;"
+            />
+          </td>
+          <td style="vertical-align:middle;">
+            <div style="
+              font-size:20px;
+              font-weight:700;
+              color:#111827;
+              line-height:1;
+            ">
+              Cre8tly Studio
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Heading -->
+    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0;">
+      Subscriber left
+    </h2>
+
+    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+      A free subscription was canceled
+    </p>
+
+    <!-- Body -->
+    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
+      <strong>${subscriberName || "Someone"}</strong> has unsubscribed from your community.
+    </p>
+
+    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
+      No action is needed. They simply won’t receive future posts or updates unless they resubscribe.
+    </p>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin:30px 0;">
+      <a
+        href="https://cre8tlystudio.com/community"
+        target="_blank"
+        style="
+          background:#7bed9f;
+          color:#000;
+          padding:14px 36px;
+          border-radius:8px;
+          text-decoration:none;
+          font-weight:700;
+          display:inline-block;
+        "
+      >
+        View your community
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <p style="font-size:13px;color:#6b7280;text-align:center;">
+      You can manage notifications from your dashboard.
+    </p>
+
+    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
+      — Cre8tly Studio
+    </p>
+  </div>
+</div>
+`;
+
+  await sendOutLookMail({
+    to,
+    subject: "A subscriber unsubscribed from your community",
     html,
   });
 }

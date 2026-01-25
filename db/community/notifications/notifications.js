@@ -32,12 +32,26 @@ export async function getUserNotifications(userId, limit = 50, offset = 0) {
   try {
     const [rows] = await db.query(
       `
-      SELECT n.*, 
-             u.name AS actor_name,
-             u.profile_image_url AS actor_image
+      SELECT
+        n.*,
+
+        u.name AS actor_name,
+        u.profile_image_url AS actor_image,
+
+        p.image_url AS post_image,
+        p.title AS post_title
+
       FROM user_notifications n
-      LEFT JOIN users u ON u.id = n.actor_id
+
+      LEFT JOIN users u
+        ON u.id = n.actor_id
+
+      LEFT JOIN community_posts p
+        ON p.id = n.post_id
+        AND p.deleted_at IS NULL
+
       WHERE n.user_id = ?
+
       ORDER BY n.created_at DESC
       LIMIT ? OFFSET ?
       `,
@@ -50,7 +64,6 @@ export async function getUserNotifications(userId, limit = 50, offset = 0) {
     throw err;
   }
 }
-
 export async function markNotificationsRead(userId, ids = []) {
   if (!ids.length) return;
 
@@ -98,14 +111,6 @@ export async function saveNotification({
   referenceId,
   message,
 }) {
-  if (!postId) {
-    console.warn("⚠️ Notification missing postId", {
-      type,
-      referenceId,
-      userId,
-      actorId,
-    });
-  }
   const db = connect();
   const id = crypto.randomUUID();
 
