@@ -1,6 +1,8 @@
 import connect from "../../connect.js";
 import { v4 as uuidv4 } from "uuid";
 
+const MAX_EMAIL_HTML_LENGTH = 150_000;
+
 export async function getAuthorProfile(authorUserId) {
   try {
     const db = connect();
@@ -316,5 +318,13 @@ export async function getUserEmailAndNameById(userId) {
   } catch (err) {
     console.error("getUserEmailAndNameById error:", err);
     throw err;
+  }
+}
+
+export function validateEmailTemplateSize(bodyHtml) {
+  if (!bodyHtml) return;
+
+  if (bodyHtml.length > MAX_EMAIL_HTML_LENGTH) {
+    throw new Error("Email body exceeds maximum allowed size");
   }
 }

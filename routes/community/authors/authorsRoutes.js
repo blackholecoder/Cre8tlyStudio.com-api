@@ -8,10 +8,13 @@ import {
   updateAuthorProfile,
   updateNotificationPreferences,
   upsertAuthorEmailTemplate,
+  validateEmailTemplateSize,
 } from "../../../db/community/authors/dbAuthors.js";
 import { authenticateToken } from "../../../middleware/authMiddleware.js";
 import { renderAuthorEmailTemplate } from "../../../emails/renderAuthorEmailTemplate.js";
 import { sendOutLookMail } from "../../../utils/sendOutllokMail.js";
+import { checkTestEmailRateLimit } from "../../../helpers/testEmailRateLimiter.js";
+import { ALLOWED_TEST_EMAIL_TEMPLATES } from "../../../emails/constants.js";
 
 const router = express.Router();
 
@@ -127,10 +130,16 @@ router.post("/test", authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const { type } = req.body;
 
-    const user = await getUserEmailAndNameById(userId);
+    if (!ALLOWED_TEST_EMAIL_TEMPLATES.includes(type)) {
+      return res.status(400).json({ error: "Invalid template type" });
+    }
 
-    if (!user?.email) {
-      return res.status(400).json({ error: "User email not found" });
+    const rate = await checkTestEmailRateLimit(userId);
+    if (!rate.allowed) {
+      return res.status(429).json({
+        error: "Too many test emails sent",
+        retry_after_seconds: rate.retryAfterSeconds,
+      });
     }
 
     const template = await getAuthorEmailTemplateByType(userId, type);
@@ -139,9 +148,16 @@ router.post("/test", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "Template not found" });
     }
 
+    validateEmailTemplateSize(template.body_html);
+
+    const user = await getUserEmailAndNameById(userId);
+    if (!user?.email) {
+      return res.status(400).json({ error: "User email not found" });
+    }
+
     const rendered = renderAuthorEmailTemplate(template, {
       subscriber_name: "Test Subscriber",
-      author_name: req.user.name,
+      author_name: user.name,
     });
 
     if (!rendered) {
