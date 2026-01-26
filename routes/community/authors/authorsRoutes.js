@@ -15,6 +15,7 @@ import { renderAuthorEmailTemplate } from "../../../emails/renderAuthorEmailTemp
 import { sendOutLookMail } from "../../../utils/sendOutllokMail.js";
 import { checkTestEmailRateLimit } from "../../../helpers/testEmailRateLimiter.js";
 import { ALLOWED_TEST_EMAIL_TEMPLATES } from "../../../emails/constants.js";
+import { wrapEmailHtml } from "../../../emails/wrapEmailHtml.js";
 
 const router = express.Router();
 
@@ -167,7 +168,7 @@ router.post("/test", authenticateToken, async (req, res) => {
     await sendOutLookMail({
       to: user.email,
       subject: rendered.subject,
-      html: rendered.html,
+      html: wrapEmailHtml(rendered.html),
     });
 
     res.json({ success: true });

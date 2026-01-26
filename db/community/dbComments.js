@@ -170,6 +170,8 @@ export async function getCommentById(commentId, userId) {
         u.name AS author,
         u.role AS author_role,
         u.profile_image_url AS author_image,
+        c.reply_to_user_id,
+        reply_user.name AS reply_to_author,
 
         0 AS reply_count,
 
@@ -189,6 +191,8 @@ export async function getCommentById(commentId, userId) {
       FROM community_comments c
       JOIN users u ON c.user_id = u.id
       JOIN community_posts p ON c.post_id = p.id
+      LEFT JOIN users reply_user
+      ON reply_user.id = c.reply_to_user_id
       WHERE c.id = ?
         AND c.deleted_at IS NULL
       LIMIT 1
@@ -288,8 +292,8 @@ export async function createReply(
   userId,
   postId,
   parentId,
+  replyToUserId,
   body,
-  parentUserId,
 ) {
   try {
     const db = connect();
@@ -308,10 +312,10 @@ export async function createReply(
     // 2️⃣ Save reply
     await db.query(
       `
-      INSERT INTO community_comments (id, user_id, post_id, parent_id, body)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO community_comments (id, user_id, post_id, parent_id, reply_to_user_id, body)
+      VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [replyId, userId, postId, parentId, body.trim()],
+      [replyId, userId, postId, parentId, replyToUserId, body.trim()],
     );
 
     // 2.5️⃣ Increment activity score (reply > comment)
@@ -334,9 +338,9 @@ export async function createReply(
     );
 
     // 🔔 Send notification only if replying to someone else
-    if (parentUserId && parentUserId !== userId) {
+    if (replyToUserId && replyToUserId !== userId) {
       await saveNotification({
-        userId: parentUserId,
+        userId: replyToUserId,
         actorId: userId,
         type: "reply",
         postId,
@@ -349,10 +353,10 @@ export async function createReply(
     const hydratedReply = await getCommentById(replyId, userId);
 
     // 📧 Email notification for reply
-    if (parentUserId && parentUserId !== userId) {
+    if (replyToUserId && replyToUserId !== userId) {
       const [[parentUser]] = await db.query(
         `SELECT email FROM users WHERE id = ? LIMIT 1`,
-        [parentUserId],
+        [replyToUserId],
       );
 
       if (parentUser?.email) {
@@ -373,16 +377,6 @@ export async function createReply(
     throw err;
   }
 }
-export async function getParentCommentUserId(commentId) {
-  const db = connect();
-
-  const [rows] = await db.query(
-    "SELECT user_id FROM community_comments WHERE id = ?",
-    [commentId],
-  );
-
-  return rows?.[0]?.user_id || null;
-}
 export async function getRepliesPaginated(parentId, userId, limit, offset) {
   const db = connect();
 
@@ -393,6 +387,8 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
       c.parent_id, 
       c.body,
       c.created_at,
+      c.reply_to_user_id,
+      reply_user.name AS reply_to_author,
       u.name AS author,
       u.role AS author_role,
       u.profile_image_url AS author_image,
@@ -422,6 +418,8 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
 
     FROM community_comments c
     JOIN users u ON c.user_id = u.id
+    LEFT JOIN users reply_user
+    ON reply_user.id = c.reply_to_user_id
     WHERE c.parent_id = ?
       AND c.deleted_at IS NULL
     ORDER BY c.created_at DESC, c.id DESC

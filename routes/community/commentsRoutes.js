@@ -5,7 +5,6 @@ import {
   deleteComment,
   getCommentsByPost,
   getCommentsPaginated,
-  getParentCommentUserId,
   getRepliesPaginated,
   likeComment,
   unlikeComment,
@@ -99,7 +98,7 @@ router.post(
   async (req, res) => {
     try {
       const { commentId } = req.params;
-      const { body, postId } = req.body;
+      const { body, postId, reply_to_user_id } = req.body;
 
       if (!body) {
         return res
@@ -108,15 +107,14 @@ router.post(
       }
 
       // 🧼 Clean helper call to get parent comment user
-      const parentUserId = await getParentCommentUserId(commentId);
 
       // 🧼 Clean helper call to create reply + notification
       const reply = await createReply(
         req.user.id,
         postId,
         commentId,
+        reply_to_user_id,
         body,
-        parentUserId,
       );
 
       res.json({ success: true, reply });
