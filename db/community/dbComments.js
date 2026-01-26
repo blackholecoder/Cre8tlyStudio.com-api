@@ -265,6 +265,7 @@ export async function getCommentsPaginated(
         `
         SELECT 
           r.id,
+          r.user_id,
           r.body,
           r.created_at,
           u.name AS author,
@@ -288,16 +289,21 @@ export async function getCommentsPaginated(
     throw error;
   }
 }
-export async function createReply(
-  userId,
-  postId,
-  parentId,
-  replyToUserId,
-  body,
-) {
+export async function createReply(userId, postId, parentId, body) {
   try {
     const db = connect();
     const replyId = crypto.randomUUID();
+
+    const [[parentComment]] = await db.query(
+      `SELECT user_id FROM community_comments WHERE id = ? LIMIT 1`,
+      [parentId],
+    );
+
+    if (!parentComment) {
+      throw new Error("Parent comment not found");
+    }
+
+    const replyToUserIdFinal = parentComment.user_id;
 
     // 1️⃣ Fetch post owner
     const [postRows] = await db.query(
@@ -315,7 +321,7 @@ export async function createReply(
       INSERT INTO community_comments (id, user_id, post_id, parent_id, reply_to_user_id, body)
       VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [replyId, userId, postId, parentId, replyToUserId, body.trim()],
+      [replyId, userId, postId, parentId, replyToUserIdFinal, body.trim()],
     );
 
     // 2.5️⃣ Increment activity score (reply > comment)
@@ -338,9 +344,9 @@ export async function createReply(
     );
 
     // 🔔 Send notification only if replying to someone else
-    if (replyToUserId && replyToUserId !== userId) {
+    if (replyToUserIdFinal !== userId) {
       await saveNotification({
-        userId: replyToUserId,
+        userId: replyToUserIdFinal,
         actorId: userId,
         type: "reply",
         postId,
@@ -353,10 +359,10 @@ export async function createReply(
     const hydratedReply = await getCommentById(replyId, userId);
 
     // 📧 Email notification for reply
-    if (replyToUserId && replyToUserId !== userId) {
+    if (replyToUserIdFinal !== userId) {
       const [[parentUser]] = await db.query(
         `SELECT email FROM users WHERE id = ? LIMIT 1`,
-        [replyToUserId],
+        [replyToUserIdFinal],
       );
 
       if (parentUser?.email) {
@@ -384,6 +390,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     `
     SELECT 
       c.id,
+      c.user_id,
       c.parent_id, 
       c.body,
       c.created_at,
