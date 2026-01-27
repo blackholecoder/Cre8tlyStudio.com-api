@@ -181,25 +181,52 @@ router.post("/upload-image", authenticateToken, async (req, res) => {
     const buffer = fs.readFileSync(image.tempFilePath);
 
     let bufferToUpload = buffer;
-    let mimeType = image.mimetype;
+    let finalMimeType = image.mimetype; // ✅ declare up top
 
-    // 🔥 CENTRALIZED IMAGE OPTIMIZATION
     const isImage = image.mimetype.startsWith("image/");
 
     if (isImage) {
-      const { optimizedBuffer } = await optimizeImageUpload(
-        bufferToUpload,
-        image.mimetype,
-        { purpose: "post" }, // 👈 important
-      );
+      const supportsTransparency =
+        image.mimetype === "image/png" ||
+        image.mimetype === "image/webp";
 
-      bufferToUpload = optimizedBuffer;
-      mimeType = "image/jpeg"; // enforce output consistency
+      let optimized;
+
+      if (supportsTransparency) {
+        optimized = await optimizeImageUpload(
+          bufferToUpload,
+          image.mimetype,
+          { purpose: "post" },
+        );
+
+        bufferToUpload = optimized.optimizedBuffer;
+        finalMimeType = optimized.mimetype;
+      } else {
+        optimized = await optimizeImageUpload(
+          bufferToUpload,
+          image.mimetype,
+          { purpose: "post" },
+        );
+
+        bufferToUpload = optimized.optimizedBuffer;
+        finalMimeType = "image/jpeg";
+      }
     }
 
-    const fileName = `community_posts/${Date.now()}.jpg`;
+    const fileExt =
+      finalMimeType === "image/png"
+        ? "png"
+        : finalMimeType === "image/webp"
+        ? "webp"
+        : "jpg";
 
-    const result = await uploadFileToSpaces(bufferToUpload, fileName, mimeType);
+    const fileName = `community_posts/${Date.now()}.${fileExt}`;
+
+    const result = await uploadFileToSpaces(
+      bufferToUpload,
+      fileName,
+      finalMimeType,
+    );
 
     fs.unlinkSync(image.tempFilePath);
 
@@ -215,6 +242,7 @@ router.post("/upload-image", authenticateToken, async (req, res) => {
     });
   }
 });
+
 
 // Editing Posts Route
 router.put("/posts/:postId", authenticateToken, async (req, res) => {

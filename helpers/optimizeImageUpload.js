@@ -1,13 +1,6 @@
 // helpers/optimizeImageUpload.js
 import sharp from "sharp";
 
-/**
- * Optimize image before upload (Sharp)
- * @param {Buffer} buffer - raw file buffer
- * @param {string} mimetype - mime type
- * @param {number} maxWidth - optional resize width (default 1800)
- * @returns {Promise<{optimizedBuffer: Buffer, format: string, mimetype: string}>}
- */
 export async function optimizeImageUpload(buffer, mimetype, options = {}) {
   const { purpose = "content", maxWidth = 1800 } = options;
 
@@ -16,26 +9,26 @@ export async function optimizeImageUpload(buffer, mimetype, options = {}) {
     const metadata = await image.metadata();
 
     const hasAlpha = Boolean(metadata.hasAlpha);
-    const isPng = mimetype.includes("png");
-    const isWebp = mimetype.includes("webp");
+     const isPng = mimetype === "image/png";
+    const isWebp = mimetype === "image/webp";
 
     // ✅ PNG WITH TRANSPARENCY → keep PNG
-    if (isPng && hasAlpha) {
+    if ((isPng || isWebp) && hasAlpha) {
       const optimizedBuffer = await image
         .resize({ width: maxWidth, withoutEnlargement: true })
-        .png({
-          compressionLevel: 0,
-          adaptiveFiltering: false,
+        .toFormat(isPng ? "png" : "webp", {
+          quality: 85,
         })
         .toBuffer();
 
       return {
         optimizedBuffer,
-        format: "png",
-        mimetype: "image/png",
+        format: isPng ? "png" : "webp",
+        mimetype: isPng ? "image/png" : "image/webp",
         hasAlpha: true,
       };
     }
+
 
     // ❗ PNG WITHOUT TRANSPARENCY OR JPG/WEBP → convert to JPEG
     const optimizedBuffer = await image
