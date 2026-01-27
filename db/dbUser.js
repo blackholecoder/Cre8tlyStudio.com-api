@@ -224,7 +224,7 @@ async function sendFreeTrialWelcomeEmail({ name, email, expiresAt }) {
   });
 }
 
-export async function createUser({ name, email, password }) {
+export async function createUser({ name, username, email, password }) {
   const db = connect();
   const id = uuidv4();
   const hashedPassword = await bcrypt.hash(password, 12);
@@ -236,6 +236,7 @@ export async function createUser({ name, email, password }) {
    (
      id,
      name,
+     username,
      email,
      password_hash,
      role,
@@ -255,7 +256,7 @@ export async function createUser({ name, email, password }) {
      created_at
    )
    VALUES (
-     ?, ?, ?, ?, 'customer',
+     ?, ?, ?, ?, ?, 'customer',
      NULL,
      0, 0,
      0, 0,
@@ -268,7 +269,7 @@ export async function createUser({ name, email, password }) {
      NULL,
      NOW()
    )`,
-      [id, name, email, hashedPassword],
+      [id, name, username, email, hashedPassword],
     );
 
     // 🔹 2. Initialize 7-day free trial
@@ -312,6 +313,7 @@ export async function createUser({ name, email, password }) {
     return {
       id,
       name,
+      username,
       email,
       role: "customer",
       profile_image: null,
@@ -348,6 +350,7 @@ export async function createCommunityUser({ name, email, password }) {
       `INSERT INTO users (
         id,
         name,
+        username,
         email,
         password_hash,
         role,
@@ -369,7 +372,7 @@ export async function createCommunityUser({ name, email, password }) {
         created_at
       )
       VALUES (
-        ?, ?, ?, ?, 'customer',
+        ?, ?, ?, ?, ?, 'customer',
         1,           -- is_member
         1,           -- is_free_user
         0, 0,
@@ -384,7 +387,7 @@ export async function createCommunityUser({ name, email, password }) {
         NULL,
         NOW()
       )`,
-      [id, name, email, hashedPassword],
+      [id, name, username, email, hashedPassword],
     );
 
     try {
@@ -403,6 +406,7 @@ export async function createCommunityUser({ name, email, password }) {
     return {
       id,
       name,
+      username,
       email,
       role: "customer",
       is_member: 1,
@@ -491,6 +495,7 @@ export async function getUserByEmail(email) {
       `SELECT 
          id,
          name,
+         username,
          email,
          role,
          profile_image_url, 
@@ -532,6 +537,85 @@ export async function getUserByEmail(email) {
     console.error("❌ Error in getUserByEmail:", err);
     throw err;
   }
+}
+
+export async function getUserById(id) {
+  const db = connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+  SELECT 
+    u.id, 
+    u.name, 
+    u.username,
+    u.email,
+    u.role, 
+    u.profile_image_url, 
+    u.brand_identity_file,
+    u.pro_covers, 
+    u.has_book, 
+    u.book_slots,
+    u.has_magnet,
+    u.magnet_slots,
+    u.has_memory,
+    u.has_completed_book_onboarding,
+    u.cta,
+    u.created_at,
+    u.pro_status,
+    u.billing_type,
+    u.pro_expiration,
+    u.has_free_magnet,
+    u.is_free_user,
+    u.free_trial_expires_at,
+    u.twofa_enabled,
+    u.stripe_connect_account_id,
+    u.has_passkey,
+    u.is_admin_employee,
+    u.plan,
+    u.basic_annual,
+    u.theme,
+    u.is_member,
+    rs.slug AS referral_slug
+
+  FROM users u
+  LEFT JOIN referral_slugs rs
+    ON rs.employee_id = u.id
+  WHERE u.id = ?
+  `,
+      [id],
+    );
+
+    const user = rows[0] || null;
+    if (!user) return null;
+    // 🔹 Add a derived field for frontend convenience
+    if (user?.free_trial_expires_at) {
+      const now = new Date();
+      const expires = new Date(user.free_trial_expires_at);
+      user.trial_expired = now > expires;
+      user.trial_days_remaining = Math.max(
+        0,
+        Math.ceil((expires - now) / (1000 * 60 * 60 * 24)),
+      );
+    } else {
+      user.trial_expired = false;
+      user.trial_days_remaining = null;
+    }
+
+    return user;
+  } catch (err) {
+    console.error("❌ Error in getUserById:", err);
+    throw err;
+  }
+}
+
+export async function getUserByUsername(username) {
+  const db = connect();
+  const [[row]] = await db.query(
+    `SELECT id FROM users WHERE username = ? LIMIT 1`,
+    [username],
+  );
+  return row || null;
 }
 
 export async function saveRefreshToken(userId, refreshToken) {
@@ -684,75 +768,6 @@ export async function saveAdminRefreshToken(userId, token) {
 export async function updateUserRole(userId, role) {
   const db = connect();
   await db.query("UPDATE users SET role=? WHERE id=?", [role, userId]);
-}
-
-export async function getUserById(id) {
-  const db = connect();
-
-  try {
-    const [rows] = await db.query(
-      `
-  SELECT 
-    u.id, 
-    u.name, 
-    u.email,
-    u.role, 
-    u.profile_image_url, 
-    u.brand_identity_file,
-    u.pro_covers, 
-    u.has_book, 
-    u.book_slots,
-    u.has_magnet,
-    u.magnet_slots,
-    u.has_memory,
-    u.has_completed_book_onboarding,
-    u.cta,
-    u.created_at,
-    u.pro_status,
-    u.billing_type,
-    u.pro_expiration,
-    u.has_free_magnet,
-    u.is_free_user,
-    u.free_trial_expires_at,
-    u.twofa_enabled,
-    u.stripe_connect_account_id,
-    u.has_passkey,
-    u.is_admin_employee,
-    u.plan,
-    u.basic_annual,
-    u.theme,
-    u.is_member,
-    rs.slug AS referral_slug
-
-  FROM users u
-  LEFT JOIN referral_slugs rs
-    ON rs.employee_id = u.id
-  WHERE u.id = ?
-  `,
-      [id],
-    );
-
-    const user = rows[0] || null;
-    if (!user) return null;
-    // 🔹 Add a derived field for frontend convenience
-    if (user?.free_trial_expires_at) {
-      const now = new Date();
-      const expires = new Date(user.free_trial_expires_at);
-      user.trial_expired = now > expires;
-      user.trial_days_remaining = Math.max(
-        0,
-        Math.ceil((expires - now) / (1000 * 60 * 60 * 24)),
-      );
-    } else {
-      user.trial_expired = false;
-      user.trial_days_remaining = null;
-    }
-
-    return user;
-  } catch (err) {
-    console.error("❌ Error in getUserById:", err);
-    throw err;
-  }
 }
 
 export async function upgradeUserToProCovers(email) {

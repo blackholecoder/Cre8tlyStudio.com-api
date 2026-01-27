@@ -28,6 +28,7 @@ export async function getAllCommunityPosts(userId) {
       `
       SELECT
         p.id,
+        p.slug,
         p.title,
         p.subtitle,
         p.created_at,

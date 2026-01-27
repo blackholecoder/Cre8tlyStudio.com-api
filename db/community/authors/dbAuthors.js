@@ -12,6 +12,7 @@ export async function getAuthorProfile(authorUserId) {
   SELECT
     u.id,
     u.name,
+    u.username,
     u.profile_image_url,
     p.bio,
     p.about,
@@ -73,6 +74,7 @@ export async function getAuthorProfile(authorUserId) {
     return {
       id: row.id,
       name: row.name,
+      username: row.username,
       profile_image_url: row.profile_image_url,
       bio: row.bio || "",
       about: row.about || "",
@@ -92,8 +94,47 @@ export async function updateAuthorProfile(userId, data) {
   try {
     const db = connect();
 
-    const { bio, about, current_employment, interests, services, media_links } =
-      data;
+    const {
+      username,
+      bio,
+      about,
+      current_employment,
+      interests,
+      services,
+      media_links,
+    } = data;
+
+    if (username) {
+      // basic validation
+      if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+        throw new Error("Invalid username format");
+      }
+
+      // ensure unique
+      const [[existing]] = await db.query(
+        `
+        SELECT id
+        FROM users
+        WHERE username = ?
+          AND id != ?
+        LIMIT 1
+        `,
+        [username, userId],
+      );
+
+      if (existing) {
+        throw new Error("Username already taken");
+      }
+
+      await db.query(
+        `
+        UPDATE users
+        SET username = ?
+        WHERE id = ?
+        `,
+        [username, userId],
+      );
+    }
 
     await db.query(
       `

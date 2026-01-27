@@ -7,6 +7,7 @@ import {
   createUser,
   getUserByEmail,
   getUserById,
+  getUserByUsername,
   getWebAuthnCredentials,
   isRefreshTokenValid,
   logEmployeeReferral,
@@ -56,11 +57,18 @@ const router = express.Router();
 
 router.post("/signup", async (req, res) => {
   try {
-    const { name, password, refSlug } = req.body;
+    const { name, username, password, refSlug } = req.body;
     const email = req.body.email?.toLowerCase();
 
-    if (!name || !email || !password) {
+    if (!name || !username || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
+    }
+
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+      return res.status(400).json({
+        message:
+          "Username must be 3–20 characters, lowercase letters, numbers, or underscores",
+      });
     }
 
     const existing = await getUserByEmail(email);
@@ -68,8 +76,13 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
+    const existingUsername = await getUserByUsername(username);
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already taken" });
+    }
+
     // Create user
-    const user = await createUser({ name, email, password });
+    const user = await createUser({ name, username, email, password });
 
     // Handle referral
     if (refSlug) {
@@ -81,7 +94,15 @@ router.post("/signup", async (req, res) => {
         .catch((err) => console.error("Referral logging error:", err.message));
     }
 
-    res.status(201).json({ message: "User created", userId: user.id });
+    res.status(201).json({
+      message: "User created",
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+      },
+    });
   } catch (err) {
     console.error("Signup error:", err);
     res.status(500).json({ message: "Server error" });
@@ -91,11 +112,18 @@ router.post("/signup", async (req, res) => {
 // FREE COMMUNITY MEMBER
 router.post("/signup-community", async (req, res) => {
   try {
-    const { name, email, password, refSlug } = req.body;
+    const { name, username, email, password, refSlug } = req.body;
 
     // 🔒 Guards
-    if (!name || !email || !password) {
+    if (!name || !username || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
+    }
+
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+      return res.status(400).json({
+        message:
+          "Username must be 3–20 characters, lowercase letters, numbers, or underscores",
+      });
     }
 
     const existing = await getUserByEmail(email);
@@ -103,10 +131,16 @@ router.post("/signup-community", async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
+    const existingUsername = await getUserByUsername(username);
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already taken" });
+    }
+
     // 👤 Create community user
     const user = await createCommunityUser({
       name,
       email,
+      username,
       password,
     });
 
@@ -127,7 +161,12 @@ router.post("/signup-community", async (req, res) => {
 
     res.status(201).json({
       message: "Community account created",
-      userId: user.id,
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+      },
     });
   } catch (err) {
     console.error("Community signup error:", err);
@@ -204,6 +243,7 @@ router.post("/login", async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
+        username: user.username,
         email: user.email,
         role: user.role,
         has_magnet: user.has_magnet,
@@ -332,6 +372,7 @@ router.get("/me", authenticateToken, async (req, res) => {
     res.json({
       id: user.id,
       name: user.name,
+      username: user.username,
       email: user.email,
       role: user.role,
       has_magnet: user.has_magnet,
@@ -536,6 +577,7 @@ router.post(
           id: user.id,
           email: user.email,
           name: user.name,
+          username: user.username,
           role: user.role,
         },
       });

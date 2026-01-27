@@ -3,7 +3,6 @@ import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
 
-
 /**
  * Generate and store a new 2FA secret for the current admin.
  */
@@ -15,9 +14,10 @@ export async function generateTwoFA(userId) {
     length: 20,
   });
 
-  await db.query("UPDATE users SET twofa_secret = ? WHERE id = ?", [secret.base32, userId]);
-  ;
-
+  await db.query("UPDATE users SET twofa_secret = ? WHERE id = ?", [
+    secret.base32,
+    userId,
+  ]);
   const qr = await QRCode.toDataURL(secret.otpauth_url);
 
   return { qr, secret: secret.base32 };
@@ -27,10 +27,12 @@ export async function generateTwoFA(userId) {
  */
 export async function verifyTwoFA(userId, token) {
   const db = connect();
-  const [[user]] = await db.query("SELECT twofa_secret FROM users WHERE id = ?", [userId]);
-  ;
-
-  if (!user || !user.twofa_secret) throw new Error("2FA not enabled for this user");
+  const [[user]] = await db.query(
+    "SELECT twofa_secret FROM users WHERE id = ?",
+    [userId],
+  );
+  if (!user || !user.twofa_secret)
+    throw new Error("2FA not enabled for this user");
 
   const verified = speakeasy.totp.verify({
     secret: user.twofa_secret,
@@ -44,7 +46,7 @@ export async function verifyTwoFA(userId, token) {
   const accessToken = jwt.sign(
     { id: userId, email: user.email, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: "2h" }
+    { expiresIn: "2h" },
   );
 
   return {
@@ -72,8 +74,6 @@ export async function generateUserTwoFA(userId) {
     secret.base32,
     userId,
   ]);
-  ;
-
   return { qr: secret.otpauth_url, secret: secret.base32 };
 }
 
@@ -81,10 +81,8 @@ export async function verifyUserTwoFA(userId, token) {
   const db = connect();
   const [[user]] = await db.query(
     "SELECT twofa_secret FROM users WHERE id = ?",
-    [userId]
+    [userId],
   );
-  ;
-
   if (!user || !user.twofa_secret) {
     throw new Error("2FA not enabled for this user");
   }
@@ -106,9 +104,8 @@ export async function enableUserTwoFA(userId) {
   } catch (err) {
     console.error("❌ Failed to enable 2FA for user:", userId, err);
     throw new Error("Failed to enable 2FA");
-  } 
+  }
 }
-
 
 // ADMIN
 export async function verifyAdminTwoFA(userId, token) {
@@ -116,8 +113,8 @@ export async function verifyAdminTwoFA(userId, token) {
     const db = connect();
 
     const [[user]] = await db.query(
-      "SELECT id, email, name, role, twofa_secret, failed_2fa_attempts, locked_until FROM users WHERE id = ? LIMIT 1",
-      [userId]
+      "SELECT id, email, name, username, role, twofa_secret, failed_2fa_attempts, locked_until FROM users WHERE id = ? LIMIT 1",
+      [userId],
     );
 
     if (!user || !user.twofa_secret) {
@@ -145,16 +142,16 @@ export async function verifyAdminTwoFA(userId, token) {
 
         await db.query(
           "UPDATE users SET failed_2fa_attempts = ?, locked_until = ? WHERE id = ?",
-          [attempts, lockUntil, userId]
+          [attempts, lockUntil, userId],
         );
 
         throw new Error("Too many failed attempts. Locked for 10 minutes.");
       }
 
-      await db.query(
-        "UPDATE users SET failed_2fa_attempts = ? WHERE id = ?",
-        [attempts, userId]
-      );
+      await db.query("UPDATE users SET failed_2fa_attempts = ? WHERE id = ?", [
+        attempts,
+        userId,
+      ]);
 
       throw new Error("Invalid 2FA code");
     }
@@ -162,15 +159,12 @@ export async function verifyAdminTwoFA(userId, token) {
     // Reset on success
     await db.query(
       "UPDATE users SET failed_2fa_attempts = 0, locked_until = NULL WHERE id = ?",
-      [userId]
+      [userId],
     );
 
     return user;
-
   } catch (err) {
     console.error("verifyAdminTwoFA error:", err);
     throw err;
   }
 }
-
-
