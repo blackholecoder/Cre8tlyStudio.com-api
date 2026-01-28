@@ -13,7 +13,7 @@ export async function updateSellerStatus(stripeAccountId, fields) {
   const db = connect();
   await db.query(
     "UPDATE users SET charges_enabled = ?, payouts_enabled = ? WHERE stripe_connect_account_id = ?",
-    [fields.charges_enabled, fields.payouts_enabled, stripeAccountId]
+    [fields.charges_enabled, fields.payouts_enabled, stripeAccountId],
   );
 }
 
@@ -22,17 +22,16 @@ export async function markProductDelivered(sessionId, productId, buyerEmail) {
   const db = connect();
   await db.query(
     "INSERT INTO seller_purchases (session_id, product_id, buyer_email) VALUES (?, ?, ?)",
-    [sessionId, productId, buyerEmail]
+    [sessionId, productId, buyerEmail],
   );
 }
-
 
 export async function getSellerStripeAccountId(userId) {
   try {
     const db = connect();
     const [rows] = await db.query(
       "SELECT stripe_connect_account_id FROM users WHERE id = ?",
-      [userId]
+      [userId],
     );
     return rows?.[0]?.stripe_connect_account_id || null;
   } catch (err) {
@@ -47,7 +46,7 @@ export async function saveSellerStripeAccountId(userId, accountId) {
     const db = connect();
     await db.query(
       "UPDATE users SET stripe_connect_account_id = ? WHERE id = ?",
-      [accountId, userId]
+      [accountId, userId],
     );
     return true;
   } catch (err) {
@@ -55,7 +54,6 @@ export async function saveSellerStripeAccountId(userId, accountId) {
     throw new Error("Database error while saving Stripe account ID");
   }
 }
-
 
 // SELLER PAYOUT AND BALANCE INFO
 
@@ -78,7 +76,7 @@ export async function getSellerPayouts(accountId) {
   try {
     const payouts = await stripe.payouts.list(
       { limit: 10 },
-      { stripeAccount: accountId }
+      { stripeAccount: accountId },
     );
     return payouts.data;
   } catch (err) {
@@ -106,7 +104,7 @@ export async function getSellerSales(userId, page = 1, limit = 20) {
     // 1️⃣ Count total records
     const [[countRow]] = await db.query(
       `SELECT COUNT(*) AS total FROM deliveries WHERE user_id = ?`,
-      [userId]
+      [userId],
     );
 
     const total = countRow.total;
@@ -127,7 +125,7 @@ export async function getSellerSales(userId, page = 1, limit = 20) {
       ORDER BY delivered_at DESC
       LIMIT ? OFFSET ?
       `,
-      [userId, limit, offset]
+      [userId, limit, offset],
     );
 
     return {
@@ -137,13 +135,11 @@ export async function getSellerSales(userId, page = 1, limit = 20) {
       page,
       pages: Math.ceil(total / limit),
     };
-
   } catch (err) {
     console.error("❌ getSellerSales error:", err);
     return { success: false, sales: [], total: 0, page, pages: 0 };
   }
 }
-
 
 export async function generateAIMessage(prompt) {
   try {
@@ -164,9 +160,9 @@ export async function markThankYouSent(saleId) {
   const db = connect();
   try {
     await db.query(
-    `UPDATE deliveries SET thank_you_sent = 1 WHERE id = ? LIMIT 1`,
-    [saleId]
-  );
+      `UPDATE deliveries SET thank_you_sent = 1 WHERE id = ? LIMIT 1`,
+      [saleId],
+    );
     return true;
   } catch (err) {
     console.error("❌ markThankYouSent error:", err);
@@ -174,3 +170,49 @@ export async function markThankYouSent(saleId) {
   }
 }
 
+export async function insertTip({
+  stripe_session_id,
+  writer_user_id,
+  post_id,
+  amount_cents,
+  currency,
+  tipper_email,
+}) {
+  try {
+    const db = connect();
+
+    await db.query(
+      `
+      INSERT INTO post_tips (
+        id,
+        stripe_session_id,
+        writer_user_id,
+        post_id,
+        amount_cents,
+        currency,
+        tipper_email
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?
+      )
+      `,
+      [
+        uuidv4(),
+        stripe_session_id,
+        writer_user_id,
+        post_id,
+        amount_cents,
+        currency,
+        tipper_email,
+      ],
+    );
+  } catch (err) {
+    // Duplicate Stripe events will hit here safely
+    if (err.code === "ER_DUP_ENTRY") {
+      console.warn("⚠️ Tip already recorded", { stripe_session_id });
+      return;
+    }
+
+    console.error("❌ Failed to insert tip", err);
+    throw err;
+  }
+}

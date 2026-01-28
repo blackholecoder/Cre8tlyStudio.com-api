@@ -229,10 +229,18 @@ export async function getMySubscribers(authorUserId) {
         s.paid_subscription,
         COALESCE(s.activity, 0) AS activity,
         s.revenue,
-        s.created_at
+        s.created_at,
+
+        CASE
+          WHEN ap.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_profile
+
       FROM author_subscriptions s
       JOIN users u
         ON u.id = s.subscriber_user_id
+      LEFT JOIN author_profiles ap
+        ON ap.user_id = u.id  
       WHERE s.author_user_id = ?
         AND s.deleted_at IS NULL
       ORDER BY s.created_at DESC
@@ -845,4 +853,38 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
     subject: "A subscriber unsubscribed from your community",
     html,
   });
+}
+
+export async function getSubscribersByAuthorId(authorUserId) {
+  try {
+    const db = connect();
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        u.id,
+        u.name,
+        u.username,
+        u.profile_image_url,
+        CASE
+          WHEN ap.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_profile
+      FROM author_subscriptions s
+      JOIN users u
+        ON u.id = s.subscriber_user_id
+      LEFT JOIN author_profiles ap
+        ON ap.user_id = u.id
+      WHERE s.author_user_id = ?
+        AND s.deleted_at IS NULL
+      ORDER BY s.created_at DESC
+      `,
+      [authorUserId],
+    );
+
+    return rows;
+  } catch (err) {
+    console.error("getSubscribersByAuthorId error:", err);
+    throw err;
+  }
 }

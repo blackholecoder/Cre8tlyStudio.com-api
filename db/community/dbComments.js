@@ -242,8 +242,8 @@ export async function getCommentsPaginated(
           WHERE l.comment_id = c.id
         ) AS like_count,
 
-        (
-          SELECT COUNT(*)
+        EXISTS (
+          SELECT 1
           FROM community_comment_likes l
           WHERE l.comment_id = c.id
             AND l.user_id = ?
@@ -260,35 +260,18 @@ export async function getCommentsPaginated(
       [userId, postId, limit, offset],
     );
 
-    for (let c of comments) {
-      const [replies] = await db.query(
-        `
-        SELECT 
-          r.id,
-          r.user_id,
-          r.body,
-          r.created_at,
-          u.name AS author,
-          u.role AS author_role,
-          u.profile_image_url AS author_image
-        FROM community_comments r
-        JOIN users u ON r.user_id = u.id
-        WHERE r.parent_id = ?
-          AND r.deleted_at IS NULL
-        ORDER BY r.created_at ASC
-        `,
-        [c.id],
-      );
-
-      c.replies = replies;
-    }
-
-    return comments;
+    return comments.map((c) => ({
+      ...c,
+      like_count: Number(c.like_count) || 0,
+      user_liked: Number(c.user_liked) || 0,
+      reply_count: Number(c.reply_count) || 0,
+    }));
   } catch (error) {
     console.error("Error in getCommentsPaginated:", error);
     throw error;
   }
 }
+
 export async function createReply(userId, postId, parentId, body) {
   try {
     const db = connect();
@@ -401,19 +384,20 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
       u.profile_image_url AS author_image,
 
       /* ❤️ Total likes */
-      (
-        SELECT COUNT(*)
-        FROM community_comment_likes l
-        WHERE l.comment_id = c.id
-      ) AS like_count,
+     (
+  SELECT COUNT(*)
+  FROM community_comment_likes l
+  WHERE l.comment_id = c.id
+) AS like_count,
 
       /* ❤️ Whether user liked */
-      (
-        SELECT COUNT(*)
-        FROM community_comment_likes l
-        WHERE l.comment_id = c.id
-          AND l.user_id = ?
-      ) AS user_liked,
+      
+        EXISTS (
+          SELECT 1
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+            AND l.user_id = ?
+        ) AS user_liked,
 
       /* 🔥 Reply count (exclude deleted) */
       (
@@ -546,7 +530,7 @@ export async function likeComment(commentId, userId) {
   const db = connect();
 
   try {
-    // 1️⃣ Insert like (ignore duplicates)
+    // 1️⃣ Insert like edge
     const [result] = await db.query(
       `
       INSERT IGNORE INTO community_comment_likes (id, comment_id, user_id)
@@ -555,18 +539,16 @@ export async function likeComment(commentId, userId) {
       [commentId, userId],
     );
 
-    // If nothing was inserted, don't increment activity or notify
-    if (result.affectedRows === 0) {
-      return true;
-    }
+    // If already liked, stop
+    if (result.affectedRows === 0) return true;
 
-    // 2️⃣ Fetch comment + post owner
-    const [rows] = await db.query(
+    // 3️⃣ Fetch ownership for activity + notifications
+    const [[row]] = await db.query(
       `
       SELECT
         c.user_id AS comment_owner,
         p.user_id AS post_owner,
-        c.post_id AS post_id
+        c.post_id
       FROM community_comments c
       JOIN community_posts p ON p.id = c.post_id
       WHERE c.id = ?
@@ -574,22 +556,11 @@ export async function likeComment(commentId, userId) {
       [commentId],
     );
 
-    if (!rows.length) return true;
+    if (!row) return true;
 
-    const { comment_owner, post_owner, post_id } = rows[0];
+    const { comment_owner, post_owner, post_id } = row;
 
-    // 2.5️⃣ Increment post like count
-    await db.query(
-      `
-  INSERT INTO community_post_stats (post_id, like_count)
-  VALUES (?, 1)
-  ON DUPLICATE KEY UPDATE
-    like_count = like_count + 1
-  `,
-      [post_id],
-    );
-
-    // 3️⃣ Increment activity (likes are low weight)
+    // 4️⃣ Activity
     if (post_owner !== userId) {
       await incrementSubscriberActivity({
         authorUserId: post_owner,
@@ -598,13 +569,13 @@ export async function likeComment(commentId, userId) {
       });
     }
 
-    // 4️⃣ Notify comment owner (if not self)
+    // 5️⃣ Notify comment owner
     if (comment_owner !== userId) {
       await saveNotification({
         userId: comment_owner,
         actorId: userId,
         postId: post_id,
-        type: "like",
+        type: "comment_like",
         referenceId: commentId,
         message: "liked your comment.",
       });
@@ -616,30 +587,13 @@ export async function likeComment(commentId, userId) {
     throw err;
   }
 }
+
 // --- Remove Like ---
 export async function unlikeComment(commentId, userId) {
   const db = connect();
 
   try {
-    // 1️⃣ Find post_id before delete
-    const [[row]] = await db.query(
-      `
-      SELECT c.post_id
-      FROM community_comments c
-      JOIN community_comment_likes l
-        ON l.comment_id = c.id
-      WHERE c.id = ?
-        AND l.user_id = ?
-      `,
-      [commentId, userId],
-    );
-
-    // If no like existed, do nothing
-    if (!row) return true;
-
-    const { post_id } = row;
-
-    // 2️⃣ Delete the like
+    // 1️⃣ Remove like edge
     const [result] = await db.query(
       `
       DELETE FROM community_comment_likes
@@ -648,18 +602,7 @@ export async function unlikeComment(commentId, userId) {
       [commentId, userId],
     );
 
-    // If nothing was deleted, don't touch stats
     if (result.affectedRows === 0) return true;
-
-    // 3️⃣ Decrement post like count safely
-    await db.query(
-      `
-      UPDATE community_post_stats
-      SET like_count = GREATEST(like_count - 1, 0)
-      WHERE post_id = ?
-      `,
-      [post_id],
-    );
 
     return true;
   } catch (err) {

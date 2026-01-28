@@ -3,6 +3,8 @@ import Stripe from "stripe";
 import { getLandingPageById } from "../../../db/landing/dbLanding.js";
 import { getLeadMagnetByPdfUrl } from "../../../db/dbLeadMagnet.js";
 import { getDeliveryBySessionId } from "../../../db/dbDeliveries.js";
+import { getUserById } from "../../../db/dbUser.js";
+import { getCommunityPostById } from "../../../db/community/dbPosts.js";
 
 const router = express.Router();
 
@@ -12,8 +14,94 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 router.post("/create-checkout-session", async (req, res) => {
   try {
-    const { landingPageId, blockId, productSource, sellerId, price_in_cents } =
-      req.body;
+    const {
+      checkoutType = "product",
+      landingPageId,
+      blockId,
+      productSource,
+      sellerId,
+      price_in_cents,
+      postId,
+      writerUserId,
+      tipAmountInCents,
+    } = req.body;
+
+    // 🔹 TIP CHECKOUT (early exit)
+    if (checkoutType === "tip") {
+      if (!postId) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing postId for tip checkout",
+        });
+      }
+
+      if (!writerUserId || !tipAmountInCents) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing writerUserId or tip amount",
+        });
+      }
+
+      const writer = await getUserById(writerUserId);
+
+      const post = await getCommunityPostById(postId);
+
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: "Post not found",
+        });
+      }
+
+      if (req.user?.id === writerUserId) {
+        return res.status(400).json({
+          success: false,
+          message: "You cannot tip yourself",
+        });
+      }
+
+      if (!writer?.stripe_connect_account_id) {
+        return res.status(400).json({
+          success: false,
+          message: "Writer is not set up to receive tips",
+        });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: "Tip for writer",
+                description: "Thanks for the great writing",
+              },
+              unit_amount: tipAmountInCents,
+            },
+            quantity: 1,
+          },
+        ],
+        payment_intent_data: {
+          application_fee_amount: Math.round(tipAmountInCents * 0.1), // optional
+          transfer_data: {
+            destination: writer.stripe_connect_account_id,
+          },
+        },
+        metadata: {
+          checkoutType: "tip",
+          postId,
+          postSlug: post.slug,
+          writerUserId,
+          tipperUserId: req.user?.id || null,
+        },
+        success_url: `${process.env.FRONTEND_URL}/community/post/${post.slug}?tipped=1`,
+        cancel_url: `${process.env.FRONTEND_URL}/community`,
+      });
+
+      return res.json({ success: true, url: session.url });
+    }
 
     if (!landingPageId || !blockId || !productSource) {
       return res.status(400).json({
@@ -100,13 +188,13 @@ router.post("/create-checkout-session", async (req, res) => {
     const productImage = checkoutBlock.product_image_url
       ? [checkoutBlock.product_image_url]
       : checkoutBlock.image_url
-      ? [checkoutBlock.image_url]
-      : leadMagnet?.cover_image
-      ? [leadMagnet.cover_image]
-      : [
-          landingPage.cover_image_url ||
-            "https://cre8tlystudio.com/default-cover.png",
-        ];
+        ? [checkoutBlock.image_url]
+        : leadMagnet?.cover_image
+          ? [leadMagnet.cover_image]
+          : [
+              landingPage.cover_image_url ||
+                "https://cre8tlystudio.com/default-cover.png",
+            ];
 
     // external upload
     let productTitle;
@@ -201,7 +289,7 @@ router.get("/downloads/:sessionId/file", async (req, res) => {
     const proxyUrl = `${
       process.env.SITE_URL
     }/api/pdf/proxy?url=${encodeURIComponent(
-      pdfUrl
+      pdfUrl,
     )}&title=${encodeURIComponent(title)}`;
 
     res.redirect(proxyUrl);

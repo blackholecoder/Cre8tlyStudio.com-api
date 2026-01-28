@@ -3,6 +3,7 @@ import { sanitizeHtml } from "../../utils/sanitizeHtml.js";
 import { slugify } from "../../utils/slugify.js";
 import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
+import { saveNotification } from "./notifications/notifications.js";
 
 async function generateUniqueSlug(db, title) {
   const base = slugify(title);
@@ -38,11 +39,11 @@ export async function getAllCommunityPosts(userId) {
 
         COALESCE(s.views, 0) AS views,
         COALESCE(s.comment_count, 0) AS comment_count,
-        COALESCE(s.like_count, 0) AS like_count,
+        COALESCE(s.post_like_count, 0) AS like_count,
 
         (
           (COALESCE(s.comment_count, 0) * 4) +
-          (COALESCE(s.like_count, 0) * 2) +
+          (COALESCE(s.post_like_count, 0) * 2) +
           (COALESCE(s.views, 0) * 0.25)
         ) AS engagement_score,
 
@@ -66,6 +67,11 @@ export async function getAllCommunityPosts(userId) {
           ELSE 0
         END AS author_has_profile,
 
+          CASE
+          WHEN l.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_liked,
+
         v.viewed_at IS NULL AS is_unread
 
       FROM community_posts p
@@ -73,9 +79,14 @@ export async function getAllCommunityPosts(userId) {
       LEFT JOIN community_topics t ON t.id = p.topic_id
       LEFT JOIN community_post_stats s ON s.post_id = p.id
       LEFT JOIN author_profiles ap ON ap.user_id = u.id
+      
       LEFT JOIN community_post_views v
-        ON v.post_id = p.id
-        AND v.user_id = ?
+  ON v.post_id = p.id
+  AND v.user_id = ?
+
+LEFT JOIN community_post_likes l
+  ON l.post_id = p.id
+  AND l.user_id = ?
 
       WHERE p.deleted_at IS NULL
       ORDER BY
@@ -84,7 +95,7 @@ export async function getAllCommunityPosts(userId) {
   p.created_at DESC
       LIMIT 50
       `,
-      [userId],
+      [userId, userId],
     );
 
     return rows;
@@ -102,12 +113,14 @@ export async function createPost(
   imageUrl = null,
   relatedTopicIds = [],
 ) {
+  const db = connect();
+
   try {
-    const db = connect();
+    await db.beginTransaction();
+
     const id = uuidv4();
 
     const cleanBody = body ? sanitizeHtml(body) : null;
-
     const textOnly = cleanBody.replace(/<[^>]*>/g, "").trim();
 
     if (!textOnly) {
@@ -116,7 +129,6 @@ export async function createPost(
 
     const slug = await generateUniqueSlug(db, title);
 
-    // ✅ define once
     const filtered = Array.isArray(relatedTopicIds)
       ? relatedTopicIds.filter((t) => t && t !== topicId).slice(0, 3)
       : [];
@@ -139,6 +151,18 @@ export async function createPost(
       ],
     );
 
+    await db.query(
+      `
+      INSERT INTO community_post_stats (
+        post_id,
+        views,
+        comment_count,
+        like_count
+      ) VALUES (?, 0, 0, 0)
+      `,
+      [id],
+    );
+
     if (filtered.length > 0) {
       const values = filtered.map((relatedTopicId) => [id, relatedTopicId]);
 
@@ -152,6 +176,8 @@ export async function createPost(
       );
     }
 
+    await db.commit();
+
     return {
       id,
       user_id: userId,
@@ -164,12 +190,13 @@ export async function createPost(
       related_topic_ids: filtered,
     };
   } catch (error) {
+    await db.rollback();
     console.error("Error in createPost:", error);
     throw error;
   }
 }
 
-export async function getPostsByTopic(topicId) {
+export async function getPostsByTopic(topicId, userId) {
   try {
     const db = connect();
 
@@ -190,6 +217,7 @@ export async function getPostsByTopic(topicId) {
 
         COALESCE(s.views, 0) AS views,
         COALESCE(s.comment_count, 0) AS comment_count,
+        COALESCE(s.post_like_count, 0) AS like_count,
 
         CASE
           WHEN p.is_admin_post = 1 THEN 'Cre8tly Studio'
@@ -215,12 +243,21 @@ export async function getPostsByTopic(topicId) {
         CASE
           WHEN p.topic_id = ? THEN 1
           ELSE 0
-        END AS is_primary_topic
+        END AS is_primary_topic,
+
+        CASE
+          WHEN l.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_liked
 
       FROM community_posts p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN community_post_stats s ON s.post_id = p.id
       LEFT JOIN author_profiles ap ON ap.user_id = u.id
+
+      LEFT JOIN community_post_likes l
+      ON l.post_id = p.id
+      AND l.user_id = ?
 
           WHERE
       p.deleted_at IS NULL
@@ -236,7 +273,12 @@ export async function getPostsByTopic(topicId) {
       )
       ORDER BY p.is_pinned DESC, p.created_at DESC
       `,
-      [topicId, topicId, topicId],
+      [
+        topicId, // is_primary_topic
+        userId, // has_liked
+        topicId, // main topic
+        topicId,
+      ],
     );
 
     return rows;
@@ -246,7 +288,7 @@ export async function getPostsByTopic(topicId) {
   }
 }
 
-export async function getPostById(identifier) {
+export async function getPostById(identifier, userId) {
   try {
     const db = connect();
 
@@ -257,6 +299,7 @@ export async function getPostById(identifier) {
 
         COALESCE(s.views, 0) AS views,
         COALESCE(s.comment_count, 0) AS comment_count,
+        COALESCE(s.post_like_count, 0) AS like_count,
 
         CASE 
           WHEN p.is_admin_post = 1 THEN 'Cre8tly Studio'
@@ -277,7 +320,12 @@ export async function getPostById(identifier) {
         WHEN p.is_admin_post = 1 THEN 1
         WHEN ap.user_id IS NOT NULL THEN 1
         ELSE 0
-      END AS author_has_profile
+      END AS author_has_profile,
+
+        CASE
+        WHEN l.user_id IS NOT NULL THEN 1
+        ELSE 0
+      END AS has_liked
 
         FROM community_posts p
         LEFT JOIN users u 
@@ -286,13 +334,16 @@ export async function getPostById(identifier) {
           ON s.post_id = p.id
         LEFT JOIN author_profiles ap
           ON ap.user_id = u.id
+        LEFT JOIN community_post_likes l
+          ON l.post_id = p.id
+        AND l.user_id = ?
 
       WHERE 
         (p.slug = ? OR p.id = ?)
         AND p.deleted_at IS NULL
       LIMIT 1
       `,
-      [identifier, identifier],
+      [userId, identifier, identifier],
     );
 
     return rows[0] || null;
@@ -302,7 +353,29 @@ export async function getPostById(identifier) {
   }
 }
 
-export async function getAllUserPosts(userId) {
+export async function getCommunityPostById(postId) {
+  try {
+    const db = connect();
+
+    const [[post]] = await db.query(
+      `
+      SELECT id, slug
+      FROM community_posts
+      WHERE id = ?
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [postId],
+    );
+
+    return post || null;
+  } catch (err) {
+    console.error("getCommunityPostById failed:", err);
+    throw err;
+  }
+}
+
+export async function getAllUserPosts(ownerUserId, viewerUserId) {
   try {
     const db = connect();
 
@@ -324,16 +397,26 @@ export async function getAllUserPosts(userId) {
         p.image_url,
 
         COALESCE(s.views, 0) AS views,
-        COALESCE(s.comment_count, 0) AS comment_count
+        COALESCE(s.comment_count, 0) AS comment_count,
+        COALESCE(s.post_like_count, 0) AS like_count,
+
+        CASE
+          WHEN l.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_liked
 
       FROM community_posts p
       LEFT JOIN community_post_stats s
         ON s.post_id = p.id
+      LEFT JOIN community_post_likes l
+        ON l.post_id = p.id
+        AND l.user_id = ?
+
       WHERE p.user_id = ?
         AND p.deleted_at IS NULL
       ORDER BY p.created_at DESC
       `,
-      [userId],
+      [viewerUserId, ownerUserId],
     );
 
     return rows;
@@ -555,4 +638,96 @@ export async function queuePostEmails(postId, authorUserId) {
     postId,
     authorUserId,
   });
+}
+
+// like and dislike posts
+
+export async function likeCommunityPost({ postId, userId }) {
+  try {
+    const db = connect();
+
+    // 1️⃣ Insert like (ignore duplicates)
+    const [result] = await db.query(
+      `
+      INSERT IGNORE INTO community_post_likes (
+        id,
+        post_id,
+        user_id
+      ) VALUES (?, ?, ?)
+      `,
+      [uuidv4(), postId, userId],
+    );
+
+    // 2️⃣ Only run if a NEW like was inserted
+    if (result.affectedRows === 1) {
+      // increment post like count
+      await db.query(
+        `
+        UPDATE community_post_stats
+        SET post_like_count = post_like_count + 1
+        WHERE post_id = ?
+        `,
+        [postId],
+      );
+
+      // 🔔 NEW: fetch post owner
+      const [[post]] = await db.query(
+        `
+        SELECT user_id
+        FROM community_posts
+        WHERE id = ?
+        `,
+        [postId],
+      );
+
+      // 🔔 NEW: notify post owner (not self)
+      if (post && post.user_id !== userId) {
+        await saveNotification({
+          userId: post.user_id,
+          actorId: userId,
+          type: "post_like",
+          postId,
+          message: "liked your post",
+        });
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("likeCommunityPost error:", error);
+    throw error;
+  }
+}
+
+export async function unlikeCommunityPost({ postId, userId }) {
+  try {
+    const db = connect();
+
+    // 1️⃣ Remove like edge
+    const [result] = await db.query(
+      `
+      DELETE FROM community_post_likes
+      WHERE post_id = ?
+        AND user_id = ?
+      `,
+      [postId, userId],
+    );
+
+    // 2️⃣ Only decrement if something was actually removed
+    if (result.affectedRows === 1) {
+      await db.query(
+        `
+        UPDATE community_post_stats
+        SET post_like_count = GREATEST(post_like_count - 1, 0)
+        WHERE post_id = ?
+        `,
+        [postId],
+      );
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("unlikeCommunityPost error:", error);
+    throw error;
+  }
 }

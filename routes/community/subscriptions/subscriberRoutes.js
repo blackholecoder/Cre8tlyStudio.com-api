@@ -5,6 +5,7 @@ import {
   createSubscriptionInvites,
   getMySubscribers,
   getPendingInvites,
+  getSubscribersByAuthorId,
   getSubscriptionInviteByToken,
   isSubscribedToAuthor,
   removeSubscriber,
@@ -88,6 +89,7 @@ router.get("/me", authenticateToken, async (req, res) => {
         id: s.id,
         email: s.email,
         profile_image_url: s.profile_image_url,
+        has_profile: !!s.has_profile,
         type: s.paid_subscription ? "Monthly Paid" : "Free",
         activity: s.activity, // ✅ ADD THIS
         created_at: s.created_at, // ✅ KEEP RAW DATE
@@ -196,5 +198,43 @@ router.post("/invites/:id/resend", authenticateToken, async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+
+router.get("/all-user-subscribers", authenticateToken, async (req, res) => {
+  try {
+    const authorUserId = req.user.id;
+
+    const subscribers = await getSubscribersByAuthorId(authorUserId);
+
+    res.json({
+      success: true,
+      subscribers,
+    });
+  } catch (err) {
+    console.error("Failed to load subscribers", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load subscribers",
+    });
+  }
+});
+
+router.get(
+  "/authors/:authorUserId/subscribers",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const subscribers = await getSubscribersByAuthorId(
+        req.params.authorUserId,
+      );
+
+      res.json({ success: true, subscribers });
+    } catch (err) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to load subscribers",
+      });
+    }
+  },
+);
 
 export default router;

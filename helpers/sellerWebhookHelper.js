@@ -3,10 +3,14 @@ import connect from "../db/connect.js";
 import {
   updateSellerStatus,
   markProductDelivered,
+  insertTip,
 } from "../db/seller/dbSeller.js";
 import { deliverDigitalProduct } from "../services/deliveryService.js";
 import { sendOutLookMail } from "../utils/sendOutllokMail.js";
 import { hasDeliveryBySessionId, insertDelivery } from "../db/dbDeliveries.js";
+import { getUserById } from "../db/dbUser.js";
+import { sendTipReceivedEmail } from "../emails/sendTipReceivedEmail.js";
+import { saveNotification } from "../db/community/notifications/notifications.js";
 
 // 🧠 Fired when a seller completes verification or updates info
 export async function handleAccountUpdated(account) {
@@ -43,7 +47,7 @@ export async function insertLandingAnalytics({
     VALUES
       (?, ?, ?, ?)
     `,
-    [landing_page_id, event_type, ip_address, user_agent]
+    [landing_page_id, event_type, ip_address, user_agent],
   );
 }
 
@@ -79,6 +83,66 @@ export async function handleCheckoutCompleted(session) {
   }
 
   try {
+    // 💖 TIP CHECKOUT
+    if (session.metadata?.checkoutType === "tip") {
+      const writerUserId = session.metadata?.writerUserId;
+      const postId = session.metadata?.postId;
+      const amount = session.amount_total; // Stripe authoritative amount
+
+      if (!writerUserId || !amount) {
+        console.warn("⚠️ Tip checkout missing metadata", {
+          sessionId: session.id,
+          metadata: session.metadata,
+        });
+        return;
+      }
+
+      // 🔒 Idempotency already protected by hasDeliveryBySessionId
+      await insertTip({
+        stripe_session_id: session.id,
+        writer_user_id: writerUserId,
+        post_id: postId || null,
+        amount_cents: amount,
+        currency: session.currency,
+        tipper_email: session.customer_details?.email || null,
+      });
+
+      const writer = await getUserById(writerUserId);
+      if (!writer) {
+        console.warn("⚠️ Tip writer not found", { writerUserId });
+        return;
+      }
+
+      try {
+        await sendTipReceivedEmail({
+          to: writer.email,
+          amount_cents: amount,
+          postUrl: `${process.env.FRONTEND_URL}/community`,
+        });
+      } catch (err) {
+        console.error("⚠️ Tip email failed", err);
+      }
+
+      // Notification (non-blocking)
+      try {
+        await sendTipReceivedNotification({
+          writerUserId,
+          tipperUserId: session.metadata?.tipperUserId || null,
+          postId,
+          amount_cents: amount,
+        });
+      } catch (err) {
+        console.error("⚠️ Tip notification failed", err);
+      }
+
+      console.log("💖 Tip recorded", {
+        sessionId: session.id,
+        writerUserId,
+        amount,
+      });
+
+      return; // ⛔ VERY IMPORTANT: stop here
+    }
     // 🎵 AUDIO PURCHASE — SINGLE OR ALBUM
     if (
       session.metadata?.audio_type === "single" ||
@@ -242,7 +306,7 @@ export async function handleCheckoutCompleted(session) {
         buyerEmail,
         productId,
         sellerAccountId,
-        session.id
+        session.id,
       );
 
       await notifySellerOfSale({
@@ -418,7 +482,7 @@ export async function notifySellerOfSale({
   try {
     const [seller] = await db.query(
       "SELECT email, name FROM users WHERE stripe_connect_account_id = ? LIMIT 1",
-      [sellerStripeAccountId]
+      [sellerStripeAccountId],
     );
 
     const sellerEmail = seller?.[0]?.email;
@@ -427,7 +491,7 @@ export async function notifySellerOfSale({
     if (!sellerEmail) {
       console.warn(
         "⚠️ Seller email not found for stripe account:",
-        sellerStripeAccountId
+        sellerStripeAccountId,
       );
       return;
     }
@@ -482,5 +546,27 @@ export async function notifySellerOfSale({
     console.log(`💰 Seller notified: ${sellerEmail}`);
   } catch (err) {
     console.error("⚠️ Seller notification failed:", err);
+  }
+}
+
+export async function sendTipReceivedNotification({
+  writerUserId,
+  tipperUserId = null,
+  postId = null,
+  amount_cents,
+}) {
+  try {
+    const tipAmountFormatted = `$${(amount_cents / 100).toFixed(2)}`;
+
+    await saveNotification({
+      userId: writerUserId,
+      actorId: tipperUserId,
+      type: "tip_received",
+      postId,
+      message: `sent you a ${tipAmountFormatted} tip`,
+    });
+  } catch (err) {
+    console.error("❌ Failed to send tip notification", err);
+    throw err;
   }
 }

@@ -9,6 +9,8 @@ import {
   incrementPostView,
   getAllCommunityPosts,
   markCommunityPostViewed,
+  likeCommunityPost,
+  unlikeCommunityPost,
 } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import {
@@ -50,8 +52,9 @@ router.post("/posts/:postId/view", authenticateToken, async (req, res) => {
 router.get("/topics/:topicId/posts", authenticateToken, async (req, res) => {
   try {
     const { topicId } = req.params;
+    const userId = req.user.id;
 
-    const topic = await getTopicById(topicId);
+    const topic = await getTopicById(topicId, userId);
     if (!topic) {
       return res
         .status(404)
@@ -68,11 +71,13 @@ router.get("/topics/:topicId/posts", authenticateToken, async (req, res) => {
 
 router.get("/posts/user", authenticateToken, async (req, res) => {
   try {
-    if (!req.user?.id) {
+    const userId = req.user?.id;
+
+    if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const posts = await getAllUserPosts(req.user.id);
+    const posts = await getAllUserPosts(userId, userId);
 
     res.json({ posts });
   } catch (err) {
@@ -130,15 +135,16 @@ router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
 router.get("/posts/:identifier", authenticateToken, async (req, res) => {
   try {
     const { identifier } = req.params;
+    const userId = req.user.id;
 
-    const post = await getPostById(identifier);
+    const post = await getPostById(identifier, userId);
     if (!post) {
       return res
         .status(404)
         .json({ success: false, message: "Post not found" });
     }
 
-    await incrementPostView(post.id, req.user.id);
+    await incrementPostView(post.id, userId);
 
     res.json({ success: true, post });
   } catch (error) {
@@ -187,26 +193,21 @@ router.post("/upload-image", authenticateToken, async (req, res) => {
 
     if (isImage) {
       const supportsTransparency =
-        image.mimetype === "image/png" ||
-        image.mimetype === "image/webp";
+        image.mimetype === "image/png" || image.mimetype === "image/webp";
 
       let optimized;
 
       if (supportsTransparency) {
-        optimized = await optimizeImageUpload(
-          bufferToUpload,
-          image.mimetype,
-          { purpose: "post" },
-        );
+        optimized = await optimizeImageUpload(bufferToUpload, image.mimetype, {
+          purpose: "post",
+        });
 
         bufferToUpload = optimized.optimizedBuffer;
         finalMimeType = optimized.mimetype;
       } else {
-        optimized = await optimizeImageUpload(
-          bufferToUpload,
-          image.mimetype,
-          { purpose: "post" },
-        );
+        optimized = await optimizeImageUpload(bufferToUpload, image.mimetype, {
+          purpose: "post",
+        });
 
         bufferToUpload = optimized.optimizedBuffer;
         finalMimeType = "image/jpeg";
@@ -217,8 +218,8 @@ router.post("/upload-image", authenticateToken, async (req, res) => {
       finalMimeType === "image/png"
         ? "png"
         : finalMimeType === "image/webp"
-        ? "webp"
-        : "jpg";
+          ? "webp"
+          : "jpg";
 
     const fileName = `community_posts/${Date.now()}.${fileExt}`;
 
@@ -242,7 +243,6 @@ router.post("/upload-image", authenticateToken, async (req, res) => {
     });
   }
 });
-
 
 // Editing Posts Route
 router.put("/posts/:postId", authenticateToken, async (req, res) => {
@@ -281,6 +281,38 @@ router.delete("/posts/:id", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("DELETE /community/posts/:id error:", err);
     res.status(500).json({ message: "Failed to delete post" });
+  }
+});
+
+router.post("/:postId/like", authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    await likeCommunityPost({ postId, userId });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to like post",
+    });
+  }
+});
+
+router.delete("/:postId/like", authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    await unlikeCommunityPost({ postId, userId });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to unlike post",
+    });
   }
 });
 
