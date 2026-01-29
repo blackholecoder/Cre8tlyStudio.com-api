@@ -79,8 +79,6 @@ import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js
 import cors from "cors";
 import { detectTenantFromHost } from "./middleware/detectDomain.js";
 import { attachTenant } from "./middleware/attachTenant.js";
-import redis from "./lib/redis.js";
-import { scheduleWeeklyActivityDecay } from "./jobs/scheduleActivityDecay.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -115,10 +113,10 @@ app.use(
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
-      "https://cre8tlystudio.com",
-      "https://www.cre8tlystudio.com",
-      "https://vip.cre8tlystudio.com",
-      "https://admin.cre8tlystudio.com",
+      "https://themessyattic.com",
+      "https://www.themessyattic.com",
+      "https://vip.themessyattic.com",
+      "https://admin.themessyattic.com",
       "http://localhost:5173",
       "http://localhost:3000",
       "http://localhost:3001",
@@ -139,8 +137,8 @@ const corsOptions = {
         return callback(null, true);
       }
 
-      // ✅ Allow all subdomains like https://username.cre8tlystudio.com
-      if (/^[a-z0-9-]+\.cre8tlystudio\.com$/i.test(hostname)) {
+      // ✅ Allow all subdomains like https://username.themessyattic.com
+      if (/^[a-z0-9-]+\.themessyattic\.com$/i.test(hostname)) {
         return callback(null, true);
       }
 
@@ -173,14 +171,14 @@ app.get("/r/:slug", async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.redirect("https://cre8tlystudio.com/");
+      return res.redirect("https://themessyattic.com/");
     }
 
     // Redirect to HOME, include referral
-    return res.redirect(`https://cre8tlystudio.com/?ref=${slug}`);
+    return res.redirect(`https://themessyattic.com/?ref=${slug}`);
   } catch (err) {
     console.error("Shortlink error:", err);
-    return res.redirect("https://cre8tlystudio.com/");
+    return res.redirect("https://themessyattic.com/");
   }
 });
 
@@ -272,7 +270,7 @@ app.get("/share/community/post/:postId", async (req, res) => {
   <meta property="og:title" content="${escapeHtml(post.title)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />
   <meta property="og:image" content="${post.image_url}" />
-  <meta property="og:url" content="https://cre8tlystudio.com/share/community/post/${postId}" />
+  <meta property="og:url" content="https://themessyattic.com/share/community/post/${postId}" />
 
 
   <!-- Twitter -->
@@ -319,7 +317,7 @@ app.get("/p/:identifier", async (req, res) => {
     const description =
       post.subtitle || post.body?.replace(/<[^>]+>/g, "").slice(0, 160) || "";
 
-    const canonicalUrl = `https://cre8tlystudio.com/p/${post.slug}`;
+    const canonicalUrl = `https://themessyattic.com/p/${post.slug}`;
 
     res.send(`
 <!DOCTYPE html>

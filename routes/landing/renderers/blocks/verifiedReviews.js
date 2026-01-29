@@ -195,7 +195,7 @@ export function renderVerifiedReviewsBlock(block, landingPage) {
 
   async function fetchReviews() {
     const res = await fetch(
-  "https://cre8tlystudio.com/api/reviews/" +
+  "https://themessyattic.com/api/reviews/" +
     landingPageId +
     "?page=" + currentPage +
     "&limit=" + limit
@@ -289,7 +289,7 @@ loadMoreBtn.onclick = () => {
       const email = document.getElementById("verify-email").value.trim();
       if (!email) return alert("Enter email");
 
-      const res = await fetch("https://cre8tlystudio.com/api/reviews/verify-purchase", {
+      const res = await fetch("https://themessyattic.com/api/reviews/verify-purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, productId }),
@@ -313,7 +313,7 @@ loadMoreBtn.onclick = () => {
 
       if (!username || !rating || !review_text) return alert("All fields required");
 
-      await fetch("https://cre8tlystudio.com/api/reviews/submit", {
+      await fetch("https://themessyattic.com/api/reviews/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

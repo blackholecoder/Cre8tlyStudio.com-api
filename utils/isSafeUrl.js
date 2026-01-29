@@ -1,7 +1,7 @@
 export function isSafeUrl(url) {
   if (!url) return true;
   try {
-    const parsed = new URL(url, "https://cre8tlystudio.com");
+    const parsed = new URL(url, "https://themessyattic.com");
 
     // Only allow http/https
     if (!["http:", "https:"].includes(parsed.protocol)) return false;

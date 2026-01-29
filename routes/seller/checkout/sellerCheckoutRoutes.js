@@ -193,7 +193,7 @@ router.post("/create-checkout-session", async (req, res) => {
           ? [leadMagnet.cover_image]
           : [
               landingPage.cover_image_url ||
-                "https://cre8tlystudio.com/default-cover.png",
+                "https://themessyattic.com/default-cover.png",
             ];
 
     // external upload

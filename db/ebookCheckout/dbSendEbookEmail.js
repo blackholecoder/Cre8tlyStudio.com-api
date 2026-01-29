@@ -8,7 +8,7 @@ export async function sendEbookEmail({ email, title, productType }) {
     // ✅ Fetch ebook info from database
     const [ebooks] = await db.query(
       "SELECT title, image_url, description FROM ebooks WHERE product_type = ? LIMIT 1",
-      [productType]
+      [productType],
     );
 
     let ebook = ebooks[0];
@@ -18,8 +18,9 @@ export async function sendEbookEmail({ email, title, productType }) {
       console.warn("⚠️ Ebook not found in DB for:", productType);
       ebook = {
         title: title || "Your Ebook",
-        image_url: "https://cre8tlystudio.com/images/default-ebook-cover.jpg",
-        description: "Thank you for your purchase! Click below to download your ebook.",
+        image_url: "https://themessyattic.com/images/default-ebook-cover.jpg",
+        description:
+          "Thank you for your purchase! Click below to download your ebook.",
       };
     }
 
@@ -44,7 +45,7 @@ export async function sendEbookEmail({ email, title, productType }) {
     <!-- Logo -->
 <div style="text-align:center; margin-bottom:30px;">
   <img 
-    src="https://cre8tlystudio.com/robot.png"
+    src="https://themessyattic.com/robot.png"
     alt="Cre8tly Studio Logo"
     style="max-width:140px; opacity:0.95; filter:drop-shadow(0 0 6px rgba(0,224,122,0.3));" 
   />
@@ -68,7 +69,7 @@ export async function sendEbookEmail({ email, title, productType }) {
 
     <!-- CTA Button -->
     <div style="text-align:center; margin-bottom:40px;">
-      <a href="https://cre8tlystudio.com/api/static/downloads/${productType}.pdf"
+      <a href="https://themessyattic.com/api/static/downloads/${productType}.pdf"
          style="background:#00E07A; color:#000; padding:14px 32px; border-radius:8px; font-weight:700; text-decoration:none; font-size:17px; letter-spacing:0.4px; display:inline-block;">
          📥 Download ${ebook.title}
       </a>
@@ -98,7 +99,7 @@ export async function sendEbookEmail({ email, title, productType }) {
         <strong>Cre8tly Studio</strong>, the same software that built this ebook.
       </p>
 
-      <a href="https://cre8tlystudio.com"
+      <a href="https://themessyattic.com"
          style="background:linear-gradient(90deg,#00E07A,#6A5ACD); color:#fff; padding:12px 28px; border-radius:6px; text-decoration:none; font-weight:600; font-size:16px; display:inline-block;">
          🚀 Try Cre8tly Studio today!
       </a>
@@ -108,14 +109,11 @@ export async function sendEbookEmail({ email, title, productType }) {
       © ${new Date().getFullYear()} Cre8tly Studio. All rights reserved.
     </div>
   </div>
-`
-
+`,
     });
 
     console.log(`✅ Ebook email sent successfully to ${email}`);
-    ;
   } catch (err) {
     console.error("❌ Failed to send ebook email:", err.message);
-    ;
   }
 }

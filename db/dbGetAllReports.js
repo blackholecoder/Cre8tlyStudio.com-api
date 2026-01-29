@@ -61,7 +61,7 @@ export async function getAllReports() {
     if (r.landing_custom_domain) {
       landing_url = `https://${r.landing_custom_domain}`;
     } else if (r.landing_username) {
-      landing_url = `https://${r.landing_username}.cre8tlystudio.com`;
+      landing_url = `https://${r.landing_username}.themessyattic.com`;
     }
 
     try {

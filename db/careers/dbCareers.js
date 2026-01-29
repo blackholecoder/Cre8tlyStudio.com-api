@@ -2,7 +2,7 @@ import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
 
-async function sendCareerApplicationReceivedEmail({ name, email}) {
+async function sendCareerApplicationReceivedEmail({ name, email }) {
   const html = `
     <div style="background:#f5f5f5;padding:40px 0;font-family:Arial, sans-serif;">
       <table align="center" width="620" cellpadding="0" cellspacing="0"
@@ -12,7 +12,7 @@ async function sendCareerApplicationReceivedEmail({ name, email}) {
         <!-- Header -->
         <tr>
           <td align="center" style="padding:40px 40px 10px 40px;">
-             <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="65" style="opacity:0.95;" />
+             <img src="https://themessyattic.com/themessyattic-logo.png" width="65" style="opacity:0.95;" />
             <h2 style="font-size:24px;margin:25px 0 10px 0;font-weight:600;color:#111;">
               Application Received
             </h2>
@@ -82,10 +82,9 @@ export async function submitCareerApplication({
   const id = uuidv4();
 
   try {
-
     const [existing] = await db.query(
       `SELECT id FROM careers_applications WHERE email = ? LIMIT 1`,
-      [email]
+      [email],
     );
 
     if (existing.length > 0) {
@@ -102,7 +101,7 @@ export async function submitCareerApplication({
       (id, name, email, position, experience, message)
       VALUES (?, ?, ?, ?, ?, ?)
     `,
-      [id, name, email, position, experience, message]
+      [id, name, email, position, experience, message],
     );
 
     // Send email notification to you
@@ -118,7 +117,7 @@ export async function submitCareerApplication({
     <!-- Header -->
     <tr>
       <td align="center" style="padding:40px 40px 20px 40px;">
-        <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="65" style="opacity:0.95;" />
+        <img src="https://themessyattic.com/themessyattic-logo.png" width="65" style="opacity:0.95;" />
         
         <h2 style="color:#7bed9f;font-size:28px;margin:22px 0 6px 0;font-weight:bold;">
           New Career Application
@@ -206,8 +205,6 @@ export async function submitCareerApplication({
     });
 
     await sendCareerApplicationReceivedEmail({ name, email });
-
-
 
     return { success: true, message: "Application submitted successfully." };
   } catch (err) {

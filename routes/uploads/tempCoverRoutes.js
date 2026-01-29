@@ -31,12 +31,12 @@ router.post("/temp-cover", authenticateToken, async (req, res) => {
     fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
 
     // optional: return local URL if you serve /uploads statically
-    const fileUrl = `${process.env.BASE_URL || "https://cre8tlystudio.com"}/uploads/tmp/${fileName}`;
+    const fileUrl = `${process.env.BASE_URL || "https://themessyattic.com"}/uploads/tmp/${fileName}`;
 
     res.json({
       message: "Cover uploaded successfully",
       filePath, // local path for Puppeteer
-      fileUrl,  // optional URL for preview
+      fileUrl, // optional URL for preview
     });
   } catch (err) {
     console.error("❌ Temp cover upload failed:", err);

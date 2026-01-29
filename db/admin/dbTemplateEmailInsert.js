@@ -26,7 +26,7 @@ const html = `<div style="background:#f9fafb;padding:60px 0;font-family:Arial,sa
                 <tr>
                   <td>
                     <img
-                      src="https://cre8tlystudio.com/cre8tly-logo-black.png"
+                      src="https://themessyattic.com/cre8tly-logo-black.png"
                       width="44"
                       height="44"
                       style="display:block;"
@@ -124,7 +124,7 @@ const html = `<div style="background:#f9fafb;padding:60px 0;font-family:Arial,sa
         <!-- CTA -->
         <div style="text-align:center;margin-bottom:30px;">
           <a
-            href="https://cre8tlystudio.com/login"
+            href="https://themessyattic.com/login"
             style="
               background:#000000;
               color:#ffffff;

@@ -12,7 +12,7 @@ export async function deliverDigitalProduct(
   buyerEmail,
   productId,
   sellerStripeId,
-  sessionId = null
+  sessionId = null,
 ) {
   const db = connect();
 
@@ -20,7 +20,7 @@ export async function deliverDigitalProduct(
     // 1️⃣ Find buyer in users table
     const [user] = await db.query(
       "SELECT id, name FROM users WHERE email = ? LIMIT 1",
-      [buyerEmail]
+      [buyerEmail],
     );
     if (!user?.length) {
       console.warn("⚠️ Buyer not found in users table:", buyerEmail);
@@ -32,7 +32,7 @@ export async function deliverDigitalProduct(
     // 2️⃣ Fetch product info
     const [product] = await db.query(
       "SELECT name, download_url FROM products WHERE id = ? LIMIT 1",
-      [productId]
+      [productId],
     );
     if (!product?.length) {
       console.warn("⚠️ Product not found:", productId);
@@ -56,7 +56,7 @@ export async function deliverDigitalProduct(
         download_url,
         buyerEmail,
         sessionId,
-      ]
+      ],
     );
 
     // 4️⃣ Email buyer via Outlook
@@ -69,7 +69,7 @@ export async function deliverDigitalProduct(
       <!-- Header -->
       <tr>
         <td align="center" style="padding:40px 40px 10px 40px;">
-          <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="95" style="opacity:0.95;" />
+          <img src="https://themessyattic.com/themessyattic-logo.svg" width="95" style="opacity:0.95;" />
           <h2 style="color:#7bed9f;font-size:26px;margin:20px 0 5px 0;">
             Your Download Awaits
           </h2>
@@ -143,7 +143,7 @@ export async function deliverDigitalProduct(
     try {
       const [seller] = await db.query(
         "SELECT email, name FROM users WHERE stripe_connect_account_id = ? LIMIT 1",
-        [sellerStripeId]
+        [sellerStripeId],
       );
 
       console.log("🧾 Seller lookup result:", seller);
@@ -159,7 +159,7 @@ export async function deliverDigitalProduct(
       if (!sellerEmail) {
         console.warn(
           "⚠️ Seller email not found for stripe account:",
-          sellerStripeId
+          sellerStripeId,
         );
       } else {
         const sellerHtml = `
@@ -177,7 +177,7 @@ export async function deliverDigitalProduct(
     <!-- Header -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <img
-        src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+        src="https://themessyattic.com/themessyattic-logo.svg"
         width="40"
         height="40"
         style="display:block;"

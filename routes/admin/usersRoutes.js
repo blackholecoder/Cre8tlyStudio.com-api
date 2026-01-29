@@ -54,7 +54,7 @@ router.delete(
         message: err.message || "Failed to delete user",
       });
     }
-  }
+  },
 );
 
 router.post("/create-referral", authenticateAdminToken, async (req, res) => {
@@ -73,7 +73,7 @@ router.post("/create-referral", authenticateAdminToken, async (req, res) => {
     return res.json({
       success: true,
       slug: result.slug,
-      link: `https://cre8tlystudio.com/r/${result.slug}`,
+      link: `https://themessyattic.com/r/${result.slug}`,
     });
   } catch (err) {
     console.error("❌ create-referral error:", err);

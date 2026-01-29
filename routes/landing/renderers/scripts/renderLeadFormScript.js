@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const landingPageId = leadForm.landingPageId.value;
 
     try {
-      const res = await fetch("https://cre8tlystudio.com/api/landing/landing-leads", {
+      const res = await fetch("https://themessyattic.com/api/landing/landing-leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ landingPageId, email }),

@@ -33,11 +33,11 @@ export async function getPaginatedDeliveries(page = 1, limit = 20) {
     ORDER BY d.delivered_at DESC
     LIMIT ? OFFSET ?
     `,
-    [limit, offset]
+    [limit, offset],
   );
 
   const [[countResult]] = await db.query(
-    `SELECT COUNT(*) AS total FROM deliveries`
+    `SELECT COUNT(*) AS total FROM deliveries`,
   );
 
   // Build final landing page URL
@@ -45,7 +45,7 @@ export async function getPaginatedDeliveries(page = 1, limit = 20) {
     if (d.custom_domain) {
       d.landing_url = `https://${d.custom_domain}`;
     } else if (d.username) {
-      d.landing_url = `https://${d.username}.cre8tlystudio.com`;
+      d.landing_url = `https://${d.username}.themessyattic.com`;
     } else {
       d.landing_url = null;
     }

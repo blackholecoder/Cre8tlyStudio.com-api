@@ -37,7 +37,7 @@ export async function processPromptFlow(
   safeLink,
   coverImage,
   cta,
-  contentType
+  contentType,
 ) {
   const getLinkCTA = (safeLink) => {
     try {
@@ -131,7 +131,7 @@ ${brandTone.slice(0, 4000)}
     }
     formattedAnswer = formattedAnswer.replace(
       /<!--PAGEBREAK-->/g,
-      '<div class="page-break"></div>'
+      '<div class="page-break"></div>',
     );
 
     let tempCoverPath = null;
@@ -153,7 +153,7 @@ ${brandTone.slice(0, 4000)}
           const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
           const extension = coverImage.substring(
             coverImage.indexOf("/") + 1,
-            coverImage.indexOf(";")
+            coverImage.indexOf(";"),
           );
           tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
           fs.writeFileSync(tempCoverPath, Buffer.from(base64Data, "base64"));
@@ -174,12 +174,12 @@ ${brandTone.slice(0, 4000)}
         // ✅ Upload to Spaces if we have a new local file
         if (tempCoverPath && fs.existsSync(tempCoverPath)) {
           const fileName = `covers/${userId}-${magnetId}-${Date.now()}${path.extname(
-            tempCoverPath
+            tempCoverPath,
           )}`;
           const uploadedCover = await uploadFileToSpaces(
             tempCoverPath,
             fileName,
-            `image/${path.extname(tempCoverPath).replace(".", "")}`
+            `image/${path.extname(tempCoverPath).replace(".", "")}`,
           );
           finalCoverUrl = uploadedCover.Location;
 
@@ -203,7 +203,7 @@ ${brandTone.slice(0, 4000)}
         const base64Data = logo.replace(/^data:image\/\w+;base64,/, "");
         const extension = logo.substring(
           logo.indexOf("/") + 1,
-          logo.indexOf(";")
+          logo.indexOf(";"),
         );
         const logoFileName = `logos/${userId}-${magnetId}-${Date.now()}.${extension}`;
         const tempLogoPath = path.join(tmpDir, logoFileName);
@@ -213,7 +213,7 @@ ${brandTone.slice(0, 4000)}
         const uploadedLogo = await uploadFileToSpaces(
           tempLogoPath,
           logoFileName,
-          `image/${extension}`
+          `image/${extension}`,
         );
         finalLogoUrl = uploadedLogo.Location;
 
@@ -248,7 +248,7 @@ ${brandTone.slice(0, 4000)}
     const uploaded = await uploadFileToSpaces(
       localPath,
       fileName,
-      "application/pdf"
+      "application/pdf",
     );
 
     // ✅ Detect dark themes for correct text color
@@ -344,7 +344,7 @@ ${brandTone.slice(0, 4000)}
 
     console.log(
       "EDITOR contains page wrappers:",
-      formattedAnswer.includes('class="page"')
+      formattedAnswer.includes('class="page"'),
     );
 
     await saveLeadMagnetPdf(
@@ -362,14 +362,14 @@ ${brandTone.slice(0, 4000)}
       safeLink,
       finalCoverUrl,
       cta,
-      safePages
+      safePages,
     );
 
     await updateLeadMagnetStatus(magnetId, userId, "completed");
 
     if (!user?.email) {
       console.warn(
-        `⚠️ No email found for user ${userId}, skipping notification`
+        `⚠️ No email found for user ${userId}, skipping notification`,
       );
     } else {
       await sendContentReadyEmail({
@@ -513,7 +513,7 @@ export async function handleCheckoutCompleted(session) {
   }
 
   console.log(
-    `✅ ${slots.length} lead magnet slots created for user ${userId}`
+    `✅ ${slots.length} lead magnet slots created for user ${userId}`,
   );
 }
 
@@ -567,7 +567,7 @@ export async function sendContentReadyEmail({
         <!-- Header -->
         <tr>
           <td align="center" style="padding:40px 40px 10px 40px;">
-            <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="65" style="opacity:0.95;" />
+            <img src="https://themessyattic.com/themessyattic-logo.svg" width="65" style="opacity:0.95;" />
             <h2 style="font-size:24px;margin:25px 0 10px 0;font-weight:600;color:#111;">
               Your ${label} is ready
             </h2>
@@ -600,7 +600,7 @@ export async function sendContentReadyEmail({
         <tr>
           <td align="center" style="padding:20px 50px 35px 50px;">
             <a
-              href="https://cre8tlystudio.com/login"
+              href="https://themessyattic.com/login"
               style="
                 display:inline-block;
                 padding:14px 26px;

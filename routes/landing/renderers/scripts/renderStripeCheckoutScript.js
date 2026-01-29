@@ -7,7 +7,7 @@ export function renderStripeCheckoutScript() {
     sellerId,
     price_in_cents) {
     try {
-      const res = await fetch("https://cre8tlystudio.com/api/seller-checkout/create-checkout-session", {
+      const res = await fetch("https://themessyattic.com/api/seller-checkout/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

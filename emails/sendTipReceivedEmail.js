@@ -27,7 +27,7 @@ export async function sendTipReceivedEmail({
     <!-- HEADER -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
       <img 
-        src="https://cre8tlystudio.com/cre8tly-logo.png"
+        src="https://themessyattic.com/cre8tly-logo.png"
         style="width:48px;height:48px;object-fit:contain;"
       />
       <div style="line-height:1.1;">

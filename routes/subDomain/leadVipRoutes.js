@@ -14,7 +14,9 @@ const __dirname = path.dirname(__filename);
 
 router.post("/vip-leads", leadRateLimiter, async (req, res) => {
   try {
-    const { error, value } = leadSchema.validate(req.body, { abortEarly: false });
+    const { error, value } = leadSchema.validate(req.body, {
+      abortEarly: false,
+    });
     if (error) {
       return res.status(400).json({
         success: false,
@@ -27,7 +29,10 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
     const result = await saveLead(id, email, source);
 
     // ✅ PDF path for the free guide
-    const guidePath = path.join(__dirname, "../../public/downloads/AI_That_Understands_You_See_the_Difference_for_Yourself.pdf");
+    const guidePath = path.join(
+      __dirname,
+      "../../public/downloads/AI_That_Understands_You_See_the_Difference_for_Yourself.pdf",
+    );
 
     // ✅ Send confirmation email to the user
     await sendOutLookMail({
@@ -36,7 +41,7 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
       html: `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 40px 30px; border-radius: 12px; border: 1px solid #f1f1f1; max-width: 600px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 25px;">
-      <img src="https://cre8tlystudio.com/cre8tly-fav-white.svg" alt="Cre8tly Studio" style="width: 120px; height: auto; margin-bottom: 15px;" />
+      <img src="https://themessyattic.com/themessyattic-logo.svg" alt="The Messy Attic" style="width: 120px; height: auto; margin-bottom: 15px;" />
       <h1 style="color: #F285C3; font-size: 26px; margin: 0;">Welcome to Cre8tly VIP!</h1>
     </div>
 
@@ -53,7 +58,7 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
     </p>
 
     <div style="text-align: center; margin-top: 30px;">
-      <a href="https://cre8tlystudio.com"
+      <a href="https://themessyattic.com"
         style="background-color: #F285C3; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">
         Visit Cre8tly Studio
       </a>
@@ -90,7 +95,7 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
       html: `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fdfdfd; padding: 30px; border-radius: 12px; border: 1px solid #f1f1f1; max-width: 600px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 25px;">
-      <img src="https://cre8tlystudio.com/cre8tly-fav-white.svg" alt="Cre8tly Studio" style="width: 120px; height: auto; margin-bottom: 10px;" />
+      <img src="https://themessyattic.com/themessyattic-logo.svg" alt="The Messy Attic" style="width: 120px; height: auto; margin-bottom: 10px;" />
       <h2 style="color: #F285C3; font-size: 22px; margin: 0;">New VIP Lead Notification</h2>
     </div>
 
@@ -118,7 +123,7 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
     </p>
 
     <div style="text-align: center; margin-top: 30px;">
-      <a href="https://admin.cre8tlystudio.com"
+      <a href="https://admin.themessyattic.com"
         style="background-color: #E93CAC; color: #fff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">
         View in Admin Dashboard
       </a>
@@ -132,17 +137,15 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
     </p>
   </div>
 `,
-
     });
 
-    res.status(200).json({ success: true, message: "Lead saved and email sent!" });
+    res
+      .status(200)
+      .json({ success: true, message: "Lead saved and email sent!" });
   } catch (err) {
     console.error("Error saving lead:", err);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
-
-
-
 
 export default router;

@@ -54,7 +54,7 @@ function getAudioDuration(filePath) {
       (err, stdout) => {
         if (err) return reject(err);
         resolve(Math.floor(Number(stdout)));
-      }
+      },
     );
   });
 }
@@ -76,11 +76,11 @@ router.get("/", async (req, res, next) => {
     }
 
     landingPage.referral_slug = await getReferralSlugByUserId(
-      landingPage.user_id
+      landingPage.user_id,
     );
 
     const mainOverlayColor = blendColors(
-      landingPage.bg_theme.includes("#") ? landingPage.bg_theme : "#1e0033" // fallback if using gradient
+      landingPage.bg_theme.includes("#") ? landingPage.bg_theme : "#1e0033", // fallback if using gradient
     );
 
     // --- 2️⃣ Extract core properties
@@ -112,14 +112,14 @@ router.get("/", async (req, res, next) => {
     }
 
     const hasStripeCheckout = flattenedBlocks.some(
-      (b) => b.type === "checkout" || b.type === "stripe_checkout"
+      (b) => b.type === "checkout" || b.type === "stripe_checkout",
     );
 
     // --- 4️⃣ Build HTML from parsed blocks
     try {
       // 🧹 Remove offer_banner from normal rendering so it only appears at the top
       const contentBlocks = flattenedBlocks.filter(
-        (b) => b.type !== "offer_banner" && b.type !== "verified_reviews"
+        (b) => b.type !== "offer_banner" && b.type !== "verified_reviews",
       );
 
       contentHTML = renderLandingBlocks({
@@ -148,7 +148,7 @@ router.get("/", async (req, res, next) => {
           renderOfferBannerBlock(b, {
             mainOverlayColor,
             hasStripeCheckout,
-          })
+          }),
         )
         .join("");
     }
@@ -163,7 +163,7 @@ router.get("/", async (req, res, next) => {
               .map((x) => x + x)
               .join("")
           : h,
-        16
+        16,
       );
       const r = (bigint >> 16) & 255;
       const g = (bigint >> 8) & 255;
@@ -248,7 +248,7 @@ router.post("/landing-leads", async (req, res) => {
     const emailHtml = `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 25px;">
-      <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" alt="Cre8tly Studio" style="width: 85px; height: auto; margin-bottom: 15px;" />
+      <img src="https://themessyattic.com/themessyattic-logo.svg" alt="Cre8tly Studio" style="width: 85px; height: auto; margin-bottom: 15px;" />
       <h1 style="color: #7bed9f; font-size: 26px; margin: 0;">Your Free Guide Awaits</h1>
     </div>
 
@@ -275,7 +275,7 @@ router.post("/landing-leads", async (req, res) => {
     <div style="margin-top: 35px; text-align: center;">
       <p style="font-size: 14px; color: #999; line-height: 1.6; margin: 0;">
         Ready to elevate your next project? Visit
-        <a href="https://cre8tlystudio.com" target="_blank" style="color: #7bed9f; text-decoration: none; font-weight: 600;">
+        <a href="https://themessyattic.com" target="_blank" style="color: #7bed9f; text-decoration: none; font-weight: 600;">
           Cre8tly Studio
         </a>
         for professional tools that help you design, write, and publish like a pro.
@@ -301,7 +301,7 @@ router.post("/landing-leads", async (req, res) => {
     });
 
     console.log(
-      `✅ PDF email sent to ${email} for landing page ${landingPageId}`
+      `✅ PDF email sent to ${email} for landing page ${landingPageId}`,
     );
 
     res
@@ -377,7 +377,7 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
               });
               console.log(
                 "📧 Security alert email sent for unsafe URL:",
-                block.url
+                block.url,
               );
             } catch (mailErr) {
               console.error("❌ Failed to send security email:", mailErr);
@@ -388,7 +388,7 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
           }
 
           return block;
-        })
+        }),
       );
     }
 
@@ -479,7 +479,7 @@ router.post("/upload-logo", async (req, res) => {
     const result = await uploadFileToSpaces(
       fileBuffer,
       fileName,
-      logo.mimetype
+      logo.mimetype,
     );
 
     fs.unlinkSync(logo.tempFilePath);
@@ -558,7 +558,7 @@ router.post("/upload-media-block", async (req, res) => {
       const { optimizedBuffer, hasAlpha } = await optimizeImageUpload(
         bufferToUpload,
         file.mimetype,
-        { purpose: "profile" }
+        { purpose: "profile" },
       );
       bufferToUpload = optimizedBuffer;
     }
@@ -574,7 +574,7 @@ router.post("/upload-media-block", async (req, res) => {
           duration,
           "seconds in",
           Date.now() - durationStart,
-          "ms"
+          "ms",
         );
 
         if (duration > MAX_AUDIO_SECONDS) {
@@ -679,7 +679,7 @@ router.post("/upload-product", async (req, res) => {
       bufferToUpload,
       fileName,
       mimetype,
-      { private: true } // optional if supported
+      { private: true }, // optional if supported
     );
 
     if (file.tempFilePath) {

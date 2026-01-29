@@ -55,7 +55,7 @@ export async function getAllCommunityPosts(userId) {
         END AS author,
 
         CASE
-          WHEN p.is_admin_post = 1 THEN '/cre8tly-logo-white.png'
+          WHEN p.is_admin_post = 1 THEN '/themessyattic-logo.png'
           ELSE u.profile_image_url
         END AS author_image,
 
@@ -116,12 +116,10 @@ export async function createPost(
   const db = connect();
 
   try {
-    await db.beginTransaction();
-
     const id = uuidv4();
 
     const cleanBody = body ? sanitizeHtml(body) : null;
-    const textOnly = cleanBody.replace(/<[^>]*>/g, "").trim();
+    const textOnly = cleanBody?.replace(/<[^>]*>/g, "").trim();
 
     if (!textOnly) {
       throw new Error("Post body is required");
@@ -157,7 +155,7 @@ export async function createPost(
         post_id,
         views,
         comment_count,
-        like_count
+        post_like_count
       ) VALUES (?, 0, 0, 0)
       `,
       [id],
@@ -176,8 +174,6 @@ export async function createPost(
       );
     }
 
-    await db.commit();
-
     return {
       id,
       user_id: userId,
@@ -190,7 +186,6 @@ export async function createPost(
       related_topic_ids: filtered,
     };
   } catch (error) {
-    await db.rollback();
     console.error("Error in createPost:", error);
     throw error;
   }
@@ -230,7 +225,7 @@ export async function getPostsByTopic(topicId, userId) {
         END AS author_role,
 
         CASE
-          WHEN p.is_admin_post = 1 THEN '/cre8tly-logo-white.png'
+          WHEN p.is_admin_post = 1 THEN '/themessyattic-logo.png'
           ELSE u.profile_image_url
         END AS author_image,
 
@@ -312,7 +307,7 @@ export async function getPostById(identifier, userId) {
         END AS author_role,
 
         CASE 
-          WHEN p.is_admin_post = 1 THEN '/cre8tly-logo-white.png'
+          WHEN p.is_admin_post = 1 THEN '/themessyattic-logo.png'
           ELSE u.profile_image_url
         END AS author_image,
 

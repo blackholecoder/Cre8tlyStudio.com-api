@@ -30,7 +30,7 @@ export async function sendNewPostEmail({
         <tr>
           <td style="padding-right:10px;vertical-align:middle;">
             <img
-              src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
               alt="Cre8tly Studio"

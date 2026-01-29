@@ -16,7 +16,7 @@ router.post("/pro-covers", authenticateToken, async (req, res) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Cre8tlyStudio Pro Covers Upgrade",
+              name: "Pro Covers Upgrade",
             },
             unit_amount: 12000, // $120.00 one-time fee
           },

@@ -8,17 +8,19 @@ router.post("/contact", async (req, res) => {
     const { name, email, subject, message } = req.body;
 
     if (!name || !email || !message) {
-      return res.status(400).json({ error: "Please fill out all required fields." });
+      return res
+        .status(400)
+        .json({ error: "Please fill out all required fields." });
     }
 
-      // 💾 Save contact message
+    // 💾 Save contact message
     await saveContactMessage({ name, email, subject, message });
 
     // 💌 Create a Gmail transporter
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.MAIL_FROM_ADDRESS_NEW,  // e.g. support@cre8tlystudio.com
+        user: process.env.MAIL_FROM_ADDRESS_NEW, // e.g. support@themessyattic.com
         pass: process.env.GMAIL_APP_PASSWORD, // your Gmail App Password
       },
     });
@@ -98,13 +100,14 @@ router.post("/contact", async (req, res) => {
     </div>
   </div>
 `,
-
     });
 
     res.json({ success: true, message: "Support request sent successfully!" });
   } catch (error) {
     console.error("❌ Error sending contact form:", error);
-    res.status(500).json({ error: "Failed to send message. Please try again later." });
+    res
+      .status(500)
+      .json({ error: "Failed to send message. Please try again later." });
   }
 });
 

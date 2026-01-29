@@ -704,11 +704,30 @@ router.post("/webauthn/register-options", async (req, res) => {
   try {
     const { email } = req.body;
     const user = await getUserByEmail(email);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const origin = req.headers.origin;
+    if (!origin) {
+      return res.status(400).json({ message: "Missing origin header" });
+    }
+
+    console.log("REGISTER OPTIONS ORIGIN:", origin);
+
+    const hostname = new URL(origin).hostname;
+
+    const rpID =
+      hostname === "themessyattic.com" ||
+      hostname.endsWith(".themessyattic.com")
+        ? "themessyattic.com"
+        : hostname;
+
+    console.log("REGISTER OPTIONS RP ID:", rpID);
 
     const options = await generateRegistrationOptions({
-      rpName: "Cre8tly Studio",
-      rpID: "cre8tlystudio.com",
+      rpName: "The Messy Attic",
+      rpID,
       userID: Buffer.from(String(user.id), "utf8"),
       userName: user.email,
       attestationType: "none",
@@ -756,8 +775,8 @@ router.post("/webauthn/register-verify", async (req, res) => {
       verification = await verifyRegistrationResponse({
         response: attestation,
         expectedChallenge,
-        expectedOrigin: "https://cre8tlystudio.com",
-        expectedRPID: "cre8tlystudio.com",
+        expectedOrigin: "https://themessyattic.com",
+        expectedRPID: "themessyattic.com",
         requireUserVerification: false,
       });
     } catch (err) {
@@ -780,8 +799,8 @@ router.post("/webauthn/register-verify", async (req, res) => {
           verification = await verifyRegistrationResponse({
             response: retryAttestation,
             expectedChallenge,
-            expectedOrigin: "https://cre8tlystudio.com",
-            expectedRPID: "cre8tlystudio.com",
+            expectedOrigin: "https://themessyattic.com",
+            expectedRPID: "themessyattic.com",
             requireUserVerification: false,
           });
         } catch (retryErr) {
@@ -863,7 +882,7 @@ router.post("/webauthn/login-options", async (req, res) => {
         : []; // Empty = resident credential (Safari/iCloud)
 
     const options = await generateAuthenticationOptions({
-      rpID: "cre8tlystudio.com",
+      rpID: "themessyattic.com",
       timeout: 60000,
       allowCredentials,
       userVerification: "preferred",
@@ -971,8 +990,8 @@ router.post("/webauthn/login-verify", async (req, res) => {
       verification = await verifyAuthenticationResponse({
         response: normalizedResponse,
         expectedChallenge,
-        expectedOrigin: "https://cre8tlystudio.com",
-        expectedRPID: "cre8tlystudio.com",
+        expectedOrigin: "https://themessyattic.com",
+        expectedRPID: "themessyattic.com",
         authenticator,
         requireUserVerification: false,
       });

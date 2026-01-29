@@ -11,7 +11,7 @@ export async function getLandingPageByUser(username) {
 
     const [rows] = await db.query(
       "SELECT * FROM user_landing_pages WHERE username = ? LIMIT 1",
-      [username]
+      [username],
     );
 
     const page = rows[0];
@@ -39,7 +39,7 @@ export async function getLandingPageByUserIdHost(userId) {
 
     const [rows] = await db.query(
       "SELECT * FROM user_landing_pages WHERE user_id = ? LIMIT 1",
-      [userId]
+      [userId],
     );
 
     const page = rows[0];
@@ -67,7 +67,7 @@ export async function saveLandingPageLead(landingPageId, email) {
     const id = uuidv4();
     await db.query(
       "INSERT INTO landing_page_leads (id, landing_page_id, email) VALUES (?, ?, ?)",
-      [id, landingPageId, email]
+      [id, landingPageId, email],
     );
     return { success: true, id };
   } catch (err) {
@@ -89,7 +89,7 @@ export async function getLandingPageById(id) {
       WHERE lp.id = ?
       LIMIT 1
       `,
-      [id]
+      [id],
     );
     return rows[0];
   } catch (err) {
@@ -108,7 +108,7 @@ export async function getLandingPageByUserId(userId) {
       JOIN users u ON lp.user_id = u.id
       WHERE lp.user_id = ? LIMIT 1
     `,
-      [userId]
+      [userId],
     );
 
     if (!rows[0]) return null;
@@ -159,7 +159,7 @@ export async function updateLandingPage(userId, id, fields) {
       AND is_primary = 1
     LIMIT 1
     `,
-        [userId]
+        [userId],
       );
 
       if (domainRows.length > 0) {
@@ -178,7 +178,7 @@ export async function updateLandingPage(userId, id, fields) {
     if (username) {
       const [exists] = await db.query(
         "SELECT id FROM user_landing_pages WHERE username = ? AND id != ?",
-        [username, id]
+        [username, id],
       );
       if (exists.length > 0) {
         return {
@@ -199,18 +199,18 @@ export async function updateLandingPage(userId, id, fields) {
         parsedBlocks = JSON.parse(content_blocks);
       } catch {
         console.warn(
-          `⚠️ Invalid JSON for content_blocks, keeping old data for ID ${id}`
+          `⚠️ Invalid JSON for content_blocks, keeping old data for ID ${id}`,
         );
         const [oldRows] = await db.query(
           "SELECT content_blocks FROM user_landing_pages WHERE id = ?",
-          [id]
+          [id],
         );
         contentBlocksJSON = oldRows[0]?.content_blocks || "[]";
       }
     } else {
       const [oldRows] = await db.query(
         "SELECT content_blocks FROM user_landing_pages WHERE id = ?",
-        [id]
+        [id],
       );
       contentBlocksJSON = oldRows[0]?.content_blocks || "[]";
     }
@@ -225,7 +225,7 @@ export async function updateLandingPage(userId, id, fields) {
         if (block.type === "calendly") {
           if (!block.calendly_url || !isValidCalendlyUrl(block.calendly_url)) {
             console.warn(
-              `⚠️ Invalid Calendly URL in landing ${id}: ${block.calendly_url}`
+              `⚠️ Invalid Calendly URL in landing ${id}: ${block.calendly_url}`,
             );
             return {
               success: false,
@@ -258,7 +258,7 @@ export async function updateLandingPage(userId, id, fields) {
       // keep existing value if not provided
       const [oldRows] = await db.query(
         "SELECT motion_settings FROM user_landing_pages WHERE id = ?",
-        [id]
+        [id],
       );
       motionSettingsJSON = oldRows[0]?.motion_settings || null;
     }
@@ -306,13 +306,13 @@ export async function updateLandingPage(userId, id, fields) {
         show_download_button,
         id,
         userId,
-      ]
+      ],
     );
 
     // ✅ Return updated record
     const [updated] = await db.query(
       "SELECT * FROM user_landing_pages WHERE id = ? LIMIT 1",
-      [id]
+      [id],
     );
 
     return { success: true, landingPage: updated[0] || null };
@@ -339,7 +339,7 @@ export async function saveLandingTemplate({
       FROM users
       WHERE id = ?
       `,
-      [userId]
+      [userId],
     );
 
     if (!users.length) {
@@ -377,7 +377,7 @@ export async function saveLandingTemplate({
       (id, user_id, landing_page_id, name, snapshot)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [versionId, userId, landingPageId, versionName, JSON.stringify(snapshot)]
+      [versionId, userId, landingPageId, versionName, JSON.stringify(snapshot)],
     );
 
     return { success: true, versionId };
@@ -399,7 +399,7 @@ async function countUserTemplates(userId, landingPageId) {
       FROM landing_page_templates
       WHERE user_id = ? AND landing_page_id = ?
       `,
-      [userId, landingPageId]
+      [userId, landingPageId],
     );
 
     return rows?.[0]?.total || 0;
@@ -422,7 +422,7 @@ export async function getLandingTemplatesByPage(landingPageId) {
         WHERE landing_page_id = ?
         ORDER BY created_at DESC
       `,
-      [landingPageId]
+      [landingPageId],
     );
 
     return { success: true, templates: rows };
@@ -443,7 +443,7 @@ export async function loadLandingTemplate(versionId) {
         WHERE id = ?
         LIMIT 1
       `,
-      [versionId]
+      [versionId],
     );
 
     if (!rows.length) {
@@ -541,7 +541,7 @@ export async function restoreLandingTemplate(landingPageId, snapshot) {
         logo_url,
         show_download_button,
         landingPageId,
-      ]
+      ],
     );
 
     return { success: true };
@@ -560,7 +560,7 @@ export async function deleteLandingTemplate(versionId, userId) {
         DELETE FROM landing_page_templates
         WHERE id = ? AND user_id = ?
       `,
-      [versionId, userId]
+      [versionId, userId],
     );
 
     if (rows.affectedRows === 0) {
@@ -611,7 +611,7 @@ export async function getOrCreateLandingPage(userId) {
       WHERE lp.user_id = ?
       LIMIT 1
       `,
-      [userId]
+      [userId],
     );
 
     if (rows[0]) {
@@ -643,7 +643,7 @@ export async function getOrCreateLandingPage(userId) {
     AND is_primary = 1
   LIMIT 1
   `,
-        [userId]
+        [userId],
       );
 
       const hasPrimaryDomain = domainRows.length > 0;
@@ -661,7 +661,7 @@ export async function getOrCreateLandingPage(userId) {
     // 2️⃣ Check user and PRO plan status
     const [userRows] = await db.query(
       `SELECT id, name, pro_covers FROM users WHERE id = ? LIMIT 1`,
-      [userId]
+      [userId],
     );
     const user = userRows[0];
     if (!user) return { error: "User not found", status: 404 };
@@ -747,7 +747,7 @@ export async function getOrCreateLandingPage(userId) {
         defaultPage.email_thank_you_msg,
         defaultPage.auto_send_pdf,
         defaultPage.created_at,
-      ]
+      ],
     );
 
     return {
@@ -768,7 +768,7 @@ export async function checkUsernameAvailability(username) {
   try {
     const [rows] = await db.query(
       "SELECT id FROM user_landing_pages WHERE username = ? LIMIT 1",
-      [username]
+      [username],
     );
     return rows.length === 0; // true = available
   } catch (err) {
@@ -796,7 +796,7 @@ export async function getCoverImageByPdfUrl(pdfUrl) {
   try {
     const [rows] = await db.query(
       "SELECT cover_image FROM lead_magnets WHERE pdf_url = ? LIMIT 1",
-      [pdfUrl]
+      [pdfUrl],
     );
     return rows[0]?.cover_image || null;
   } catch (err) {
@@ -838,7 +838,7 @@ export async function getUserLeads(userId, page = 1, limit = 20) {
     ORDER BY lpl.created_at DESC
     LIMIT ? OFFSET ?
     `,
-    [userId, limit, offset]
+    [userId, limit, offset],
   );
 
   // ✅ Get total count for pagination metadata
@@ -850,7 +850,7 @@ export async function getUserLeads(userId, page = 1, limit = 20) {
       ON ulp.id = lpl.landing_page_id
     WHERE ulp.user_id = ?
     `,
-    [userId]
+    [userId],
   );
 
   return {
@@ -877,7 +877,7 @@ export async function updateTemplateVersion(versionId, name, snapshot) {
       SET name = ?, snapshot = ?, updated_at = NOW()
       WHERE id = ?
     `,
-      [name, jsonSnapshot, versionId]
+      [name, jsonSnapshot, versionId],
     );
 
     return { success: result.affectedRows > 0 };
@@ -891,7 +891,7 @@ export async function getReferralSlugByUserId(userId) {
   const db = connect();
   const [rows] = await db.query(
     "SELECT slug FROM referral_slugs WHERE employee_id = ? LIMIT 1",
-    [userId]
+    [userId],
   );
   return rows.length ? rows[0].slug : null;
 }
@@ -958,7 +958,7 @@ export async function resolveTenantByHost({ subdomain, customDomain }) {
        WHERE domain = ? 
          AND verified = 1 
        LIMIT 1`,
-      [customDomain]
+      [customDomain],
     );
 
     return rows[0]?.user_id || null;
@@ -970,7 +970,7 @@ export async function resolveTenantByHost({ subdomain, customDomain }) {
       FROM user_landing_pages
       WHERE username = ?
       LIMIT 1`,
-      [subdomain]
+      [subdomain],
     );
 
     return rows[0]?.user_id || null;

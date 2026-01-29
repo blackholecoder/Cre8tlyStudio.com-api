@@ -15,7 +15,7 @@ async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {
         <!-- Header -->
         <tr>
           <td align="center" style="padding:35px 40px 10px 40px;">
-            <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="95" style="opacity:0.95;" />
+            <img src="https://themessyattic.com/themessyattic-logo.png" width="95" style="opacity:0.95;" />
             <h2 style="color:#7bed9f;font-size:26px;margin:20px 0 5px 0;">
               New Free Trial Sign Up
             </h2>
@@ -98,7 +98,7 @@ async function sendFreeTrialWelcomeEmail({ name, email, expiresAt }) {
         <!-- Header / Hero -->
         <tr>
           <td align="center" style="padding:40px 40px 10px 40px;">
-            <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="95" style="opacity:0.95;" />
+            <img src="https://themessyattic.com/themessyattic-logo.png" width="95" style="opacity:0.95;" />
             <h2 style="color:#7bed9f;font-size:28px;margin:20px 0 5px 0;">Welcome to Cre8tly Studio</h2>
             <p style="font-size:15px;color:#ccc;margin:0;">Your creative engine is now unlocked</p>
           </td>
@@ -186,7 +186,7 @@ async function sendFreeTrialWelcomeEmail({ name, email, expiresAt }) {
         <!-- CTA Button -->
         <tr>
           <td align="center" style="padding-bottom:40px;">
-            <a href="https://cre8tlystudio.com/login"
+            <a href="https://themessyattic.com/login"
             style="
               background:#7bed9f;
               color:#000;
@@ -1222,7 +1222,7 @@ export async function sendCommunitySignupNotification({ name, email }) {
     <!-- Header -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <img
-        src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+        src="https://themessyattic.com/themessyattic-logo.png"
         width="40"
         height="40"
         style="display:block;"
@@ -1285,7 +1285,7 @@ export async function sendCommunityWelcomeEmail({ name, email }) {
     box-shadow:0 20px 40px rgba(0,0,0,0.08);
   ">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-      <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="40" />
+      <img src="https://themessyattic.com/themessyattic-logo.png" width="40" />
       <div style="font-size:18px;font-weight:600;color:#111827;">
         Cre8tly Studio
       </div>
@@ -1306,7 +1306,7 @@ export async function sendCommunityWelcomeEmail({ name, email }) {
 
     <div style="text-align:center;margin:30px 0;">
       <a
-        href="https://cre8tlystudio.com/community"
+        href="https://themessyattic.com/community"
         target="_blank"
         style="
           background:#7bed9f;

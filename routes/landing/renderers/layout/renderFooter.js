@@ -11,7 +11,7 @@ export function renderFooter({ landingPage, footerTextColor }) {
      <p class="powered" style="color:${footerTextColor}">
   Powered by 
   <a 
-    href="https://cre8tlystudio.com" 
+    href="https://themessyattic.com" 
     target="_blank" 
     rel="noopener noreferrer"
     style="color:${footerTextColor};text-decoration:none;font-weight:bold;"

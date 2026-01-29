@@ -21,24 +21,16 @@ export const leadSchema = Joi.object({
       "string.empty": "Email cannot be empty.",
     }),
 
-  source: safeString
-    .max(100)
-    .default("vip.cre8tlystudio.com")
-    .messages({
-      "string.max": "Source cannot exceed 100 characters.",
-    }),
+  source: safeString.max(100).default("vip.themessyattic.com").messages({
+    "string.max": "Source cannot exceed 100 characters.",
+  }),
 });
 
-
 export const careerApplicationSchema = Joi.object({
-  name: safeString
-    .min(2)
-    .max(100)
-    .required()
-    .messages({
-      "any.required": "Name is required.",
-      "string.empty": "Name cannot be empty.",
-    }),
+  name: safeString.min(2).max(100).required().messages({
+    "any.required": "Name is required.",
+    "string.empty": "Name cannot be empty.",
+  }),
 
   email: Joi.string()
     .email({ tlds: { allow: true } })
@@ -55,37 +47,25 @@ export const careerApplicationSchema = Joi.object({
       "string.empty": "Email cannot be empty.",
     }),
 
-  position: safeString
-    .max(50)
-    .required()
-    .messages({
-      "any.required": "Position is required.",
-    }),
-
-  experience: safeString
-    .min(5)
-    .max(2000)
-    .required()
-    .messages({
-      "any.required": "Experience is required.",
-      "string.empty": "Experience cannot be empty.",
-    }),
-
-  message: safeString
-    .min(5)
-    .max(2000)
-    .required()
-    .messages({
-      "any.required": "Message is required.",
-      "string.empty": "Message cannot be empty.",
-    }),
-
-    website: Joi.string()
-  .allow("")          // allow empty string
-  .optional()         // not required at all
-  .max(100)
-  .messages({
-    "string.max": "Website field invalid.",
+  position: safeString.max(50).required().messages({
+    "any.required": "Position is required.",
   }),
-});
 
+  experience: safeString.min(5).max(2000).required().messages({
+    "any.required": "Experience is required.",
+    "string.empty": "Experience cannot be empty.",
+  }),
+
+  message: safeString.min(5).max(2000).required().messages({
+    "any.required": "Message is required.",
+    "string.empty": "Message cannot be empty.",
+  }),
+
+  website: Joi.string()
+    .allow("") // allow empty string
+    .optional() // not required at all
+    .max(100)
+    .messages({
+      "string.max": "Website field invalid.",
+    }),
+});

@@ -65,14 +65,14 @@ export function renderAudioPlayerBlock(block, landingPage) {
       show_cover && cover_url
         ? `<img id="cover_${block.id}" src="${cover_url}" class="audio-cover-img"/>`
         : show_cover
-        ? `<img id="cover_${block.id}" src="" style="
+          ? `<img id="cover_${block.id}" src="" style="
               width:70px;
               height:70px;
               object-fit:cover;
               border-radius:8px;
               background:rgba(15,23,42,0.9);
             "/>`
-        : ""
+          : ""
     }
 
     <div id="np_${block.id}" style="
@@ -355,7 +355,7 @@ ${
       ? `<button onclick="startAudioCheckoutSingle('${landingPage.id}', '${
           landingPage.user_id
         }', '${block.id}', '${track.audio_url}', '${track.title}', ${Math.round(
-          (track.price || block.single_price || 0) * 100
+          (track.price || block.single_price || 0) * 100,
         )}, '${
           track.cover_url || block.cover_url || ""
         }'); event.stopPropagation();" 
@@ -375,7 +375,7 @@ ${
       : ""
   }
 </li>
-`
+`,
       )
       .join("")}
 
@@ -419,8 +419,8 @@ ${
   padding-right:0;">
   <button 
     onclick="startAudioCheckoutAlbum('${landingPage.id}', '${
-        landingPage.user_id
-      }', '${block.id}', ${Math.round((block.album_price || 0) * 100)});"
+      landingPage.user_id
+    }', '${block.id}', ${Math.round((block.album_price || 0) * 100)});"
     style="
     flex: 1;
       width:100% !important;
@@ -438,8 +438,8 @@ margin:0 auto;
     "
   >
     ${block.album_button_text || "Buy Album"}${
-        block.album_price ? ` • ${formatPrice(block.album_price)}` : ""
-      }
+      block.album_price ? ` • ${formatPrice(block.album_price)}` : ""
+    }
 
   </button>
 </div>
@@ -978,7 +978,7 @@ window.startAudioCheckoutSingle = async function(landingId, sellerId, blockId, a
       cover_url: coverUrl,
     };
 
-    const res = await fetch("https://cre8tlystudio.com/api/seller-checkout/create-audio-checkout", {
+    const res = await fetch("https://themessyattic.com/api/seller-checkout/create-audio-checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -1009,7 +1009,7 @@ window.startAudioCheckoutAlbum = async function(landingId, sellerId, blockId, pr
       }" || "",
     };
 
-    const res = await fetch("https://cre8tlystudio.com/api/seller-checkout/create-audio-checkout", {
+    const res = await fetch("https://themessyattic.com/api/seller-checkout/create-audio-checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)

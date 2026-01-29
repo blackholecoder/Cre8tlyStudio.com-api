@@ -33,7 +33,7 @@ router.post("/free-pdf", async (req, res) => {
     
     <!-- Header Logo -->
     <div style="text-align:center;margin-bottom:25px;">
-      <img src="https://cre8tlystudio.com/robot.png"
+      <img src="https://themessyattic.com/robot.png"
            alt="Cre8tly Studio Logo"
            style="max-width:120px;opacity:0.95;filter:drop-shadow(0 0 6px rgba(0,224,122,0.4));" />
     </div>
@@ -44,7 +44,7 @@ router.post("/free-pdf", async (req, res) => {
       Inside, you’ll discover proven steps to attract, capture, and nurture your perfect audience, the same system Cre8tly uses to help businesses scale effortlessly.
     </p>
 
-    <a href="https://cre8tlystudio.com/api/static/downloads/The_Secret_Formula_To_Grow_Your_Email_List.pdf"
+    <a href="https://themessyattic.com/api/static/downloads/The_Secret_Formula_To_Grow_Your_Email_List.pdf"
       style="display:inline-block;background:linear-gradient(90deg,#00E07A,#6a5acd);
       color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;margin-bottom:30px;">
       📥 Download Your Free Guide
@@ -69,7 +69,7 @@ router.post("/free-pdf", async (req, res) => {
     
     <!-- Header Logo -->
     <div style="text-align:center;margin-bottom:25px;">
-      <img src="https://cre8tlystudio.com/robot.png"
+      <img src="https://themessyattic.com/robot.png"
            alt="Cre8tly Studio Logo"
            style="max-width:120px;opacity:0.95;filter:drop-shadow(0 0 6px rgba(0,224,122,0.4));" />
     </div>
@@ -129,7 +129,7 @@ router.get("/proxy", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader(
       "Content-Disposition",
-      `${dispositionType}; filename="${filename}"`
+      `${dispositionType}; filename="${filename}"`,
     );
 
     if (preview !== "1" && magnetId) {

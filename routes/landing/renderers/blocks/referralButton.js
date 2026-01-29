@@ -5,8 +5,8 @@ export function renderReferralButtonBlock(block, landingPage) {
   const alignment = block.alignment || "center";
 
   const referralUrl = landingPage.referral_slug
-    ? `https://cre8tlystudio.com/r/${landingPage.referral_slug}`
-    : "https://cre8tlystudio.com/sign-up";
+    ? `https://themessyattic.com/r/${landingPage.referral_slug}`
+    : "https://themessyattic.com/sign-up";
 
   return `
 <div style="

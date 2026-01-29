@@ -4,7 +4,7 @@ import connect from "../db/connect.js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ✅ Load from environment
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://cre8tlystudio.com";
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://themessyattic.com";
 const BOOKS_PRICE_ID = process.env.STRIPE_PRICE_BOOKS;
 const BUSINESS_BUILDER_MONTHLY =
   process.env.STRIPE_BUSINESS_BUILDER_PACK_MONTHLY;

@@ -576,7 +576,7 @@ export async function sendCommunityInviteEmail({
     <tr>
       <td style="padding-right:10px;vertical-align:middle;">
         <img
-          src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+          src="https://themessyattic.com/themessyattic-logo.png"
           width="36"
           height="36"
           alt="Cre8tly Studio"
@@ -679,7 +679,7 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
         <tr>
           <td style="padding-right:10px;vertical-align:middle;">
             <img
-              src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
               alt="Cre8tly Studio"
@@ -721,7 +721,7 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
     <!-- CTA -->
     <div style="text-align:center;margin:30px 0;">
       <a
-        href="https://cre8tlystudio.com/community"
+        href="https://themessyattic.com/community"
         target="_blank"
         style="
           background:#7bed9f;
@@ -778,7 +778,7 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
         <tr>
           <td style="padding-right:10px;vertical-align:middle;">
             <img
-              src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
               alt="Cre8tly Studio"
@@ -820,7 +820,7 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
     <!-- CTA -->
     <div style="text-align:center;margin:30px 0;">
       <a
-        href="https://cre8tlystudio.com/community"
+        href="https://themessyattic.com/community"
         target="_blank"
         style="
           background:#7bed9f;

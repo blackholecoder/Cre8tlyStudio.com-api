@@ -47,7 +47,6 @@ router.post("/product", authenticateToken, async (req, res) => {
 });
 
 router.post("/create-account-link", authenticateToken, async (req, res) => {
-
   try {
     const user = await getUserById(req.user.id);
     const userId = user.id;
@@ -72,8 +71,8 @@ router.post("/create-account-link", authenticateToken, async (req, res) => {
     // 3️⃣ Create onboarding link
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: "https://cre8tlystudio.com/settings",
-      return_url: "https://cre8tlystudio.com/settings?connected=true",
+      refresh_url: "https://themessyattic.com/settings",
+      return_url: "https://themessyattic.com/settings?connected=true",
       type: "account_onboarding",
     });
 
@@ -84,7 +83,6 @@ router.post("/create-account-link", authenticateToken, async (req, res) => {
   }
 });
 
-
 router.get("/balance/:accountId", async (req, res) => {
   try {
     const { accountId } = req.params;
@@ -92,7 +90,9 @@ router.get("/balance/:accountId", async (req, res) => {
     res.json({ success: true, balance });
   } catch (err) {
     console.error("❌ Error fetching seller balance:", err);
-    res.status(500).json({ success: false, message: "Failed to retrieve balance" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to retrieve balance" });
   }
 });
 
@@ -104,7 +104,9 @@ router.get("/payouts/:accountId", async (req, res) => {
     res.json({ success: true, payouts });
   } catch (err) {
     console.error("❌ Error fetching seller payouts:", err);
-    res.status(500).json({ success: false, message: "Failed to retrieve payouts" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to retrieve payouts" });
   }
 });
 
@@ -112,14 +114,18 @@ router.post("/stripe-dashboard", async (req, res) => {
   try {
     const { accountId } = req.body;
     if (!accountId) {
-      return res.status(400).json({ success: false, message: "Missing account ID" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing account ID" });
     }
 
     const { url } = await createSellerDashboardLink(accountId);
     res.json({ success: true, url });
   } catch (err) {
     console.error("❌ Stripe Dashboard Error:", err);
-    res.status(500).json({ success: false, message: "Failed to create dashboard link" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to create dashboard link" });
   }
 });
 
@@ -127,18 +133,16 @@ router.get("/sales/:userId", authenticateToken, async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    const page = parseInt(req.query.page) || 1;     // default page 1
-    const limit = parseInt(req.query.limit) || 20;  // default 20 per page
+    const page = parseInt(req.query.page) || 1; // default page 1
+    const limit = parseInt(req.query.limit) || 20; // default 20 per page
 
     const result = await getSellerSales(userId, page, limit);
     return res.json(result);
-
   } catch (err) {
     console.error("❌ seller sales API error:", err);
     res.json({ success: false, sales: [], total: 0 });
   }
 });
-
 
 router.post("/generate-thank-you", authenticateToken, async (req, res) => {
   try {
@@ -196,18 +200,10 @@ router.post("/mark-thank-you-sent", authenticateToken, async (req, res) => {
     }
 
     return res.json({ success: true });
-
   } catch (err) {
     console.error("❌ mark-thank-you-sent error:", err);
     return res.json({ success: false, message: "Server error" });
   }
 });
-
-
-
-
-
-
-
 
 export default router;

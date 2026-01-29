@@ -202,7 +202,7 @@ export async function handleCheckoutCompleted(session) {
       <!-- HEADER -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
         <img 
-          src="https://cre8tlystudio.com/cre8tly-logo.png"
+          src="https://themessyattic.com/cre8tly-logo.png"
           style="width:48px;height:48px;object-fit:contain;"
         />
         <div style="line-height:1.1;">
@@ -380,7 +380,7 @@ export async function handleCheckoutCompleted(session) {
       <!-- HEADER -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
         <img
-          src="https://cre8tlystudio.com/cre8tly-logo.png"
+          src="https://themessyattic.com/cre8tly-logo.png"
           style="width:48px;height:48px;object-fit:contain;"
         />
         <div style="font-size:18px;font-weight:600;color:#111827;">
@@ -508,7 +508,7 @@ export async function notifySellerOfSale({
     box-shadow:0 20px 40px rgba(0,0,0,0.08);
   ">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-      <img src="https://cre8tlystudio.com/cre8tly-logo-white.png" width="40" />
+      <img src="https://themessyattic.com/themessyattic-logo.svg" width="40" />
       <div style="font-size:18px;font-weight:600;color:#111827;">
         Cre8tly Studio
       </div>

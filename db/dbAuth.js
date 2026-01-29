@@ -6,26 +6,31 @@ import { sendOutLookMail } from "../utils/sendOutllokMail.js";
 
 export const forgotPassword = async (email) => {
   const db = connect();
-  const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+  const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [
+    email,
+  ]);
   if (!rows.length) {
     return { message: "If that email exists, a reset link has been sent." };
   }
 
   const rawToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
   const expires = new Date(Date.now() + 1000 * 60 * 30);
 
   await db.query(
     "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?",
-    [hashedToken, expires, email]
+    [hashedToken, expires, email],
   );
 
-  const resetLink = `https://cre8tlystudio.com/reset-password?token=${rawToken}`;
+  const resetLink = `https://themessyattic.com/reset-password?token=${rawToken}`;
 
   await sendOutLookMail({
-  to: email,
-  subject: "Reset Your Cre8tly Studio Password",
-  html: `
+    to: email,
+    subject: "Reset Your Cre8tly Studio Password",
+    html: `
   <div style="background:#0b0b0b;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
     <table width="600" align="center" cellpadding="0" cellspacing="0"
       style="
@@ -39,7 +44,7 @@ export const forgotPassword = async (email) => {
       <!-- Header -->
       <tr>
         <td align="center" style="padding:40px 40px 20px 40px;">
-          <img src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+          <img src="https://themessyattic.com/themessyattic-logo.png"
               width="95" style="opacity:0.95;margin-bottom:10px;" />
 
           <h2 style="
@@ -135,13 +140,8 @@ export const forgotPassword = async (email) => {
 
     </table>
   </div>
-`
-
-
-
-,
-});
-
+`,
+  });
 
   return { message: "If that email exists, a reset link has been sent." };
 };
@@ -160,7 +160,7 @@ export async function resetPassword(token, newPassword) {
     // Find user by hashed token
     const [rows] = await db.query(
       "SELECT id FROM users WHERE reset_token = ? AND reset_token_expires > NOW()",
-      [hashedToken]
+      [hashedToken],
     );
 
     if (!rows.length) {
@@ -173,7 +173,7 @@ export async function resetPassword(token, newPassword) {
     // Update password and clear token
     await db.query(
       "UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?",
-      [password_hash, rows[0].id]
+      [password_hash, rows[0].id],
     );
 
     return { status: 200, message: "Password reset successful." };

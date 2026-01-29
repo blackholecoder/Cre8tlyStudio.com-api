@@ -682,7 +682,7 @@ export async function sendNewCommentEmail({
         <tr>
           <td style="padding-right:10px;vertical-align:middle;">
             <img
-              src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
               alt="Cre8tly Studio"
@@ -731,7 +731,7 @@ export async function sendNewCommentEmail({
     <!-- CTA -->
     <div style="text-align:center;margin:30px 0;">
       <a
-        href="https://cre8tlystudio.com/p/${postSlug}"
+        href="https://themessyattic.com/p/${postSlug}"
         target="_blank"
         style="
           background:#7bed9f;
@@ -793,7 +793,7 @@ export async function sendNewReplyEmail({
         <tr>
           <td style="padding-right:10px;vertical-align:middle;">
             <img
-              src="https://cre8tlystudio.com/cre8tly-logo-white.png"
+              src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
               alt="Cre8tly Studio"
@@ -842,7 +842,7 @@ export async function sendNewReplyEmail({
     <!-- CTA -->
     <div style="text-align:center;margin:30px 0;">
       <a
-        href="https://cre8tlystudio.com/p/${postSlug}"
+        href="https://themessyattic.com/p/${postSlug}"
         target="_blank"
         style="
           background:#7bed9f;

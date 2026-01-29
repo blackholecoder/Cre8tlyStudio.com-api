@@ -7,7 +7,7 @@ export function renderLandingAnalyticsScript({ landingPage }) {
 
   async function trackEvent(eventType, meta = {}) {
     try {
-      await fetch("https://cre8tlystudio.com/api/landing-analytics/track", {
+      await fetch("https://themessyattic.com/api/landing-analytics/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

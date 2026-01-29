@@ -47,19 +47,19 @@ export function renderLegalFooter({ footerTextColor }) {
     text-align:right;
     opacity:0.8;
   ">
-    <a href="https://cre8tlystudio.com/terms" target="_blank" rel="noopener noreferrer"
+    <a href="https://themessyattic.com/terms" target="_blank" rel="noopener noreferrer"
        style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
       Terms
     </a> |
-    <a href="https://cre8tlystudio.com/privacy-policy" target="_blank" rel="noopener noreferrer"
+    <a href="https://themessyattic.com/privacy-policy" target="_blank" rel="noopener noreferrer"
        style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
       Privacy
     </a> |
-    <a href="https://cre8tlystudio.com/cookies-policy" target="_blank" rel="noopener noreferrer"
+    <a href="https://themessyattic.com/cookies-policy" target="_blank" rel="noopener noreferrer"
        style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
       Cookies
     </a> |
-    <a href="https://cre8tlystudio.com/refund-policy" target="_blank" rel="noopener noreferrer"
+    <a href="https://themessyattic.com/refund-policy" target="_blank" rel="noopener noreferrer"
        style="color:${footerTextColor};text-decoration:none;margin:0 8px;">
       Refunds
     </a>
