@@ -340,7 +340,7 @@ export async function createUser({ name, username, email, password }) {
   }
 }
 
-export async function createCommunityUser({ name, email, password }) {
+export async function createCommunityUser({ name, username, email, password }) {
   const db = connect();
   const id = uuidv4();
   const hashedPassword = await bcrypt.hash(password, 12);
@@ -525,7 +525,13 @@ export async function getUserByEmail(email) {
          plan,
          basic_annual,
          theme,
-         is_member
+         is_member,
+         stripe_subscription_id,
+        subscription_status,
+        subscription_price_id,
+        subscription_current_period_end,
+        authors_assistant_override
+
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -576,7 +582,13 @@ export async function getUserById(id) {
     u.basic_annual,
     u.theme,
     u.is_member,
-    rs.slug AS referral_slug
+    rs.slug AS referral_slug,
+    u.stripe_subscription_id,
+    u.subscription_status,
+    u.subscription_price_id,
+    u.subscription_current_period_end,
+    u.authors_assistant_override
+
 
   FROM users u
   LEFT JOIN referral_slugs rs
@@ -792,31 +804,81 @@ export async function upgradeUserToProCovers(email) {
   }
 }
 
-export async function upgradeUserToBooks(email) {
+export async function provisionAuthorsAssistantOnce(userId) {
   const db = connect();
+
   try {
-    const [rows] = await db.query(
-      "SELECT id, book_slots FROM users WHERE email = ?",
-      [email],
+    // 1️⃣ Fetch current user + slots
+    const [[user]] = await db.query(
+      `
+      SELECT has_book, book_slots
+      FROM users
+      WHERE id = ?
+      `,
+      [userId],
     );
 
-    if (!rows.length) {
-      console.warn(`⚠️ No user found for email: ${email}`);
+    if (!user) {
+      console.warn(`⚠️ No user found for id: ${userId}`);
       return false;
     }
 
-    const user = rows[0];
-    const newSlots = user.book_slots > 0 ? user.book_slots : 1;
+    const bookSlots = user.book_slots > 0 ? user.book_slots : 1;
 
+    // 2️⃣ Enable book access (idempotent)
     await db.query(
-      "UPDATE users SET has_book = 1, pro_covers = 1, book_slots = ? WHERE email = ?",
-      [newSlots, email],
+      `
+      UPDATE users
+      SET
+        has_book = 1,
+        pro_covers = 1,
+        book_slots = ?
+      WHERE id = ?
+      `,
+      [bookSlots, userId],
     );
 
-    console.log(`📚 Activated Book slot + Pro Covers for ${email}`);
+    // 3️⃣ Check existing books
+    const [existingBooks] = await db.query(
+      `
+      SELECT id, slot_number
+      FROM generated_books
+      WHERE user_id = ?
+        AND deleted_at IS NULL
+      `,
+      [userId],
+    );
+
+    const existingSlots = new Set(existingBooks.map((b) => b.slot_number));
+
+    // 4️⃣ Create missing placeholder books
+    for (let slot = 1; slot <= bookSlots; slot++) {
+      if (existingSlots.has(slot)) continue;
+
+      await db.query(
+        `
+        INSERT INTO generated_books (
+          id,
+          user_id,
+          book_name,
+          prompt,
+          status,
+          pages,
+          part_number,
+          slot_number,
+          created_at
+        )
+        VALUES (
+          ?, ?, 'Untitled Book', '', 'awaiting_prompt', 0, 1, ?, NOW()
+        )
+        `,
+        [uuidv4(), userId, slot],
+      );
+    }
+
     return true;
   } catch (err) {
-    console.error("❌ upgradeUserToBooks failed:", err.message);
+    console.error("❌ provisionAuthorsAssistantOnce failed:", err);
     throw err;
   }
 }

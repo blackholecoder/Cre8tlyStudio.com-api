@@ -5,6 +5,8 @@ import { getLeadMagnetByPdfUrl } from "../../../db/dbLeadMagnet.js";
 import { getDeliveryBySessionId } from "../../../db/dbDeliveries.js";
 import { getUserById } from "../../../db/dbUser.js";
 import { getCommunityPostById } from "../../../db/community/dbPosts.js";
+import { updateUserStripeCustomerId } from "../../../helpers/sellerWebhookHelper.js";
+import { authenticateToken } from "../../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -262,6 +264,73 @@ router.post("/create-checkout-session", async (req, res) => {
     });
   }
 });
+
+router.post(
+  "/create-authors-assistant-subscription",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const user = await getUserById(req.user.id);
+
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      let stripeCustomerId = user.stripe_customer_id;
+
+      // 1️⃣ Ensure Stripe customer exists
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            userId: user.id,
+            product: "authors_assistant",
+          },
+        });
+
+        stripeCustomerId = customer.id;
+
+        await updateUserStripeCustomerId(user.id, stripeCustomerId);
+      }
+
+      // 2️⃣ Create SUBSCRIPTION checkout session
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        customer: stripeCustomerId,
+        line_items: [
+          {
+            price: process.env.STRIPE_PRICE_AUTHORS_SUBSCRIPTION,
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          subscriptionType: "authors_assistant",
+          userId: user.id,
+        },
+        success_url: `${process.env.FRONTEND_URL}/authors-assistant?subscribed=1`,
+        cancel_url: `${process.env.FRONTEND_URL}/pricing`,
+      });
+
+      res.json({ success: true, url: session.url });
+    } catch (err) {
+      console.error("❌ Author’s Assistant checkout error:", err);
+      res.status(500).json({
+        success: false,
+        message: err.message,
+      });
+    }
+  },
+);
 
 router.get("/downloads/:sessionId/file", async (req, res) => {
   try {

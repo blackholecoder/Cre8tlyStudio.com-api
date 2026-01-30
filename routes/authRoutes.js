@@ -253,6 +253,13 @@ router.post("/login", async (req, res) => {
         has_memory: user.has_memory,
         has_completed_book_onboarding: user.has_completed_book_onboarding,
         pro_covers: user.pro_covers,
+        stripe_subscription_id: user.stripe_subscription_id,
+        subscription_status: user.subscription_status,
+        subscription_price_id: user.subscription_price_id,
+        subscription_current_period_end:
+          user.subscription_current_period_end || null,
+        authors_assistant_override: user.authors_assistant_override === 1,
+
         profile_image: user.profile_image_url || null,
         brand_identity_file: user.brand_identity_file || null,
         cta: user.cta || null,
@@ -382,6 +389,15 @@ router.get("/me", authenticateToken, async (req, res) => {
       has_memory: user.has_memory,
       has_completed_book_onboarding: user.has_completed_book_onboarding,
       pro_covers: user.pro_covers,
+
+      // 💳 Subscription state
+      stripe_subscription_id: user.stripe_subscription_id,
+      subscription_status: user.subscription_status,
+      subscription_price_id: user.subscription_price_id,
+      subscription_current_period_end:
+        user.subscription_current_period_end || null,
+      authors_assistant_override: user.authors_assistant_override === 1,
+
       profile_image: user.profile_image_url || null,
       brand_identity_file: user.brand_identity_file || null,
       cta: user.cta || null,
@@ -1078,6 +1094,12 @@ router.post("/webauthn/login-verify", async (req, res) => {
         has_memory: user.has_memory,
         has_completed_book_onboarding: user.has_completed_book_onboarding,
         pro_covers: user.pro_covers,
+        stripe_subscription_id: user.stripe_subscription_id,
+        subscription_status: user.subscription_status,
+        subscription_price_id: user.subscription_price_id,
+        subscription_current_period_end:
+          user.subscription_current_period_end || null,
+        authors_assistant_override: user.authors_assistant_override === 1,
         profile_image: user.profile_image_url || null,
         brand_identity_file: user.brand_identity_file || null,
         cta: user.cta || null,

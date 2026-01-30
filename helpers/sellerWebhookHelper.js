@@ -570,3 +570,113 @@ export async function sendTipReceivedNotification({
     throw err;
   }
 }
+
+// Auhtors Assistant Subscription
+
+export async function updateUserStripeCustomerId(userId, customerId) {
+  const db = connect();
+
+  try {
+    await db.query(
+      `
+      UPDATE users
+      SET stripe_customer_id = ?
+      WHERE id = ?
+      `,
+      [customerId, userId],
+    );
+  } catch (err) {
+    console.error("❌ updateUserStripeCustomerId error:", {
+      userId,
+      customerId,
+      error: err,
+    });
+    throw err;
+  }
+}
+
+export async function handleSubscriptionUpsert(subscription) {
+  const customerId = subscription.customer;
+  const status = subscription.status;
+  const priceId = subscription.items.data[0]?.price?.id || null;
+
+  const periodEnd = subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000)
+    : null;
+
+  const user = await getUserByStripeCustomerId(customerId);
+  if (!user) {
+    console.warn("Subscription for unknown customer:", customerId);
+    return;
+  }
+
+  await updateUserSubscription({
+    userId: user.id,
+    stripeSubscriptionId: subscription.id,
+    status,
+    priceId,
+    periodEnd,
+  });
+
+  console.log("🔁 Subscription synced", {
+    userId: user.id,
+    status,
+    periodEnd,
+  });
+}
+
+export async function updateUserSubscription({
+  userId,
+  stripeSubscriptionId,
+  status,
+  priceId,
+  periodEnd,
+}) {
+  const db = connect();
+
+  try {
+    await db.query(
+      `
+      UPDATE users
+      SET
+        stripe_subscription_id = ?,
+        subscription_status = ?,
+        subscription_price_id = ?,
+        subscription_current_period_end = ?
+      WHERE id = ?
+      `,
+      [stripeSubscriptionId, status, priceId, periodEnd, userId],
+    );
+  } catch (err) {
+    console.error("❌ updateUserSubscription error:", {
+      userId,
+      stripeSubscriptionId,
+      status,
+      priceId,
+      periodEnd,
+      error: err,
+    });
+    throw err;
+  }
+}
+
+export async function getUserByStripeCustomerId(stripeCustomerId) {
+  const db = connect();
+
+  try {
+    const [[user]] = await db.query(
+      `
+      SELECT *
+      FROM users
+      WHERE stripe_customer_id = ?
+      LIMIT 1
+      `,
+      [stripeCustomerId],
+    );
+
+    return user || null;
+  } catch (err) {
+    console.error("❌ getUserByStripeCustomerId error:", err);
+    throw err;
+  }
+}

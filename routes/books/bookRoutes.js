@@ -22,6 +22,8 @@ import {
   getBookPartDraft,
   getBookForEPUB,
   finalizeBook,
+  getNewBookSlot,
+  archiveBook,
 } from "../../db/book/dbBooks.js";
 import {
   enforcePageLimit,
@@ -52,7 +54,7 @@ router.post("/", authenticateToken, async (req, res) => {
       null,
       bookName,
       authorName,
-      bookType
+      bookType,
     );
     res.status(201).json(result);
   } catch (err) {
@@ -137,7 +139,7 @@ router.post("/prompt", authenticateToken, async (req, res) => {
     if (Array.isArray(sections) && sections.length > 0) {
       totalWords = sections.reduce(
         (sum, s) => sum + getWordCount(s.content || ""),
-        0
+        0,
       );
     } else {
       totalWords = getWordCount(prompt);
@@ -254,7 +256,7 @@ router.put("/update-info/:id", authenticateToken, async (req, res) => {
       req.user.id,
       bookName,
       authorName,
-      bookType
+      bookType,
     );
     res.json({ success: true });
   } catch (err) {
@@ -366,7 +368,7 @@ router.post(
       console.error("❌ Error saving part draft:", err);
       res.status(500).json({ message: "Failed to save part draft" });
     }
-  }
+  },
 );
 
 router.get(
@@ -388,7 +390,7 @@ router.get(
       console.error("❌ Error loading part draft:", err);
       res.status(500).json({ message: "Failed to load chapter draft" });
     }
-  }
+  },
 );
 
 // EPUB ROUTES
@@ -451,6 +453,40 @@ router.post("/:bookId/finalize", authenticateToken, async (req, res) => {
       success: false,
       error: err.message,
     });
+  }
+});
+
+router.post("/get-new-book", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await getNewBookSlot(userId);
+
+    if (!result.success) {
+      return res.status(400).json({ message: result.message });
+    }
+
+    res.status(201).json({
+      message: "Free book slot created",
+      bookId: result.bookId,
+    });
+  } catch (err) {
+    console.error("❌ free-book error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/:id/archive", authenticateToken, async (req, res) => {
+  try {
+    const success = await archiveBook(req.params.id, req.user.id);
+
+    if (!success) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
   }
 });
 
