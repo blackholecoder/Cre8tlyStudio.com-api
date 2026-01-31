@@ -6,7 +6,10 @@ import {
   getCommentsByPost,
   getCommentsPaginated,
   getRepliesPaginated,
+  getUserByUsername,
+  getUserPreviewByUsername,
   likeComment,
+  searchUsersForMentions,
   unlikeComment,
   updateComment,
 } from "../../db/community/dbComments.js";
@@ -216,6 +219,63 @@ router.delete("/comments/:id/like", authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("Unlike failed:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+router.get("/users/search", authenticateToken, async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.length < 1) {
+      return res.json({ success: true, users: [] });
+    }
+
+    const users = await searchUsersForMentions(query);
+
+    res.json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.error("❌ GET /community/users/search error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to search users",
+    });
+  }
+});
+
+router.get("/users/by-username/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const user = await getUserByUsername(username);
+
+    if (!user) {
+      return res.status(404).json({ success: false });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error("❌ GET user by username error:", error);
+    res.status(500).json({ success: false });
+  }
+});
+
+router.get("/users/preview/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const user = await getUserPreviewByUsername(username);
+
+    if (!user) {
+      return res.status(404).json({ success: false });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error("❌ user preview error:", error);
     res.status(500).json({ success: false });
   }
 });

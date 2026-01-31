@@ -5,11 +5,18 @@ import { incrementSubscriberActivity } from "./subscriptions/dbSubscribers.js";
 import { ACTIVITY_POINTS } from "../../helpers/activityPoints.js";
 import { getCommentPreview } from "../../utils/getCommentPreview.js";
 import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
+import { extractMentions } from "../../utils/extractMentions.js";
 
 export async function addComment(postId, userId, body) {
   try {
     const db = connect();
     const commentId = uuidv4();
+
+    const cleanBody = body?.trim();
+
+    if (!cleanBody) {
+      throw new Error("Comment body is empty");
+    }
 
     // 1️⃣ Fetch post owner
     const [postRows] = await db.query(
@@ -25,8 +32,15 @@ export async function addComment(postId, userId, body) {
     await db.query(
       `INSERT INTO community_comments (id, post_id, user_id, body, admin_seen)
        VALUES (?, ?, ?, ?, 0)`,
-      [commentId, postId, userId, body.trim()],
+      [commentId, postId, userId, cleanBody],
     );
+
+    await saveCommentMentions({
+      commentId,
+      postId,
+      actorUserId: userId,
+      body: cleanBody,
+    });
 
     if (postOwner !== userId) {
       await incrementSubscriberActivity({
@@ -207,6 +221,184 @@ export async function getCommentById(commentId, userId) {
   }
 }
 
+// needs try catch
+// helpers/getUsersByUsernames.js
+export async function getUsersByUsernames(usernames) {
+  const db = connect();
+
+  try {
+    if (!Array.isArray(usernames) || usernames.length === 0) {
+      return [];
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT id, username
+      FROM users
+      WHERE LOWER(username) IN (?)
+        AND status = 'active'
+      `,
+      [usernames],
+    );
+
+    return rows || [];
+  } catch (error) {
+    console.error("❌ getUsersByUsernames error:", error);
+    throw error;
+  }
+}
+
+// get single username
+export async function getUserByUsername(username) {
+  const db = connect();
+
+  try {
+    const [[user]] = await db.query(
+      `
+      SELECT id
+      FROM users
+      WHERE LOWER(username) = LOWER(?)
+        AND status = 'active'
+      LIMIT 1
+      `,
+      [username],
+    );
+
+    return user || null;
+  } catch (error) {
+    console.error("❌ getUserByUsername error:", error);
+    throw error;
+  }
+}
+
+export async function searchUsersForMentions(query, limit = 8) {
+  const db = connect();
+
+  try {
+    if (!query || typeof query !== "string") {
+      return [];
+    }
+
+    const search = `%${query.toLowerCase()}%`;
+
+    const [rows] = await db.query(
+      `
+      SELECT id, username, profile_image_url
+      FROM users
+      WHERE username IS NOT NULL
+        AND LOWER(username) LIKE ?
+        AND status = 'active'
+      ORDER BY username ASC
+      LIMIT ?
+      `,
+      [search, limit],
+    );
+
+    return rows || [];
+  } catch (error) {
+    console.error("❌ searchUsersForMentions error:", error);
+    throw error;
+  }
+}
+
+export async function getUserPreviewByUsername(username) {
+  const db = connect();
+
+  try {
+    const [[user]] = await db.query(
+      `
+      SELECT
+        u.id,
+        u.name,
+        u.username,
+        u.profile_image_url,
+
+        CASE
+          WHEN ap.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS author_has_profile,
+
+        ap.bio
+      FROM users u
+      LEFT JOIN author_profiles ap ON ap.user_id = u.id
+      WHERE LOWER(u.username) = LOWER(?)
+        AND u.status = 'active'
+      LIMIT 1
+      `,
+      [username],
+    );
+
+    return user || null;
+  } catch (error) {
+    console.error("❌ getUserPreviewByUsername error:", error);
+    throw error;
+  }
+}
+
+export async function saveCommentMentions({
+  commentId,
+  postId,
+  actorUserId,
+  body,
+}) {
+  const db = connect();
+
+  try {
+    if (!body || !commentId || !actorUserId) return;
+
+    const mentions = extractMentions(body);
+    if (!mentions.length) return;
+
+    const mentionedUsers = await getUsersByUsernames(mentions);
+
+    for (const mentioned of mentionedUsers) {
+      // never mention yourself
+      if (mentioned.id === actorUserId) continue;
+
+      await db.query(
+        `
+        INSERT IGNORE INTO community_comment_mentions
+          (id, comment_id, mentioned_user_id)
+        VALUES (?, ?, ?)
+        `,
+        [uuidv4(), commentId, mentioned.id],
+      );
+
+      await saveNotification({
+        userId: mentioned.id,
+        actorId: actorUserId,
+        type: "mention",
+        postId,
+        parentId: null,
+        commentId,
+        message: "mentioned you in a comment.",
+      });
+    }
+  } catch (error) {
+    console.error("❌ saveCommentMentions error:", error);
+    throw error;
+  }
+}
+
+export async function clearCommentMentions(commentId) {
+  const db = connect();
+
+  try {
+    if (!commentId) return;
+
+    await db.query(
+      `
+      DELETE FROM community_comment_mentions
+      WHERE comment_id = ?
+      `,
+      [commentId],
+    );
+  } catch (error) {
+    console.error("❌ clearCommentMentions error:", error);
+    throw error;
+  }
+}
+
 export async function getCommentsPaginated(
   postId,
   userId,
@@ -306,6 +498,13 @@ export async function createReply(userId, postId, parentId, body) {
       `,
       [replyId, userId, postId, parentId, replyToUserIdFinal, body.trim()],
     );
+
+    await saveCommentMentions({
+      commentId: replyId,
+      postId,
+      actorUserId: userId,
+      body,
+    });
 
     // 2.5️⃣ Increment activity score (reply > comment)
     if (postOwner !== userId) {
