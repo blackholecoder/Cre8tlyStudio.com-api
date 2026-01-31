@@ -14,7 +14,7 @@ export async function askBookGPTFiction(
   previousSummary = "",
   userInput = "",
   chapterNumber = 1,
-  targetPages = 10
+  targetPages = 10,
 ) {
   try {
     const targetWordCount = targetPages * 500; // ≈ 500 words per page
@@ -30,15 +30,15 @@ export async function askBookGPTFiction(
 
     if (inputWordCount > MAX_INPUT_WORDS) {
       throw new Error(
-        `This chapter input contains ${inputWordCount} words. The maximum allowed per generation is ${MAX_INPUT_WORDS} words. Please split your chapter into multiple parts or sections.`
+        `This chapter input contains ${inputWordCount} words. The maximum allowed per generation is ${MAX_INPUT_WORDS} words. Please split your chapter into multiple parts or sections.`,
       );
     }
 
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error("OpenAI request timed out after 240s")),
-        240000
-      )
+        240000,
+      ),
     );
 
     const messages = [];
@@ -88,9 +88,15 @@ Target roughly ${targetWordCount.toLocaleString()} words (~${targetPages} pages)
 If the continuation is short, expand naturally until that range; if longer, end at a natural break or reflection.  
 Never close the story unless told to.
 
-🧾 OUTPUT FORMAT
-<h2>Chapter ${chapterNumber}</h2>
-<p>Expanded continuation…</p>
+STRICT RULES:
+• Do NOT add section titles
+• Do NOT add headings
+• Do NOT add labels like "Section 1" or "Chapter"
+• Do NOT reorganize structure
+• Do NOT insert summaries or transitions outside the given text
+
+Preserve paragraph breaks exactly as given.
+Return ONLY <p> tags.
 `,
       },
       {
@@ -99,7 +105,7 @@ Never close the story unless told to.
           safeInput.length > 0
             ? `Here is the author’s latest writing or idea to blend and expand into the continuation:\n\n${safeInput}`
             : `Continue this story naturally and seamlessly from where the last section ended.\n\nOriginal Book Prompt for context:\n${safePrompt}`,
-      }
+      },
     );
 
     const gptPromise = client.chat.completions.create({
@@ -120,7 +126,7 @@ export async function askBookGPT(
   bookPrompt,
   previousSummary = "",
   userInput = "",
-  chapterNumber = 1
+  chapterNumber = 1,
 ) {
   try {
     const safePrompt = typeof bookPrompt === "string" ? bookPrompt : "";
@@ -138,15 +144,15 @@ export async function askBookGPT(
 
     if (totalWords > MAX_WORDS_PER_REQUEST) {
       throw new Error(
-        `This chapter contains ${totalWords} words. The maximum allowed per chapter is ${MAX_WORDS_PER_REQUEST} words. Please split this into multiple chapters or parts.`
+        `This chapter contains ${totalWords} words. The maximum allowed per chapter is ${MAX_WORDS_PER_REQUEST} words. Please split this into multiple chapters or parts.`,
       );
     }
 
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error("OpenAI request timed out after 240s")),
-        240000
-      )
+        240000,
+      ),
     );
 
     const messages = [];
@@ -205,9 +211,15 @@ Bring rhythm, emotion, and vivid pacing while staying faithful to every fact, ev
 Make the author’s story sound like it was written by a professional nonfiction author:
 truth intact, but the *delivery* refined, captivating, and alive.
 
-🧾 OUTPUT FORMAT
-<h2>Chapter ${chapterNumber}</h2>
-<p>Enhanced, professionally written version of the author’s true story — more vivid and emotionally engaging, but entirely factual.</p>
+STRICT RULES:
+• Do NOT add section titles
+• Do NOT add headings
+• Do NOT add labels like "Section 1" or "Chapter"
+• Do NOT reorganize structure
+• Do NOT insert summaries or transitions outside the given text
+
+Preserve paragraph breaks exactly as given.
+Return ONLY <p> tags.
 `,
       },
       {
@@ -227,7 +239,7 @@ ${processedText}`,
         role: "system",
         content:
           "Reminder: Stay 100% grounded in the author's truth. You may shape expression and tone, not facts or events. Do not repeat prior chapters.",
-      }
+      },
     );
 
     const gptPromise = client.chat.completions.create({
@@ -254,7 +266,7 @@ export async function askBookGPTEducational(
   bookPrompt,
   previousSummary = "",
   userInput = "",
-  chapterNumber = 1
+  chapterNumber = 1,
 ) {
   try {
     const safePrompt = typeof bookPrompt === "string" ? bookPrompt : "";
@@ -269,7 +281,7 @@ export async function askBookGPTEducational(
 
     if (inputWordCount > MAX_INPUT_WORDS) {
       throw new Error(
-        `This chapter contains ${inputWordCount} words. The maximum allowed per chapter is ${MAX_INPUT_WORDS} words. Please split the content into multiple sections or parts.`
+        `This chapter contains ${inputWordCount} words. The maximum allowed per chapter is ${MAX_INPUT_WORDS} words. Please split the content into multiple sections or parts.`,
       );
     }
 
@@ -279,8 +291,8 @@ export async function askBookGPTEducational(
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error("OpenAI request timed out after 240s")),
-        240000
-      )
+        240000,
+      ),
     );
 
     const messages = [];
@@ -327,9 +339,15 @@ Maintain professional tone, context, and subject-specific terminology.
 Keep the same length unless minor expansion is required for readability.
 Do NOT summarize, condense, or add explanations.
 
-🧾 OUTPUT FORMAT
-<h2>Chapter ${chapterNumber}</h2>
-<p>Revised and polished educational content…</p>
+STRICT RULES:
+• Do NOT add section titles
+• Do NOT add headings
+• Do NOT add labels like "Section 1" or "Chapter"
+• Do NOT reorganize structure
+• Do NOT insert summaries or transitions outside the given text
+
+Preserve paragraph breaks exactly as given.
+Return ONLY <p> tags.
 `,
       },
       {
@@ -345,7 +363,7 @@ Do not add, remove, or reorganize content:
 
 ${processedText}
         `,
-      }
+      },
     );
 
     const gptPromise = client.chat.completions.create({

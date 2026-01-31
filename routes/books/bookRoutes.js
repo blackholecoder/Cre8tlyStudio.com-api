@@ -16,8 +16,6 @@ import {
   saveBookDraft,
   getBookDraft,
   saveBookPartDraft,
-  getBookPartByNumber,
-  lockBookPartEdit,
   updateEditedChapter,
   getBookPartDraft,
   getBookForEPUB,
@@ -46,9 +44,14 @@ function getWordCount(text = "") {
 }
 
 // ✅ Create empty book slot
-router.post("/", authenticateToken, async (req, res) => {
+router.post("/create-book", authenticateToken, async (req, res) => {
   try {
     const { bookName, authorName, bookType } = req.body;
+
+    if (!bookName || !authorName || !bookType) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
     const result = await createBook(
       req.user.id,
       null,
@@ -155,15 +158,7 @@ Please split this into another chapter.`,
 
     const userId = req.user.id;
 
-    const existingPart = await getBookPartByNumber(bookId, partNumber, userId);
-
     if (isEditing) {
-      if (!existingPart || existingPart.can_edit !== 1) {
-        return res.status(403).json({
-          error: "This chapter has already been edited and is now locked.",
-        });
-      }
-
       // ✏️ --- EDIT MODE: Save edited text ONLY, no GPT ---
       const updatedUrl = await updateEditedChapter({
         bookId,
@@ -221,10 +216,6 @@ Please split this into another chapter.`,
       font_file,
       isEditing,
     });
-
-    if (isEditing) {
-      await lockBookPartEdit(bookId, partNumber, userId);
-    }
 
     res.json(generated);
   } catch (err) {

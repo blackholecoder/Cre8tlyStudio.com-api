@@ -97,7 +97,6 @@ export async function getBookPartsByUser() {
       bp.title,
       bp.pages,
       bp.file_url,
-      bp.can_edit,
       bp.created_at,
       bp.updated_at,
       gb.book_name

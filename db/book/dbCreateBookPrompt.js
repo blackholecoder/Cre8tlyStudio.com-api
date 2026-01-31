@@ -48,7 +48,7 @@ export async function createBookPrompt({
     (!Array.isArray(sections) || !sections.some((s) => s.content?.trim()))
   ) {
     throw new Error(
-      "Either prompt text or section content is required to create a book section"
+      "Either prompt text or section content is required to create a book section",
     );
   }
 
@@ -86,28 +86,28 @@ export async function createBookPrompt({
           section.content,
           previousSummary,
           "",
-          partNumber
+          partNumber,
         );
       } else if (resolvedBookType === "non-fiction") {
         sectionOutput = await askBookGPT(
           section.content,
           previousSummary,
           "",
-          partNumber
+          partNumber,
         );
       } else if (resolvedBookType === "educational") {
         sectionOutput = await askBookGPTEducational(
           section.content,
           previousSummary,
           "",
-          partNumber
+          partNumber,
         );
       } else {
         sectionOutput = await askBookGPT(
           section.content,
           previousSummary,
           "",
-          partNumber
+          partNumber,
         );
       }
 
@@ -139,7 +139,7 @@ export async function createBookPrompt({
         const base64Data = coverImage.replace(/^data:image\/\w+;base64,/, "");
         const extension = coverImage.substring(
           coverImage.indexOf("/") + 1,
-          coverImage.indexOf(";")
+          coverImage.indexOf(";"),
         );
 
         tempCoverPath = path.join(tmpDir, `cover_${Date.now()}.${extension}`);
@@ -167,13 +167,13 @@ export async function createBookPrompt({
     const chapters = generatedSections.length
       ? generatedSections
       : Array.isArray(sections) && sections.some((s) => s.content?.trim())
-      ? sections
-          .filter((s) => s.content?.trim())
-          .map((s, i) => ({
-            title: s.title?.trim() || `Chapter ${partNumber}.${i + 1}`,
-            content: s.content.trim(),
-          }))
-      : [];
+        ? sections
+            .filter((s) => s.content?.trim())
+            .map((s, i) => ({
+              title: s.title?.trim() || `Chapter ${partNumber}.${i + 1}`,
+              content: s.content.trim(),
+            }))
+        : [];
 
     if (!chapters.length) {
       throw new Error("No valid sections were generated for PDF output");
@@ -187,7 +187,7 @@ export async function createBookPrompt({
     if ((!finalTitle || !finalAuthor) && thisBookId) {
       const [rows] = await db.query(
         `SELECT book_name, author_name FROM generated_books WHERE id = ? AND user_id = ? LIMIT 1`,
-        [thisBookId, userId]
+        [thisBookId, userId],
       );
       if (rows.length > 0) {
         finalTitle = finalTitle || rows[0].book_name || "Untitled Book";
@@ -220,7 +220,7 @@ export async function createBookPrompt({
     const uploaded = await uploadFileToSpaces(
       localPdfPath,
       fileName,
-      "application/pdf"
+      "application/pdf",
     );
 
     // ✅ 8. Cleanup temp files
@@ -235,7 +235,6 @@ export async function createBookPrompt({
       bookId: thisBookId,
       partNumber,
       text: finalChapterText,
-      can_edit: isEditing ? 0 : 1,
     });
 
     const continuitySummary = await generateContinuitySummary({
@@ -271,7 +270,7 @@ export async function createBookPrompt({
       `UPDATE generated_books 
        SET font_name = ?, font_file = ?, updated_at = NOW() 
        WHERE id = ? AND user_id = ?`,
-      [font_name, font_file, thisBookId, userId]
+      [font_name, font_file, thisBookId, userId],
     );
 
     try {
@@ -282,7 +281,7 @@ export async function createBookPrompt({
 
         if (!user?.email) {
           console.warn(
-            `⚠️ No email found for user ${userId}, skipping notification`
+            `⚠️ No email found for user ${userId}, skipping notification`,
           );
         } else {
           console.log("📧 Sending content-ready email to:", user.email);
@@ -298,7 +297,7 @@ export async function createBookPrompt({
       // Email failures should NEVER fail generation
       console.error(
         `⚠️ Failed to send content-ready email for user ${userId}`,
-        err
+        err,
       );
     }
 
@@ -333,7 +332,7 @@ export async function enforcePageLimit(userId, bookId, pages) {
   const db = connect();
   const [rows] = await db.query(
     `SELECT pages FROM generated_books WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
-    [bookId, userId]
+    [bookId, userId],
   );
 
   if (!rows.length) return { error: "Book not found.", status: 404 };
@@ -398,14 +397,14 @@ export async function processBookPrompt({
     partNumber,
     title, // ← this is the chapter title
     generated.gptOutput,
-    generated.actualPages
+    generated.actualPages,
   );
 
   await db.query(
     `UPDATE generated_books 
      SET font_name = ?, font_file = ?, updated_at = NOW()
      WHERE id = ? AND user_id = ?`,
-    [font_name, font_file, bookId, userId]
+    [font_name, font_file, bookId, userId],
   );
 
   if (bookName) {
@@ -413,12 +412,12 @@ export async function processBookPrompt({
       `UPDATE generated_books
        SET book_name = ? 
        WHERE id = ? AND user_id = ?`,
-      [bookName, bookId, userId]
+      [bookName, bookId, userId],
     );
   }
 
   console.log(
-    `📊 Updating DB with ${generated.actualPages} pages (requested ${pages}), font: ${font_name}`
+    `📊 Updating DB with ${generated.actualPages} pages (requested ${pages}), font: ${font_name}`,
   );
 
   return generated;
@@ -508,7 +507,7 @@ export async function saveContinuitySummary({
       AND book_id = ?
       AND part_number = ?
     `,
-    [summary, userId, bookId, partNumber]
+    [summary, userId, bookId, partNumber],
   );
 }
 
@@ -525,7 +524,7 @@ export async function getLastContinuitySummary(bookId, userId) {
     ORDER BY part_number DESC
     LIMIT 1
     `,
-    [bookId, userId]
+    [bookId, userId],
   );
 
   return rows.length ? rows[0].continuity_summary : null;

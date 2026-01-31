@@ -44,7 +44,7 @@ export async function createBook(
     ],
   );
 
-  return { id, status };
+  return { id, status, book_name, bookType };
 }
 
 // ✅ Mark book as complete
@@ -108,15 +108,6 @@ export async function getBooksByUser(userId) {
       g.deleted_at,
       -- ✅ NEW: tell us if Part 1 already exists
 
-      (
-        SELECT bp.can_edit 
-        FROM book_parts bp
-        WHERE bp.book_id = g.id 
-          AND bp.user_id = g.user_id
-        ORDER BY bp.part_number DESC
-        LIMIT 1
-      ) AS can_edit,
-
 
       EXISTS (
         SELECT 1 
@@ -125,6 +116,7 @@ export async function getBooksByUser(userId) {
           AND p.user_id = g.user_id 
           AND p.part_number = 1
       ) AS has_part_1
+
     FROM generated_books g
     WHERE g.user_id = ? 
       AND g.deleted_at IS NULL
@@ -193,15 +185,7 @@ export async function getBookById(bookId, userId) {
     const [rows] = await db.query(
       `
       SELECT 
-        g.*,
-        (
-          SELECT bp.can_edit
-          FROM book_parts bp
-          WHERE bp.book_id = g.id
-            AND bp.user_id = g.user_id
-          ORDER BY bp.part_number DESC
-          LIMIT 1
-        ) AS can_edit
+        g.*
       FROM generated_books g
       WHERE g.id = ?
         AND g.user_id = ?
@@ -224,7 +208,6 @@ export async function getBookById(bookId, userId) {
       font_file: book.font_file,
       epub_url: book.epub_url,
       is_complete: Boolean(book.is_complete),
-      can_edit: book.can_edit,
       ...book,
     };
   } catch (err) {
@@ -269,25 +252,6 @@ export async function updateEditedChapter({
     throw new Error("This book has been finalized and can no longer be edited");
   }
 
-  // 🔒 1. Guard: chapter must be editable
-  const [[part]] = await db.query(
-    `
-    SELECT can_edit
-    FROM book_parts
-    WHERE book_id = ? AND user_id = ? AND part_number = ?
-    LIMIT 1
-    `,
-    [bookId, userId, partNumber],
-  );
-
-  if (!part) {
-    throw new Error("Chapter not found");
-  }
-
-  if (part.can_edit === 0) {
-    throw new Error("This chapter is locked and cannot be edited");
-  }
-
   if (bookName) {
     await db.query(
       `UPDATE generated_books
@@ -302,9 +266,9 @@ export async function updateEditedChapter({
     `UPDATE book_parts
    SET 
      gpt_output = ?, 
-     title = ?,                  
-     can_edit = 0, 
+     title = ?,                   
      updated_at = NOW()
+     
    WHERE book_id = ? 
      AND user_id = ? 
      AND part_number = ?`,
@@ -319,11 +283,27 @@ export async function updateEditedChapter({
     },
   ];
 
-  const { localPdfPath, pageCount } = await generateBookPDF({
+  const [[bookMeta]] = await db.query(
+    `
+  SELECT book_name, author_name, link
+  FROM generated_books
+  WHERE id = ? AND user_id = ?
+  LIMIT 1
+  `,
+    [bookId, userId],
+  );
+
+  if (!bookMeta) {
+    throw new Error("Book metadata missing");
+  }
+
+  const { localPdfPath } = await generateBookPDF({
     id: `${bookId}-part${partNumber}`,
-    title: title || `Part ${partNumber}`,
-    author: authorName,
+    title: bookName || "Untitled Book", // ✅ BOOK title
+    author: authorName || "Anonymous",
     chapters,
+    link,
+    partNumber,
     font_name,
     font_file,
   });
@@ -355,55 +335,6 @@ export async function updateEditedChapter({
   }
 
   return uploaded.Location;
-}
-
-export async function getBookPartByNumber(bookId, partNumber, userId) {
-  const db = connect();
-
-  const [rows] = await db.query(
-    `
-      SELECT 
-        id,
-        book_id,
-        user_id,
-        part_number,
-        title,
-        gpt_output,
-        draft_text,
-        can_edit,
-        created_at,
-        updated_at
-      FROM book_parts
-      WHERE book_id = ? AND part_number = ? AND user_id = ?
-      LIMIT 1
-    `,
-    [bookId, partNumber, userId],
-  );
-
-  if (!rows.length) return null;
-
-  const row = rows[0];
-
-  return {
-    ...row,
-
-    // 🟩 Always give the editor the correct text:
-    // priority: user-edited draft > AI output > empty
-    editor_text: row.draft_text || row.gpt_output || "",
-
-    // Make sure can_edit is boolean
-    can_edit: row.can_edit === 1 ? 1 : 0,
-  };
-}
-
-export async function lockBookPartEdit(bookId, partNumber, userId) {
-  const db = connect();
-  await db.query(
-    `UPDATE book_parts 
-     SET can_edit = 0, updated_at = NOW()
-     WHERE book_id = ? AND part_number = ? AND user_id = ?`,
-    [bookId, partNumber, userId],
-  );
 }
 
 // ✅ Update prompt after submission
@@ -499,8 +430,7 @@ export async function getBookParts(bookId, userId) {
         pages,
         created_at,
         gpt_output,
-        sections_json,
-        can_edit
+        sections_json
       FROM book_parts
       WHERE book_id = ? AND user_id = ?
       ORDER BY part_number ASC
@@ -526,13 +456,19 @@ export async function updateBookInfo(
 
   try {
     await db.query(
-      `UPDATE generated_books
-         SET book_name = ?, author_name = ?, book_type = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND user_id = ?`,
+      `
+      UPDATE generated_books
+      SET
+        book_name   = COALESCE(?, book_name),
+        author_name = COALESCE(?, author_name),
+        book_type   = COALESCE(?, book_type),
+        updated_at  = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ?
+      `,
       [
-        bookName?.trim() || "Untitled Book",
+        bookName?.trim() || null,
         authorName?.trim() || null,
-        bookType || "fiction",
+        bookType || null,
         bookId,
         userId,
       ],
@@ -635,13 +571,13 @@ export async function saveBookDraft({
       SET
         draft_text = ?,
         book_name = COALESCE(?, book_name),
-        link = ?,
-        author_name = ?,
-        book_type = ?,
+        link = COALESCE(?, link),
+        author_name = COALESCE(?, author_name),
+        book_type = COALESCE(?, book_type),
         is_draft = 1,
         last_saved_at = NOW(),
-        font_name = ?,
-        font_file = ?
+        font_name = COALESCE(?, font_name),
+        font_file = COALESCE(?, font_file)
       WHERE id = ? AND user_id = ?
       `,
       [
@@ -687,6 +623,15 @@ export async function getBookDraft({ userId, bookId }) {
         g.font_name,
         g.font_file,
 
+        (
+          SELECT bp.title
+          FROM book_parts bp
+          WHERE bp.book_id = g.id
+            AND bp.user_id = g.user_id
+            AND bp.part_number = 1
+          LIMIT 1
+      ) AS title,
+
         -- 🔥 Pull the GPT output for Part 1
         (
           SELECT bp.gpt_output 
@@ -696,16 +641,6 @@ export async function getBookDraft({ userId, bookId }) {
             AND bp.part_number = 1
           LIMIT 1
         ) AS gpt_output,
-
-        -- 🔥 Also return can_edit for Part 1
-        (
-          SELECT bp.can_edit 
-          FROM book_parts bp
-          WHERE bp.book_id = g.id 
-            AND bp.user_id = g.user_id
-            AND bp.part_number = 1
-          LIMIT 1
-        ) AS can_edit,
 
         (
   SELECT bp.sections_json
@@ -807,7 +742,6 @@ export async function getBookPartDraft(bookId, partNumber, userId) {
       bp.draft_text,
       bp.sections_json,
       bp.gpt_output,
-      bp.can_edit,
       
       gb.book_name,
       gb.author_name,
@@ -951,16 +885,6 @@ export async function finalizeBook({ bookId, userId }) {
   if (count.total === 0) {
     throw new Error("Cannot finalize an empty book");
   }
-
-  // 3. Lock ALL chapters
-  await db.query(
-    `
-    UPDATE book_parts
-    SET can_edit = 0
-    WHERE book_id = ? AND user_id = ?
-    `,
-    [bookId, userId],
-  );
 
   // 4. Mark book as complete (irreversible)
   await db.query(
