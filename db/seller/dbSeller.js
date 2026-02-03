@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import connect from "../connect.js";
 import OpenAI from "openai";
+import { checkTipBadges } from "../badges/dbBadges.js";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -205,6 +206,8 @@ export async function insertTip({
         tipper_email,
       ],
     );
+
+    await checkTipBadges(writer_user_id);
   } catch (err) {
     // Duplicate Stripe events will hit here safely
     if (err.code === "ER_DUP_ENTRY") {

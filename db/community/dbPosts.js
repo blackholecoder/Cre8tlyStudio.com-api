@@ -4,6 +4,7 @@ import { slugify } from "../../utils/slugify.js";
 import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
 import { saveNotification } from "./notifications/notifications.js";
+import { checkPostBadges } from "../badges/dbBadges.js";
 
 async function generateUniqueSlug(db, title) {
   const base = slugify(title);
@@ -173,6 +174,8 @@ export async function createPost(
         [values],
       );
     }
+
+    await checkPostBadges(userId);
 
     return {
       id,

@@ -6,6 +6,7 @@ import { ACTIVITY_POINTS } from "../../helpers/activityPoints.js";
 import { getCommentPreview } from "../../utils/getCommentPreview.js";
 import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
 import { extractMentions } from "../../utils/extractMentions.js";
+import { checkCommentBadges } from "../badges/dbBadges.js";
 
 export async function addComment(postId, userId, body) {
   try {
@@ -99,6 +100,8 @@ export async function addComment(postId, userId, body) {
         // DO NOT throw
       }
     }
+
+    await checkCommentBadges(userId);
 
     return hydratedComment;
   } catch (error) {

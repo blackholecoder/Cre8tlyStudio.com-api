@@ -74,6 +74,7 @@ import communitySubscriptions from "./routes/community/subscriptions/subscriberR
 import communityAuthors from "./routes/community/authors/authorsRoutes.js";
 import notificationsRoutes from "./routes/community/notifications/notificationsRoutes.js";
 import careersRoutes from "./routes/careers/careeersRoutes.js";
+import badgesRoutes from "./routes/badges/badgeRoutes.js";
 import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js";
 
 import cors from "cors";
@@ -204,6 +205,7 @@ app.use("/api/seller", sellerRoutes);
 app.use("/api/seller-checkout", sellerCheckoutRoutes);
 app.use("/api/reviews", reviewsRoutes);
 app.use("/api/careers", careersRoutes);
+app.use("/api/badges", badgesRoutes);
 
 // community
 app.use("/api/community/topics", communityTopics);
