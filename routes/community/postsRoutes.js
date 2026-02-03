@@ -9,10 +9,10 @@ import {
   incrementPostView,
   getAllCommunityPosts,
   markCommunityPostViewed,
-  likeCommunityPost,
-  unlikeCommunityPost,
   togglePostBookmark,
   getUserBookmarkedPosts,
+  unlikeTarget,
+  likeTarget,
 } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import {
@@ -32,8 +32,21 @@ const router = express.Router();
 
 router.get("/posts", authenticateToken, async (req, res) => {
   try {
-    const posts = await getAllCommunityPosts(req.user.id);
-    res.json({ posts });
+    const userId = req.user.id;
+    const limit = Math.min(Number(req.query.limit) || 20, 50);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+    const posts = await getAllCommunityPosts({
+      userId,
+      limit,
+      offset,
+    });
+
+    res.json({
+      posts,
+      hasMore: posts.length === limit,
+      nextOffset: offset + posts.length,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to load posts" });
@@ -287,35 +300,43 @@ router.delete("/posts/:id", authenticateToken, async (req, res) => {
   }
 });
 
-router.post("/:postId/like", authenticateToken, async (req, res) => {
+router.post("/likes", authenticateToken, async (req, res) => {
   try {
-    const { postId } = req.params;
+    const { targetType, targetId } = req.body;
     const userId = req.user.id;
 
-    await likeCommunityPost({ postId, userId });
+    if (!targetType || !targetId) {
+      return res.status(400).json({ message: "Missing target info" });
+    }
+
+    await likeTarget({ targetType, targetId, userId });
 
     res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to like post",
-    });
+  } catch (err) {
+    console.error("LIKE error:", err);
+    res.status(500).json({ message: "Failed to like" });
   }
 });
 
-router.delete("/:postId/like", authenticateToken, async (req, res) => {
+/**
+ * UNLIKE
+ * body: { targetType, targetId }
+ */
+router.delete("/delete-like", authenticateToken, async (req, res) => {
   try {
-    const { postId } = req.params;
+    const { targetType, targetId } = req.body;
     const userId = req.user.id;
 
-    await unlikeCommunityPost({ postId, userId });
+    if (!targetType || !targetId) {
+      return res.status(400).json({ message: "Missing target info" });
+    }
+
+    await unlikeTarget({ targetType, targetId, userId });
 
     res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to unlike post",
-    });
+  } catch (err) {
+    console.error("UNLIKE error:", err);
+    res.status(500).json({ message: "Failed to unlike" });
   }
 });
 

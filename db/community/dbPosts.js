@@ -3,8 +3,8 @@ import { sanitizeHtml } from "../../utils/sanitizeHtml.js";
 import { slugify } from "../../utils/slugify.js";
 import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
-import { saveNotification } from "./notifications/notifications.js";
 import { checkPostBadges } from "../badges/dbBadges.js";
+import { saveNotification } from "./notifications/notifications.js";
 
 async function generateUniqueSlug(db, title) {
   const base = slugify(title);
@@ -22,7 +22,7 @@ async function generateUniqueSlug(db, title) {
   }
 }
 
-export async function getAllCommunityPosts(userId) {
+export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
   const db = connect();
 
   try {
@@ -85,18 +85,19 @@ export async function getAllCommunityPosts(userId) {
   ON v.post_id = p.id
   AND v.user_id = ?
 
-LEFT JOIN community_post_likes l
-  ON l.post_id = p.id
-  AND l.user_id = ?
+      LEFT JOIN community_post_likes l
+          ON l.target_type = 'post'
+        AND l.target_id = p.id
+        AND l.user_id = ?
 
       WHERE p.deleted_at IS NULL
       ORDER BY
   is_unread DESC,
   (engagement_score / GREATEST(age_hours, 1)) DESC,
   p.created_at DESC
-      LIMIT 50
+      LIMIT ? OFFSET ?
       `,
-      [userId, userId],
+      [userId, userId, limit, offset],
     );
 
     return rows;
@@ -254,8 +255,9 @@ export async function getPostsByTopic(topicId, userId) {
       LEFT JOIN author_profiles ap ON ap.user_id = u.id
 
       LEFT JOIN community_post_likes l
-      ON l.post_id = p.id
-      AND l.user_id = ?
+          ON l.target_type = 'post'
+        AND l.target_id = p.id
+        AND l.user_id = ?
 
           WHERE
       p.deleted_at IS NULL
@@ -339,8 +341,9 @@ export async function getPostById(identifier, userId) {
         LEFT JOIN author_profiles ap
           ON ap.user_id = u.id
         LEFT JOIN community_post_likes l
-          ON l.post_id = p.id
-        AND l.user_id = ?
+            ON l.target_type = 'post'
+          AND l.target_id = p.id
+          AND l.user_id = ?
         LEFT JOIN post_bookmarks ub
         ON ub.post_id = p.id
        AND ub.user_id = ?
@@ -422,9 +425,9 @@ export async function getAllUserPosts(ownerUserId, viewerUserId) {
       LEFT JOIN community_post_stats s
         ON s.post_id = p.id
       LEFT JOIN community_post_likes l
-        ON l.post_id = p.id
+          ON l.target_type = 'post'
+        AND l.target_id = p.id
         AND l.user_id = ?
-
       WHERE p.user_id = ?
         AND p.deleted_at IS NULL
       ORDER BY p.created_at DESC
@@ -655,94 +658,142 @@ export async function queuePostEmails(postId, authorUserId) {
 
 // like and dislike posts
 
-export async function likeCommunityPost({ postId, userId }) {
-  try {
-    const db = connect();
+// new target Likes
+export async function likeTarget({ targetType, targetId, userId }) {
+  const db = connect();
 
-    // 1️⃣ Insert like (ignore duplicates)
-    const [result] = await db.query(
+  if (targetType === "post") {
+    await db.query(
       `
-      INSERT IGNORE INTO community_post_likes (
-        id,
-        post_id,
-        user_id
-      ) VALUES (?, ?, ?)
+      INSERT IGNORE INTO community_post_likes
+        (id, post_id, user_id, target_id, target_type)
+      VALUES (?, ?, ?, ?, 'post')
       `,
-      [uuidv4(), postId, userId],
+      [uuidv4(), targetId, userId, targetId],
     );
 
-    // 2️⃣ Only run if a NEW like was inserted
-    if (result.affectedRows === 1) {
-      // increment post like count
-      await db.query(
-        `
-        UPDATE community_post_stats
-        SET post_like_count = post_like_count + 1
-        WHERE post_id = ?
-        `,
-        [postId],
-      );
+    await db.query(
+      `
+      UPDATE community_post_stats
+      SET post_like_count = post_like_count + 1
+      WHERE post_id = ?
+      `,
+      [targetId],
+    );
 
-      // 🔔 NEW: fetch post owner
-      const [[post]] = await db.query(
-        `
-        SELECT user_id
-        FROM community_posts
-        WHERE id = ?
-        `,
-        [postId],
-      );
-
-      // 🔔 NEW: notify post owner (not self)
-      if (post && post.user_id !== userId) {
-        await saveNotification({
-          userId: post.user_id,
-          actorId: userId,
-          type: "post_like",
-          postId,
-          message: "liked your post",
-        });
-      }
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("likeCommunityPost error:", error);
-    throw error;
+    return;
   }
+
+  if (targetType === "fragment") {
+    // 1. insert like
+    await db.query(
+      `
+    INSERT IGNORE INTO fragment_likes
+      (id, fragment_id, user_id)
+    VALUES (?, ?, ?)
+    `,
+      [uuidv4(), targetId, userId],
+    );
+
+    // 2. increment count
+    await db.query(
+      `
+    UPDATE fragments
+    SET like_count = like_count + 1
+    WHERE id = ?
+    `,
+      [targetId],
+    );
+
+    // 3. fetch fragment owner
+    const [[fragment]] = await db.query(
+      `
+    SELECT user_id
+    FROM fragments
+    WHERE id = ?
+    LIMIT 1
+    `,
+      [targetId],
+    );
+
+    if (!fragment) return;
+
+    const ownerUserId = fragment.user_id;
+
+    // 4. skip self-like
+    if (ownerUserId === userId) return;
+
+    // 5. save notification (reuse existing system)
+    await saveNotification({
+      userId: ownerUserId,
+      actorId: userId,
+      type: "fragment_like",
+      postId: null,
+      parentId: null,
+      commentId: null,
+      referenceId: targetId, // fragment id
+      message: "liked your fragment.",
+    });
+
+    return;
+  }
+
+  throw new Error("Invalid targetType");
 }
 
-export async function unlikeCommunityPost({ postId, userId }) {
-  try {
-    const db = connect();
+export async function unlikeTarget({ targetType, targetId, userId }) {
+  const db = connect();
 
-    // 1️⃣ Remove like edge
-    const [result] = await db.query(
+  if (targetType === "post") {
+    const [res] = await db.query(
       `
       DELETE FROM community_post_likes
-      WHERE post_id = ?
+      WHERE target_type = 'post'
+        AND target_id = ?
         AND user_id = ?
       `,
-      [postId, userId],
+      [targetId, userId],
     );
 
-    // 2️⃣ Only decrement if something was actually removed
-    if (result.affectedRows === 1) {
+    if (res.affectedRows) {
       await db.query(
         `
         UPDATE community_post_stats
         SET post_like_count = GREATEST(post_like_count - 1, 0)
         WHERE post_id = ?
         `,
-        [postId],
+        [targetId],
       );
     }
 
-    return { success: true };
-  } catch (error) {
-    console.error("unlikeCommunityPost error:", error);
-    throw error;
+    return;
   }
+
+  if (targetType === "fragment") {
+    const [res] = await db.query(
+      `
+      DELETE FROM fragment_likes
+      WHERE fragment_id = ?
+        AND user_id = ?
+      `,
+      [targetId, userId],
+    );
+
+    if (res.affectedRows) {
+      await db.query(
+        `
+        UPDATE fragments
+        SET like_count = GREATEST(like_count - 1, 0)
+        WHERE id = ?
+        `,
+        [targetId],
+      );
+    }
+
+    return;
+  }
+
+  throw new Error("Invalid targetType");
 }
 
 // bookmarks

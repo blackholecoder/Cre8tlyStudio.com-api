@@ -1,6 +1,7 @@
 import express from "express";
 import {
   addComment,
+  addCommentToTarget,
   createReply,
   deleteComment,
   getCommentsByPost,
@@ -15,6 +16,7 @@ import {
 } from "../../db/community/dbComments.js";
 import { getPostById } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
+import { getFragmentById } from "../../db/fragments/dbFragments.js";
 
 const router = express.Router();
 
@@ -41,29 +43,50 @@ router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
 });
 
 // CREATE comment
-router.post("/posts/:postId/comments", authenticateToken, async (req, res) => {
+router.post("/comments", authenticateToken, async (req, res) => {
   try {
-    const { postId } = req.params;
-    const { body } = req.body;
+    const { targetType, targetId, body } = req.body;
 
-    if (!body) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Comment cannot be empty" });
+    if (!targetType || !targetId || !body?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
     }
 
-    const post = await getPostById(postId);
-    if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
+    // Optional validation
+    if (targetType === "post") {
+      const post = await getPostById(targetId);
+      if (!post) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Post not found" });
+      }
     }
 
-    const comment = await addComment(postId, req.user.id, body);
+    if (targetType === "fragment") {
+      const fragment = await getFragmentById(targetId);
+      if (!fragment) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Fragment not found" });
+      }
+    }
+
+    const comment = await addCommentToTarget({
+      targetType,
+      targetId,
+      userId: req.user.id,
+      body,
+    });
+
     res.json({ success: true, comment });
   } catch (error) {
-    console.error("POST /community/posts/:id/comments error:", error);
-    res.status(500).json({ success: false, message: "Failed to add comment" });
+    console.error("POST /community/comments error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to add comment",
+    });
   }
 });
 
@@ -93,6 +116,41 @@ router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
   }
 });
 
+router.get("/comments", authenticateToken, async (req, res) => {
+  try {
+    const { targetType, targetId } = req.query;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
+    if (!targetType || !targetId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing targetType or targetId",
+      });
+    }
+
+    const comments = await getCommentsPaginated(
+      targetType,
+      targetId,
+      req.user.id,
+      page,
+      limit,
+    );
+
+    res.json({
+      success: true,
+      comments,
+      nextPage: comments.length < limit ? null : page + 1,
+    });
+  } catch (err) {
+    console.error("GET /community/comments error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load comments",
+    });
+  }
+});
+
 // Replies
 
 router.post(
@@ -101,23 +159,24 @@ router.post(
   async (req, res) => {
     try {
       const { commentId } = req.params;
-      const { body, postId } = req.body;
+      const { body } = req.body;
 
-      if (!body) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Reply cannot be empty" });
+      if (!body?.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Reply cannot be empty",
+        });
       }
 
-      // 🧼 Clean helper call to get parent comment user
-
-      // 🧼 Clean helper call to create reply + notification
-      const reply = await createReply(req.user.id, postId, commentId, body);
+      const reply = await createReply(req.user.id, commentId, body);
 
       res.json({ success: true, reply });
     } catch (error) {
       console.error("POST /community/comments/:commentId/reply error:", error);
-      res.status(500).json({ success: false, message: "Failed to post reply" });
+      res.status(500).json({
+        success: false,
+        message: "Failed to post reply",
+      });
     }
   },
 );

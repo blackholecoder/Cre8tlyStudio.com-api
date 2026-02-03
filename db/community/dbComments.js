@@ -8,85 +8,128 @@ import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
 import { extractMentions } from "../../utils/extractMentions.js";
 import { checkCommentBadges } from "../badges/dbBadges.js";
 
-export async function addComment(postId, userId, body) {
+export async function addCommentToTarget({
+  targetId,
+  targetType, // 'post' | 'fragment'
+  userId,
+  body,
+}) {
   try {
     const db = connect();
     const commentId = uuidv4();
 
     const cleanBody = body?.trim();
-
     if (!cleanBody) {
       throw new Error("Comment body is empty");
     }
 
-    // 1️⃣ Fetch post owner
-    const [postRows] = await db.query(
-      `SELECT user_id FROM community_posts WHERE id = ?`,
-      [postId],
-    );
+    let ownerUserId = null;
 
-    if (!postRows.length) throw new Error("Post not found");
+    // 1️⃣ Fetch owner based on target type
+    if (targetType === "post") {
+      const [[post]] = await db.query(
+        `SELECT user_id FROM community_posts WHERE id = ? LIMIT 1`,
+        [targetId],
+      );
+      if (!post) throw new Error("Post not found");
+      ownerUserId = post.user_id;
+    }
 
-    const postOwner = postRows[0].user_id;
+    if (targetType === "fragment") {
+      const [[fragment]] = await db.query(
+        `SELECT user_id FROM fragments WHERE id = ? LIMIT 1`,
+        [targetId],
+      );
+      if (!fragment) throw new Error("Fragment not found");
+      ownerUserId = fragment.user_id;
+    }
 
-    // 2️⃣ Save comment
+    // 2️⃣ Save comment (polymorphic)
     await db.query(
-      `INSERT INTO community_comments (id, post_id, user_id, body, admin_seen)
-       VALUES (?, ?, ?, ?, 0)`,
-      [commentId, postId, userId, cleanBody],
+      `
+      INSERT INTO community_comments (
+        id,
+        user_id,
+        body,
+        admin_seen,
+        target_id,
+        target_type
+      ) VALUES (?, ?, ?, 0, ?, ?)
+      `,
+      [commentId, userId, cleanBody, targetId, targetType],
     );
 
-    await saveCommentMentions({
-      commentId,
-      postId,
-      actorUserId: userId,
-      body: cleanBody,
-    });
+    // 3️⃣ Mentions (still post-aware for now)
+    if (targetType === "post") {
+      await saveCommentMentions({
+        commentId,
+        postId: targetId,
+        actorUserId: userId,
+        body: cleanBody,
+      });
+    }
 
-    if (postOwner !== userId) {
+    // 4️⃣ Subscriber activity (posts only)
+    if (targetType === "post" && ownerUserId !== userId) {
       await incrementSubscriberActivity({
-        authorUserId: postOwner,
+        authorUserId: ownerUserId,
         subscriberUserId: userId,
         points: ACTIVITY_POINTS.COMMENT,
       });
     }
 
-    // 3️⃣ Increment cached comment count
-    await db.query(
-      `
-      INSERT INTO community_post_stats (post_id, comment_count)
-      VALUES (?, 1)
-      ON DUPLICATE KEY UPDATE
-        comment_count = comment_count + 1
-      `,
-      [postId],
-    );
+    // 5️⃣ Increment cached counters
+    if (targetType === "post") {
+      await db.query(
+        `
+        INSERT INTO community_post_stats (post_id, comment_count)
+        VALUES (?, 1)
+        ON DUPLICATE KEY UPDATE
+          comment_count = comment_count + 1
+        `,
+        [targetId],
+      );
+    }
 
-    // 3️⃣ Save notification (if not the owner)
-    if (postOwner !== userId) {
+    if (targetType === "fragment") {
+      await db.query(
+        `
+        UPDATE fragments
+        SET comment_count = comment_count + 1
+        WHERE id = ?
+        `,
+        [targetId],
+      );
+    }
+
+    // 6️⃣ Notifications
+    if (ownerUserId && ownerUserId !== userId) {
       await saveNotification({
-        userId: postOwner, // person receiving the notification
-        actorId: userId, // person who made the comment
-        type: "comment",
-        postId,
-        parentId: null, // ⭐ top-level comment
-        commentId, // ⭐ the comment itself
-        message: `commented on your post.`,
+        userId: ownerUserId,
+        actorId: userId,
+        type: targetType === "post" ? "comment" : "fragment_comment",
+        postId: targetType === "post" ? targetId : null,
+        parentId: null,
+        commentId,
+        message:
+          targetType === "post"
+            ? "commented on your post."
+            : "commented on your fragment.",
       });
     }
 
-    // ✅ 6️⃣ HYDRATE the comment before returning
-    const hydratedComment = await getCommentById(commentId, userId);
+    // 7️⃣ Hydrate + email (posts only for now)
+    let hydratedComment = await getCommentById(commentId, userId);
 
-    if (postOwner !== userId) {
+    if (targetType === "post" && ownerUserId !== userId) {
       try {
         const [[author]] = await db.query(
           `SELECT email, name FROM users WHERE id = ? LIMIT 1`,
-          [postOwner],
+          [ownerUserId],
         );
 
         if (author?.email) {
-          const preview = getCommentPreview(body);
+          const preview = getCommentPreview(cleanBody);
 
           await sendNewCommentEmail({
             to: author.email,
@@ -97,7 +140,6 @@ export async function addComment(postId, userId, body) {
         }
       } catch (err) {
         console.error("⚠️ Comment email failed:", err);
-        // DO NOT throw
       }
     }
 
@@ -105,9 +147,18 @@ export async function addComment(postId, userId, body) {
 
     return hydratedComment;
   } catch (error) {
-    console.error("❌ Error in addComment:", error);
+    console.error("❌ Error in addCommentToTarget:", error);
     throw error;
   }
+}
+
+export async function addComment(postId, userId, body) {
+  return addCommentToTarget({
+    targetId: postId,
+    targetType: "post",
+    userId,
+    body,
+  });
 }
 
 export async function getCommentsByPost(postId, userId) {
@@ -157,7 +208,8 @@ export async function getCommentsByPost(postId, userId) {
       FROM community_comments c
       JOIN users u ON c.user_id = u.id
       LEFT JOIN author_profiles ap ON ap.user_id = u.id
-      WHERE c.post_id = ?
+      WHERE c.target_type = 'post'
+        AND c.target_id = ?
         AND c.parent_id IS NULL
         AND c.deleted_at IS NULL
       ORDER BY c.created_at ASC
@@ -183,10 +235,16 @@ export async function getCommentById(commentId, userId) {
         c.user_id,
         c.body,
         c.created_at,
+
+        c.target_type,
+        c.target_id,
+
         p.slug AS post_slug,
+
         u.name AS author,
         u.role AS author_role,
         u.profile_image_url AS author_image,
+
         c.reply_to_user_id,
         reply_user.name AS reply_to_author,
 
@@ -207,9 +265,15 @@ export async function getCommentById(commentId, userId) {
 
       FROM community_comments c
       JOIN users u ON c.user_id = u.id
-      JOIN community_posts p ON c.post_id = p.id
+
+      -- only join posts when this comment belongs to a post
+      LEFT JOIN community_posts p
+        ON c.target_type = 'post'
+       AND c.target_id = p.id
+
       LEFT JOIN users reply_user
-      ON reply_user.id = c.reply_to_user_id
+        ON reply_user.id = c.reply_to_user_id
+
       WHERE c.id = ?
         AND c.deleted_at IS NULL
       LIMIT 1
@@ -224,8 +288,6 @@ export async function getCommentById(commentId, userId) {
   }
 }
 
-// needs try catch
-// helpers/getUsersByUsernames.js
 export async function getUsersByUsernames(usernames) {
   const db = connect();
 
@@ -403,77 +465,89 @@ export async function clearCommentMentions(commentId) {
 }
 
 export async function getCommentsPaginated(
-  postId,
+  targetType,
+  targetId,
   userId,
   page = 1,
   limit = 10,
 ) {
-  try {
-    const db = connect();
-    const offset = (page - 1) * limit;
+  const db = connect();
+  const offset = (page - 1) * limit;
 
-    const [comments] = await db.query(
-      `
-      SELECT 
-        c.id,
-        c.body,
-        c.created_at,
-        u.name AS author,
-        u.role AS author_role,
-        u.profile_image_url AS author_image,
+  const [comments] = await db.query(
+    `
+    SELECT 
+      c.id,
+      c.user_id,
+      c.body,
+      c.created_at,
 
-        -- reply count (exclude deleted)
-        (
-          SELECT COUNT(*)
-          FROM community_comments r
-          WHERE r.parent_id = c.id
-            AND r.deleted_at IS NULL
-        ) AS reply_count,
+      u.name AS author,
+      u.role AS author_role,
+      u.profile_image_url AS author_image,
 
-        -- likes
-        (
-          SELECT COUNT(*)
-          FROM community_comment_likes l
-          WHERE l.comment_id = c.id
-        ) AS like_count,
+      (
+        SELECT COUNT(*)
+        FROM community_comments r
+        WHERE r.parent_id = c.id
+          AND r.deleted_at IS NULL
+      ) AS reply_count,
 
-        EXISTS (
-          SELECT 1
-          FROM community_comment_likes l
-          WHERE l.comment_id = c.id
-            AND l.user_id = ?
-        ) AS user_liked
+      (
+        SELECT COUNT(*)
+        FROM community_comment_likes l
+        WHERE l.comment_id = c.id
+      ) AS like_count,
 
-      FROM community_comments c
-      JOIN users u ON c.user_id = u.id
-      WHERE c.post_id = ?
-        AND c.parent_id IS NULL
-        AND c.deleted_at IS NULL
-      ORDER BY c.created_at ASC
-      LIMIT ? OFFSET ?
-      `,
-      [userId, postId, limit, offset],
-    );
+      EXISTS (
+        SELECT 1
+        FROM community_comment_likes l
+        WHERE l.comment_id = c.id
+          AND l.user_id = ?
+      ) AS user_liked
 
-    return comments.map((c) => ({
-      ...c,
-      like_count: Number(c.like_count) || 0,
-      user_liked: Number(c.user_liked) || 0,
-      reply_count: Number(c.reply_count) || 0,
-    }));
-  } catch (error) {
-    console.error("Error in getCommentsPaginated:", error);
-    throw error;
-  }
+    FROM community_comments c
+    JOIN users u ON c.user_id = u.id
+    WHERE c.target_type = ?
+      AND c.target_id = ?
+      AND c.parent_id IS NULL
+      AND c.deleted_at IS NULL
+    ORDER BY c.created_at ASC
+    LIMIT ? OFFSET ?
+    `,
+    [userId, targetType, targetId, limit, offset],
+  );
+
+  return comments.map((c) => ({
+    ...c,
+    like_count: Number(c.like_count) || 0,
+    user_liked: Number(c.user_liked) || 0,
+    reply_count: Number(c.reply_count) || 0,
+  }));
 }
 
-export async function createReply(userId, postId, parentId, body) {
+export async function createReplyToComment({ userId, parentId, body }) {
   try {
     const db = connect();
     const replyId = crypto.randomUUID();
 
+    const cleanBody = body?.trim();
+    if (!cleanBody) {
+      throw new Error("Reply body is empty");
+    }
+
+    // 1️⃣ Fetch parent comment (this gives us EVERYTHING we need)
     const [[parentComment]] = await db.query(
-      `SELECT user_id FROM community_comments WHERE id = ? LIMIT 1`,
+      `
+      SELECT
+        id,
+        user_id,
+        target_id,
+        target_type
+      FROM community_comments
+      WHERE id = ?
+      LIMIT 1
+      `,
       [parentId],
     );
 
@@ -482,91 +556,136 @@ export async function createReply(userId, postId, parentId, body) {
     }
 
     const replyToUserIdFinal = parentComment.user_id;
+    const { target_id, target_type } = parentComment;
 
-    // 1️⃣ Fetch post owner
-    const [postRows] = await db.query(
-      `SELECT user_id FROM community_posts WHERE id = ?`,
-      [postId],
-    );
-
-    if (!postRows.length) throw new Error("Post not found");
-
-    const postOwner = postRows[0].user_id;
-
-    // 2️⃣ Save reply
+    // 2️⃣ Save reply (inherits target)
     await db.query(
       `
-      INSERT INTO community_comments (id, user_id, post_id, parent_id, reply_to_user_id, body)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO community_comments (
+        id,
+        user_id,
+        body,
+        parent_id,
+        reply_to_user_id,
+        target_id,
+        target_type
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
-      [replyId, userId, postId, parentId, replyToUserIdFinal, body.trim()],
+      [
+        replyId,
+        userId,
+        cleanBody,
+        parentId,
+        replyToUserIdFinal,
+        target_id,
+        target_type,
+      ],
     );
 
-    await saveCommentMentions({
-      commentId: replyId,
-      postId,
-      actorUserId: userId,
-      body,
-    });
-
-    // 2.5️⃣ Increment activity score (reply > comment)
-    if (postOwner !== userId) {
-      await incrementSubscriberActivity({
-        authorUserId: postOwner,
-        subscriberUserId: userId,
-        points: ACTIVITY_POINTS.REPLY,
+    // 3️⃣ Mentions (posts only for now)
+    if (target_type === "post") {
+      await saveCommentMentions({
+        commentId: replyId,
+        postId: target_id,
+        actorUserId: userId,
+        body: cleanBody,
       });
     }
 
-    await db.query(
-      `
-      INSERT INTO community_post_stats (post_id, comment_count)
-      VALUES (?, 1)
-      ON DUPLICATE KEY UPDATE
-        comment_count = comment_count + 1
-      `,
-      [postId],
-    );
+    // 4️⃣ Increment counters
+    if (target_type === "post") {
+      await db.query(
+        `
+        INSERT INTO community_post_stats (post_id, comment_count)
+        VALUES (?, 1)
+        ON DUPLICATE KEY UPDATE
+          comment_count = comment_count + 1
+        `,
+        [target_id],
+      );
+    }
 
-    // 🔔 Send notification only if replying to someone else
+    if (target_type === "fragment") {
+      await db.query(
+        `
+        UPDATE fragments
+        SET comment_count = comment_count + 1
+        WHERE id = ?
+        `,
+        [target_id],
+      );
+    }
+
+    // 5️⃣ Subscriber activity (posts only)
+    if (target_type === "post") {
+      const [[post]] = await db.query(
+        `SELECT user_id FROM community_posts WHERE id = ? LIMIT 1`,
+        [target_id],
+      );
+
+      if (post && post.user_id !== userId) {
+        await incrementSubscriberActivity({
+          authorUserId: post.user_id,
+          subscriberUserId: userId,
+          points: ACTIVITY_POINTS.REPLY,
+        });
+      }
+    }
+
+    // 6️⃣ Notification (reply target, not post owner)
     if (replyToUserIdFinal !== userId) {
       await saveNotification({
         userId: replyToUserIdFinal,
         actorId: userId,
-        type: "reply",
-        postId,
+        type: target_type === "post" ? "reply" : "fragment_reply",
+        postId: target_type === "post" ? target_id : null,
         parentId,
         commentId: replyId,
-        message: "replied to your comment",
+        message:
+          target_type === "post"
+            ? "replied to your comment"
+            : "replied to your fragment comment",
       });
     }
 
     const hydratedReply = await getCommentById(replyId, userId);
 
-    // 📧 Email notification for reply
-    if (replyToUserIdFinal !== userId) {
-      const [[parentUser]] = await db.query(
-        `SELECT email FROM users WHERE id = ? LIMIT 1`,
-        [replyToUserIdFinal],
-      );
+    // 7️⃣ Email (posts only, for now)
+    if (target_type === "post" && replyToUserIdFinal !== userId) {
+      try {
+        const [[parentUser]] = await db.query(
+          `SELECT email FROM users WHERE id = ? LIMIT 1`,
+          [replyToUserIdFinal],
+        );
 
-      if (parentUser?.email) {
-        const preview = getCommentPreview(body);
+        if (parentUser?.email) {
+          const preview = getCommentPreview(cleanBody);
 
-        await sendNewReplyEmail({
-          to: parentUser.email,
-          replierName: hydratedReply.author || "Someone",
-          replyPreview: preview,
-          postSlug: hydratedReply.post_slug,
-        });
+          await sendNewReplyEmail({
+            to: parentUser.email,
+            replierName: hydratedReply.author || "Someone",
+            replyPreview: preview,
+            postSlug: hydratedReply.post_slug,
+          });
+        }
+      } catch (err) {
+        console.error("⚠️ Reply email failed:", err);
       }
     }
 
     return hydratedReply;
   } catch (err) {
-    console.error("❌ createReply failed:", err);
+    console.error("❌ createReplyToComment failed:", err);
     throw err;
   }
+}
+
+export async function createReply(userId, parentId, body) {
+  return createReplyToComment({
+    userId,
+    parentId,
+    body,
+  });
 }
 export async function getRepliesPaginated(parentId, userId, limit, offset) {
   const db = connect();
@@ -576,30 +695,34 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     SELECT 
       c.id,
       c.user_id,
-      c.parent_id, 
+      c.parent_id,
       c.body,
       c.created_at,
+
+      c.target_type,
+      c.target_id,
+
       c.reply_to_user_id,
       reply_user.name AS reply_to_author,
+
       u.name AS author,
       u.role AS author_role,
       u.profile_image_url AS author_image,
 
       /* ❤️ Total likes */
-     (
-  SELECT COUNT(*)
-  FROM community_comment_likes l
-  WHERE l.comment_id = c.id
-) AS like_count,
+      (
+        SELECT COUNT(*)
+        FROM community_comment_likes l
+        WHERE l.comment_id = c.id
+      ) AS like_count,
 
       /* ❤️ Whether user liked */
-      
-        EXISTS (
-          SELECT 1
-          FROM community_comment_likes l
-          WHERE l.comment_id = c.id
-            AND l.user_id = ?
-        ) AS user_liked,
+      EXISTS (
+        SELECT 1
+        FROM community_comment_likes l
+        WHERE l.comment_id = c.id
+          AND l.user_id = ?
+      ) AS user_liked,
 
       /* 🔥 Reply count (exclude deleted) */
       (
@@ -612,7 +735,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     FROM community_comments c
     JOIN users u ON c.user_id = u.id
     LEFT JOIN users reply_user
-    ON reply_user.id = c.reply_to_user_id
+      ON reply_user.id = c.reply_to_user_id
     WHERE c.parent_id = ?
       AND c.deleted_at IS NULL
     ORDER BY c.created_at DESC, c.id DESC
@@ -641,6 +764,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
     total: totalRow.total,
   };
 }
+
 export async function updateComment(commentId, userId, body) {
   try {
     const db = connect();
@@ -661,33 +785,37 @@ export async function updateComment(commentId, userId, body) {
     throw error;
   }
 }
+
 export async function deleteComment(commentId, userId, role) {
   try {
     const db = connect();
 
-    // 1️⃣ Fetch comment + post
-    const [rows] = await db.query(
+    // 1️⃣ Load parent comment (source of truth)
+    const [[comment]] = await db.query(
       `
-      SELECT id, user_id, post_id
+      SELECT
+        id,
+        user_id,
+        target_type,
+        target_id
       FROM community_comments
       WHERE id = ? AND deleted_at IS NULL
+      LIMIT 1
       `,
       [commentId],
     );
 
-    if (!rows.length) {
+    if (!comment) {
       return { success: false, message: "Comment not found" };
     }
 
-    const { user_id: ownerId, post_id: postId } = rows[0];
-
     // 2️⃣ Permission check
-    if (ownerId !== userId && role !== "admin") {
+    if (comment.user_id !== userId && role !== "admin") {
       return { success: false, message: "Unauthorized" };
     }
 
-    // 3️⃣ Count parent + replies (only non-deleted)
-    const [countRows] = await db.query(
+    // 3️⃣ Count parent + replies (non-deleted only)
+    const [[countRow]] = await db.query(
       `
       SELECT COUNT(*) AS total
       FROM community_comments
@@ -697,7 +825,7 @@ export async function deleteComment(commentId, userId, role) {
       [commentId, commentId],
     );
 
-    const deleteCount = countRows[0]?.total || 0;
+    const deleteCount = Number(countRow?.total) || 0;
 
     // 4️⃣ Soft delete parent + replies
     await db.query(
@@ -709,24 +837,38 @@ export async function deleteComment(commentId, userId, role) {
       [commentId, commentId],
     );
 
-    // 5️⃣ Decrement cached count
+    // 5️⃣ Decrement cached counters (polymorphic)
     if (deleteCount > 0) {
-      await db.query(
-        `
-        UPDATE community_post_stats
-        SET comment_count = GREATEST(comment_count - ?, 0)
-        WHERE post_id = ?
-        `,
-        [deleteCount, postId],
-      );
+      if (comment.target_type === "post") {
+        await db.query(
+          `
+          UPDATE community_post_stats
+          SET comment_count = GREATEST(comment_count - ?, 0)
+          WHERE post_id = ?
+          `,
+          [deleteCount, comment.target_id],
+        );
+      }
+
+      if (comment.target_type === "fragment") {
+        await db.query(
+          `
+          UPDATE fragments
+          SET comment_count = GREATEST(comment_count - ?, 0)
+          WHERE id = ?
+          `,
+          [deleteCount, comment.target_id],
+        );
+      }
     }
 
     return { success: true, deleted: deleteCount };
   } catch (err) {
-    console.error("Error soft deleting comment:", err);
+    console.error("❌ deleteComment failed:", err);
     throw err;
   }
 }
+
 // LIKES
 export async function likeComment(commentId, userId) {
   const db = connect();
@@ -833,6 +975,7 @@ export async function getLikesForComment(commentId) {
     throw err;
   }
 }
+
 // --- Check if user already liked ---
 export async function userLikedComment(commentId, userId) {
   const db = connect();
