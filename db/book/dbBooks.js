@@ -4,6 +4,7 @@ import { generateBookPDF } from "../../services/generateBookPDF.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import fs from "fs";
 import { normalizeHtmlForEPUB } from "../../helpers/normalizeHtmlForEPUB.js";
+import { checkText, getSpell } from "../../helpers/spellcheck.js";
 
 // ✅ Create a new empty book slot for a user
 export async function createBook(
@@ -224,6 +225,7 @@ export async function updateEditedChapter({
   title,
   bookName,
   authorName,
+  link,
   font_name,
   font_file,
 }) {
@@ -318,9 +320,9 @@ export async function updateEditedChapter({
 
   await db.query(
     `UPDATE book_parts 
-     SET file_url = ?, pages = ? 
-     WHERE book_id = ? AND user_id = ? AND part_number = ?`,
-    [uploaded.Location, pageCount, bookId, userId, partNumber],
+   SET file_url = ?, updated_at = NOW()
+   WHERE book_id = ? AND user_id = ? AND part_number = ?`,
+    [uploaded.Location, bookId, userId, partNumber],
   );
 
   try {
@@ -969,6 +971,31 @@ export async function archiveBook(bookId, userId) {
     return result.affectedRows > 0;
   } catch (err) {
     console.error("❌ archiveBook error:", err);
+    throw err;
+  }
+}
+
+export async function spellcheckTextForUser({ userId, text }) {
+  const db = connect();
+
+  try {
+    // 1. Load ignored words for user
+    const [rows] = await db.query(
+      "SELECT word FROM user_dictionary WHERE user_id = ?",
+      [userId],
+    );
+
+    const ignoredWords = new Set(rows.map((r) => r.word.toLowerCase()));
+
+    // 2. Load Hunspell
+    const spell = await getSpell();
+
+    // 3. Run spellcheck with ignored words
+    const issues = checkText(text, spell, ignoredWords);
+
+    return issues;
+  } catch (err) {
+    console.error("❌ spellcheck helper failed:", err);
     throw err;
   }
 }

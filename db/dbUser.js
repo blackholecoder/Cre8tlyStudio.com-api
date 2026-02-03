@@ -19,7 +19,7 @@ async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {
             <h2 style="color:#7bed9f;font-size:26px;margin:20px 0 5px 0;">
               New Free Trial Sign Up
             </h2>
-            <p style="font-size:14px;color:#ccc;margin:0;">A new user just joined Cre8tly Studio</p>
+            <p style="font-size:14px;color:#ccc;margin:0;">A new user just joined The Messy Attic</p>
           </td>
         </tr>
 
@@ -33,7 +33,7 @@ async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {
         <!-- Content -->
         <tr>
           <td style="padding:0 50px 20px 50px;font-size:15px;line-height:1.7;text-align:center;">
-            You received a new free trial signup inside Cre8tly Studio. Here are the details:
+            You received a new free trial signup inside The Messy Attic. Here are the details:
           </td>
         </tr>
 
@@ -73,7 +73,7 @@ async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {
         <!-- Footer -->
         <tr>
           <td align="center" style="font-size:13px;color:#777;padding:0 0 35px 0;">
-            Notification sent automatically from Cre8tly Studio
+            Notification sent automatically from The Messy Attic
           </td>
         </tr>
 
@@ -83,7 +83,7 @@ async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {
 
   await sendOutLookMail({
     to: "business@aluredigital.com",
-    subject: "New Free Trial Signup on Cre8tly Studio",
+    subject: "New Free Trial Signup on The Messy Attic",
     html,
   });
 }
@@ -99,7 +99,7 @@ async function sendFreeTrialWelcomeEmail({ name, email, expiresAt }) {
         <tr>
           <td align="center" style="padding:40px 40px 10px 40px;">
             <img src="https://themessyattic.com/themessyattic-logo.png" width="95" style="opacity:0.95;" />
-            <h2 style="color:#7bed9f;font-size:28px;margin:20px 0 5px 0;">Welcome to Cre8tly Studio</h2>
+            <h2 style="color:#7bed9f;font-size:28px;margin:20px 0 5px 0;">Welcome to The Messy Attic</h2>
             <p style="font-size:15px;color:#ccc;margin:0;">Your creative engine is now unlocked</p>
           </td>
         </tr>
@@ -119,7 +119,7 @@ async function sendFreeTrialWelcomeEmail({ name, email, expiresAt }) {
 
         <tr>
           <td style="padding:10px 50px;font-size:15px;line-height:1.7;text-align:center;">
-            Cre8tly Studio is now a true all in one platform for creators. Build everything in one place with your own fonts, branding, and visual style. The Live Editor gives you real time control over each line of your digital product, and the Design Canvas lets you add shapes, visuals, highlights, and creative assets without extra tools.
+            The Messy Attic is now a true all in one platform for creators. Build everything in one place with your own fonts, branding, and visual style. The Live Editor gives you real time control over each line of your digital product, and the Design Canvas lets you add shapes, visuals, highlights, and creative assets without extra tools.
           </td>
         </tr>
 
@@ -131,13 +131,13 @@ async function sendFreeTrialWelcomeEmail({ name, email, expiresAt }) {
 
         <tr>
           <td style="padding:10px 50px;font-size:15px;line-height:1.7;text-align:center;">
-            Sell your digital products directly inside Cre8tly Studio. Connect your Express account, upload your creations, track sales, manage customers, and keep ninety percent of every sale. Automated weekly payouts, no middleman, no complexity.
+            Sell your digital products directly inside The Messy Attic. Connect your Express account, upload your creations, track sales and manage customers. Automated weekly payouts, no middleman, no complexity.
           </td>
         </tr>
 
         <tr>
           <td style="padding:10px 50px 30px 50px;font-size:15px;line-height:1.7;text-align:center;">
-            Create it, design it, publish it, and sell it in one place. If you want a tool that saves time, saves money, and builds a ready to go automated sales funnel, you just found it. Put your business on autopilot with Cre8tly Studio.
+            Create it, design it, publish it, and sell it in one place. If you want a tool that saves time, saves money, and builds a ready to go automated sales funnel, you just found it. Put your business on autopilot with The Messy Attic.
           </td>
         </tr>
 
@@ -219,7 +219,7 @@ async function sendFreeTrialWelcomeEmail({ name, email, expiresAt }) {
 
   await sendOutLookMail({
     to: email,
-    subject: "Welcome to Cre8tly Studio Free Trial",
+    subject: "Welcome to The Messy Attic Free Trial",
     html,
   });
 }
@@ -1288,10 +1288,10 @@ export async function sendCommunitySignupNotification({ name, email }) {
         width="40"
         height="40"
         style="display:block;"
-        alt="Cre8tly Studio"
+        alt="The Messy Attic"
       />
       <div style="font-size:18px;font-weight:600;color:#111827;">
-        Cre8tly Studio
+        The Messy Attic
       </div>
     </div>
 
@@ -1321,7 +1321,7 @@ export async function sendCommunitySignupNotification({ name, email }) {
 
     <!-- Footer -->
     <p style="font-size:13px;color:#6b7280;text-align:center;">
-      Cre8tly Studio Community
+      The Messy Attic Community
     </p>
   </div>
 </div>
@@ -1349,7 +1349,7 @@ export async function sendCommunityWelcomeEmail({ name, email }) {
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <img src="https://themessyattic.com/themessyattic-logo.png" width="40" />
       <div style="font-size:18px;font-weight:600;color:#111827;">
-        Cre8tly Studio
+        The Messy Attic
       </div>
     </div>
 
@@ -1363,7 +1363,7 @@ export async function sendCommunityWelcomeEmail({ name, email }) {
 
     <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
       Hi <strong>${name}</strong>,  
-      welcome to the Cre8tly Studio community.
+      welcome to the The Messy Attic community.
     </p>
 
     <div style="text-align:center;margin:30px 0;">
@@ -1384,7 +1384,7 @@ export async function sendCommunityWelcomeEmail({ name, email }) {
     </div>
 
     <p style="font-size:13px;color:#6b7280;text-align:center;">
-      — Cre8tly Studio
+      — The Messy Attic
     </p>
   </div>
 </div>
@@ -1392,7 +1392,167 @@ export async function sendCommunityWelcomeEmail({ name, email }) {
 
   await sendOutLookMail({
     to: email,
-    subject: "Welcome to the Cre8tly Studio Community",
+    subject: "Welcome to the The Messy Attic Community",
     html: communityWelcomeHtml,
   });
+}
+
+export async function updateLastSeen(userId) {
+  const db = connect();
+
+  try {
+    await db.query(
+      `
+      UPDATE users
+      SET last_seen_at = NOW()
+      WHERE id = ?
+        AND (
+          last_seen_at IS NULL
+          OR last_seen_at < NOW() - INTERVAL 15 MINUTE
+        )
+      `,
+      [userId],
+    );
+  } catch (err) {
+    console.error("Failed to update last_seen_at:", err);
+  }
+}
+
+export async function getUserRecap(userId) {
+  const db = connect();
+
+  try {
+    // 1. Fetch last_seen_at
+    const [[user]] = await db.query(
+      `
+      SELECT last_seen_at
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [userId],
+    );
+
+    const since = user?.last_seen_at;
+
+    // If user has never been seen, do not show recap
+    if (!since) {
+      return {
+        since: null,
+        hasActivity: false,
+        summary: {},
+        items: {},
+      };
+    }
+
+    // 2. Comments on user's posts
+    const [commentsOnPosts] = await db.query(
+      `
+      SELECT
+        p.id AS post_id,
+        p.title AS post_title,
+        COUNT(c.id) AS count
+      FROM community_comments c
+      JOIN community_posts p ON p.id = c.post_id
+      WHERE
+        p.user_id = ?
+        AND c.user_id != ?
+        AND c.is_deleted = 0
+        AND c.created_at > ?
+      GROUP BY p.id
+      `,
+      [userId, userId, since],
+    );
+
+    // 3. Replies to user's comments
+    const [repliesToComments] = await db.query(
+      `
+      SELECT
+        p.id AS post_id,
+        p.title AS post_title,
+        COUNT(c.id) AS count
+      FROM community_comments c
+      JOIN community_posts p ON p.id = c.post_id
+      WHERE
+        c.parent_id IS NOT NULL
+        AND c.reply_to_user_id = ?
+        AND c.user_id != ?
+        AND c.is_deleted = 0
+        AND c.created_at > ?
+      GROUP BY p.id
+      `,
+      [userId, userId, since],
+    );
+
+    // 4. Mentions
+    const [mentions] = await db.query(
+      `
+      SELECT
+        p.id AS post_id,
+        p.title AS post_title,
+        COUNT(m.id) AS count
+      FROM community_comment_mentions m
+      JOIN community_comments c ON c.id = m.comment_id
+      JOIN community_posts p ON p.id = c.post_id
+      WHERE
+        m.mentioned_user_id = ?
+        AND c.created_at > ?
+      GROUP BY p.id
+      `,
+      [userId, since],
+    );
+
+    // 5. Build summary counts
+    const summary = {
+      commentsOnYourPosts: commentsOnPosts.reduce((a, b) => a + b.count, 0),
+      repliesToYourComments: repliesToComments.reduce((a, b) => a + b.count, 0),
+      mentions: mentions.reduce((a, b) => a + b.count, 0),
+    };
+
+    const hasActivity =
+      summary.commentsOnYourPosts > 0 ||
+      summary.repliesToYourComments > 0 ||
+      summary.mentions > 0;
+
+    return {
+      since,
+      hasActivity,
+      summary,
+      items: {
+        commentsOnYourPosts: commentsOnPosts,
+        repliesToYourComments: repliesToComments,
+        mentions,
+      },
+    };
+  } catch (err) {
+    console.error("Failed to get user recap:", err);
+
+    // Fail quietly, never block UI
+    return {
+      since: null,
+      hasActivity: false,
+      summary: {},
+      items: {},
+    };
+  }
+}
+
+export async function markUserSeen(userId) {
+  const db = connect();
+
+  try {
+    await db.query(
+      `
+      UPDATE users
+      SET last_seen_at = NOW()
+      WHERE id = ?
+      `,
+      [userId],
+    );
+
+    return { success: true };
+  } catch (err) {
+    console.error("Failed to mark user as seen:", err);
+    return { success: false };
+  }
 }

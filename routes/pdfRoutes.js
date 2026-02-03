@@ -25,7 +25,7 @@ router.post("/free-pdf", async (req, res) => {
 
     // 📨 Send the guide to user
     await transporter.sendMail({
-      from: '"Cre8tly Studio" <hitwritertv@gmail.com>',
+      from: '"The Messy Attic" <hitwritertv@gmail.com>',
       to: email,
       subject: "The Secret Formula To Grow Your Email List 🚀",
       html: `
@@ -34,7 +34,7 @@ router.post("/free-pdf", async (req, res) => {
     <!-- Header Logo -->
     <div style="text-align:center;margin-bottom:25px;">
       <img src="https://themessyattic.com/robot.png"
-           alt="Cre8tly Studio Logo"
+           alt="The Messy Attic Logo"
            style="max-width:120px;opacity:0.95;filter:drop-shadow(0 0 6px rgba(0,224,122,0.4));" />
     </div>
 
@@ -53,7 +53,7 @@ router.post("/free-pdf", async (req, res) => {
     <p style="font-size:14px;color:#bbb;line-height:1.5;max-width:520px;margin:20px auto 0 auto;">
       Keep an eye on your inbox for bonus strategies from the Cre8tly team on automation, funnels, and design systems that convert.
       <br/><br/>
-      <strong>– The Cre8tly Studio Team</strong>
+      <strong>– The The Messy Attic Team</strong>
     </p>
   </div>
   `,
@@ -61,16 +61,16 @@ router.post("/free-pdf", async (req, res) => {
 
     // 🔔 Internal notification
     await transporter.sendMail({
-      from: '"Cre8tly Studio Notifications" <hitwritertv@gmail.com>',
-      to: ["hitwritertv@gmail.com", "chrischilodesigns@gmail.com"],
-      subject: "📥 New PDF Download (Cre8tly Studio)",
+      from: '"The Messy Attic Notifications" <hitwritertv@gmail.com>',
+      to: ["hitwritertv@gmail.com"],
+      subject: "📥 New PDF Download (The Messy Attic)",
       html: `
   <div style="font-family:Montserrat,Arial,sans-serif;background:#0a0a0a;color:#f5f5f5;padding:40px 20px;text-align:center;border-radius:12px;">
     
     <!-- Header Logo -->
     <div style="text-align:center;margin-bottom:25px;">
       <img src="https://themessyattic.com/robot.png"
-           alt="Cre8tly Studio Logo"
+           alt="The Messy Attic Logo"
            style="max-width:120px;opacity:0.95;filter:drop-shadow(0 0 6px rgba(0,224,122,0.4));" />
     </div>
 

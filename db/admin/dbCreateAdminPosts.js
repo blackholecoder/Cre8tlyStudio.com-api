@@ -232,7 +232,7 @@ export async function getCommentsForAdminPost(postId) {
       [postId],
     );
 
-    // ✅ Force all admin comments to display as "Cre8tly Studio"
+    // ✅ Force all admin comments to display as "The Messy Attic"
 
     return rows; // keep flat list, tree built in frontend
   } catch (err) {
@@ -389,7 +389,7 @@ export async function getAdminSinglePost(postId) {
 
     // Force admin display name
     if (post.author_role === "admin") {
-      post.author = "Cre8tly Studio";
+      post.author = "The Messy Attic";
     }
 
     return post;

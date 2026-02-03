@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# Cre8tly Studio - Landing Analytics Partition Maintenance
+# The Messy Attic - Landing Analytics Partition Maintenance
 # ============================================
 
 # Load environment variables from the .env file

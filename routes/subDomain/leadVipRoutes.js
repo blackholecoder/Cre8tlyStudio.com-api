@@ -41,7 +41,7 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
       html: `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #ffffff; padding: 40px 30px; border-radius: 12px; border: 1px solid #f1f1f1; max-width: 600px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 25px;">
-      <img src="https://themessyattic.com/themessyattic-logo.svg" alt="The Messy Attic" style="width: 120px; height: auto; margin-bottom: 15px;" />
+      <img src="https://themessyattic.com/themessyattic-logo.png" alt="The Messy Attic" style="width: 120px; height: auto; margin-bottom: 15px;" />
       <h1 style="color: #F285C3; font-size: 26px; margin: 0;">Welcome to Cre8tly VIP!</h1>
     </div>
 
@@ -60,7 +60,7 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
     <div style="text-align: center; margin-top: 30px;">
       <a href="https://themessyattic.com"
         style="background-color: #F285C3; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">
-        Visit Cre8tly Studio
+        Visit The Messy Attic
       </a>
     </div>
 
@@ -68,11 +68,11 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
 
     <p style="color: #555; font-size: 14px; line-height: 1.6; text-align: center;">
       Welcome to a new era of authentic creation.<br/>
-      <strong>— The VIP Cre8tly Studio Team</strong>
+      <strong>— The VIP The Messy Attic Team</strong>
     </p>
 
     <p style="color: #999; font-size: 12px; text-align: center; margin-top: 20px;">
-      © ${new Date().getFullYear()} Cre8tly Studio, Alure Digital<br/>
+      © ${new Date().getFullYear()} The Messy Attic, Alure Digital<br/>
       You received this email because you joined the Cre8tly VIP list.
     </p>
   </div>
@@ -95,7 +95,7 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
       html: `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fdfdfd; padding: 30px; border-radius: 12px; border: 1px solid #f1f1f1; max-width: 600px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 25px;">
-      <img src="https://themessyattic.com/themessyattic-logo.svg" alt="The Messy Attic" style="width: 120px; height: auto; margin-bottom: 10px;" />
+      <img src="https://themessyattic.com/themessyattic-logo.png" alt="The Messy Attic" style="width: 120px; height: auto; margin-bottom: 10px;" />
       <h2 style="color: #F285C3; font-size: 22px; margin: 0;">New VIP Lead Notification</h2>
     </div>
 
@@ -132,7 +132,7 @@ router.post("/vip-leads", leadRateLimiter, async (req, res) => {
     <hr style="border: none; border-top: 1px solid #f1f1f1; margin: 30px 0;" />
 
     <p style="font-size: 12px; color: #999; text-align: center;">
-      © ${new Date().getFullYear()} Cre8tly Studio — Alure Digital<br/>
+      © ${new Date().getFullYear()} The Messy Attic — Alure Digital<br/>
       This notification was sent automatically from your VIP lead capture system.
     </p>
   </div>

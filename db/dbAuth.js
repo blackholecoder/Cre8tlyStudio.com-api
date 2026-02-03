@@ -29,7 +29,7 @@ export const forgotPassword = async (email) => {
 
   await sendOutLookMail({
     to: email,
-    subject: "Reset Your Cre8tly Studio Password",
+    subject: "Reset Your The Messy Attic Password",
     html: `
   <div style="background:#0b0b0b;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
     <table width="600" align="center" cellpadding="0" cellspacing="0"
@@ -61,7 +61,7 @@ export const forgotPassword = async (email) => {
             color:#ccc;
             margin:0;
           ">
-            Secure password recovery for your Cre8tly Studio account
+            Secure password recovery for your The Messy Attic account
           </p>
         </td>
       </tr>
@@ -81,7 +81,7 @@ export const forgotPassword = async (email) => {
           line-height:1.7;
           text-align:center;
         ">
-          You requested to reset your password for your Cre8tly Studio account.
+          You requested to reset your password for your The Messy Attic account.
           Click the button below to proceed securely.
         </td>
       </tr>
@@ -130,7 +130,7 @@ export const forgotPassword = async (email) => {
       <tr>
         <td align="center" style="padding:0 0 35px 0;">
           <p style="font-size:12px;color:#9ca3af;margin-bottom:6px;">
-            © ${new Date().getFullYear()} Cre8tly Studio. All rights reserved.
+            © ${new Date().getFullYear()} The Messy Attic. All rights reserved.
           </p>
           <p style="font-size:11px;color:#7bed9f;font-weight:600;">
             Cre8tly Security System

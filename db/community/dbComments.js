@@ -884,7 +884,7 @@ export async function sendNewCommentEmail({
               src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
-              alt="Cre8tly Studio"
+              alt="The Messy Attic"
               style="display:block;"
             />
           </td>
@@ -895,7 +895,7 @@ export async function sendNewCommentEmail({
               color:#111827;
               line-height:1;
             ">
-              Cre8tly Studio
+              The Messy Attic
             </div>
           </td>
         </tr>
@@ -952,7 +952,7 @@ export async function sendNewCommentEmail({
     </p>
 
     <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — Cre8tly Studio
+      — The Messy Attic
     </p>
   </div>
 </div>
@@ -995,7 +995,7 @@ export async function sendNewReplyEmail({
               src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
-              alt="Cre8tly Studio"
+              alt="The Messy Attic"
               style="display:block;"
             />
           </td>
@@ -1006,7 +1006,7 @@ export async function sendNewReplyEmail({
               color:#111827;
               line-height:1;
             ">
-              Cre8tly Studio
+              The Messy Attic
             </div>
           </td>
         </tr>
@@ -1063,7 +1063,7 @@ export async function sendNewReplyEmail({
     </p>
 
     <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — Cre8tly Studio
+      — The Messy Attic
     </p>
   </div>
 </div>

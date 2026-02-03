@@ -35,7 +35,7 @@ export async function sendEbookEmail({ email, title, productType }) {
 
     // ✅ Build and send the email
     await transporter.sendMail({
-      from: `"Cre8tly Studio" <${process.env.MAIL_FROM_ADDRESS}>`,
+      from: `"The Messy Attic" <${process.env.MAIL_FROM_ADDRESS}>`,
       to: email,
       subject: `📘 Your Ebook: ${ebook.title}`,
       html: `
@@ -46,7 +46,7 @@ export async function sendEbookEmail({ email, title, productType }) {
 <div style="text-align:center; margin-bottom:30px;">
   <img 
     src="https://themessyattic.com/robot.png"
-    alt="Cre8tly Studio Logo"
+    alt="The Messy Attic Logo"
     style="max-width:140px; opacity:0.95; filter:drop-shadow(0 0 6px rgba(0,224,122,0.3));" 
   />
 </div>
@@ -60,7 +60,7 @@ export async function sendEbookEmail({ email, title, productType }) {
     <!-- Body Text -->
     <p style="font-size:16px; line-height:1.7; margin-bottom:20px; text-align:center;">
       Thank you for purchasing <strong style="color:#00E07A;">${ebook.title}</strong> from 
-      <strong>Cre8tly Studio</strong>. We're thrilled to have you learning and growing with us.
+      <strong>The Messy Attic</strong>. We're thrilled to have you learning and growing with us.
     </p>
 
     <p style="font-size:16px; line-height:1.7; text-align:center; margin-bottom:30px;">
@@ -96,17 +96,17 @@ export async function sendEbookEmail({ email, title, productType }) {
       </h2>
       <p style="font-size:15px; line-height:1.6; color:#ddd; max-width:500px; margin:0 auto 22px;">
         You can create your own lead magnet or marketing guide in minutes using 
-        <strong>Cre8tly Studio</strong>, the same software that built this ebook.
+        <strong>The Messy Attic</strong>, the same software that built this ebook.
       </p>
 
       <a href="https://themessyattic.com"
          style="background:linear-gradient(90deg,#00E07A,#6A5ACD); color:#fff; padding:12px 28px; border-radius:6px; text-decoration:none; font-weight:600; font-size:16px; display:inline-block;">
-         🚀 Try Cre8tly Studio today!
+         🚀 Try The Messy Attic today!
       </a>
     </div>
 
     <div style="margin-top:40px; text-align:center; font-size:13px; color:#666;">
-      © ${new Date().getFullYear()} Cre8tly Studio. All rights reserved.
+      © ${new Date().getFullYear()} The Messy Attic. All rights reserved.
     </div>
   </div>
 `,

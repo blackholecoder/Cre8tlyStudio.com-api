@@ -486,7 +486,7 @@ export async function handleCheckoutCompleted(session) {
         html: `
           <div style="font-family: Arial, sans-serif; padding: 30px; background: #f9fafb;">
             <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 10px; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-              <h1 style="color: #4f46e5;">Welcome to Cre8tly Studio 🎉</h1>
+              <h1 style="color: #4f46e5;">Welcome to The Messy Attic 🎉</h1>
               <p>Thank you for your purchase! You now have <strong>${slots.length} lead magnet slots</strong> ready to use.</p>
 
               <h2>Next Steps</h2>
@@ -567,12 +567,12 @@ export async function sendContentReadyEmail({
         <!-- Header -->
         <tr>
           <td align="center" style="padding:40px 40px 10px 40px;">
-            <img src="https://themessyattic.com/themessyattic-logo.svg" width="65" style="opacity:0.95;" />
+            <img src="https://themessyattic.com/themessyattic-logo.png" width="65" style="opacity:0.95;" />
             <h2 style="font-size:24px;margin:25px 0 10px 0;font-weight:600;color:#111;">
               Your ${label} is ready
             </h2>
             <p style="font-size:15px;color:#555;margin:0;">
-              Everything is complete and available in Cre8tly Studio
+              Everything is complete and available in The Messy Attic
             </p>
           </td>
         </tr>
@@ -612,7 +612,7 @@ export async function sendContentReadyEmail({
                 text-decoration:none;
               "
             >
-              Log in to Cre8tly Studio
+              Log in to The Messy Attic
             </a>
           </td>
         </tr>
@@ -620,7 +620,7 @@ export async function sendContentReadyEmail({
         <!-- Footer -->
         <tr>
           <td align="center" style="font-size:13px;color:#777;padding:0 0 35px 0;">
-            © ${new Date().getFullYear()} Cre8tly Studio • All rights reserved
+            © ${new Date().getFullYear()} The Messy Attic • All rights reserved
           </td>
         </tr>
 
@@ -630,7 +630,7 @@ export async function sendContentReadyEmail({
 
   await sendOutLookMail({
     to: email,
-    subject: "Your content is ready in Cre8tly Studio",
+    subject: "Your content is ready in The Messy Attic",
     html,
   });
 }

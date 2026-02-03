@@ -17,7 +17,7 @@ async function sendCareerApplicationReceivedEmail({ name, email }) {
               Application Received
             </h2>
             <p style="font-size:15px;color:#555;margin:0;">
-              Thank you for applying to join Cre8tly Studio
+              Thank you for applying to join The Messy Attic
             </p>
           </td>
         </tr>
@@ -41,7 +41,7 @@ async function sendCareerApplicationReceivedEmail({ name, email }) {
               <br><br>
               If we decide to move forward, we will contact you directly with next steps.
               <br><br>
-              Thank you for your interest in working with Cre8tly Studio.
+              Thank you for your interest in working with The Messy Attic.
             </p>
           </td>
         </tr>
@@ -56,7 +56,7 @@ async function sendCareerApplicationReceivedEmail({ name, email }) {
         <!-- Footer -->
         <tr>
           <td align="center" style="font-size:13px;color:#777;padding:0 0 35px 0;">
-            © ${new Date().getFullYear()} Cre8tly Studio • All rights reserved
+            © ${new Date().getFullYear()} The Messy Attic • All rights reserved
           </td>
         </tr>
 
@@ -194,7 +194,7 @@ export async function submitCareerApplication({
     <!-- Footer -->
     <tr>
       <td align="center" style="font-size:13px;color:#777;padding:0 0 35px 0;">
-        Notification sent automatically from Cre8tly Studio Careers
+        Notification sent automatically from The Messy Attic Careers
       </td>
     </tr>
 

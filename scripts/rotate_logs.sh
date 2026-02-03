@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# Cre8tly Studio - Log Rotation & Compression
+# The Messy Attic - Log Rotation & Compression
 # ============================================
 
 LOG_DIR="/home/cre8tlystudio-api/cre8tlystudio-api/logs"

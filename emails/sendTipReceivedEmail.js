@@ -27,12 +27,12 @@ export async function sendTipReceivedEmail({
     <!-- HEADER -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
       <img 
-        src="https://themessyattic.com/cre8tly-logo.png"
+        src="https://themessyattic.com/themessyattic-logo.png"
         style="width:48px;height:48px;object-fit:contain;"
       />
       <div style="line-height:1.1;">
         <div style="font-size:18px;font-weight:600;color:#111827;">
-          Cre8tly Studio
+          The Messy Attic
         </div>
       </div>
     </div>
@@ -82,7 +82,7 @@ export async function sendTipReceivedEmail({
       font-size:12px;
       color:#9ca3af;
     ">
-      © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital
+      © ${new Date().getFullYear()} The Messy Attic · Alure Digital
     </p>
   </div>
 </div>

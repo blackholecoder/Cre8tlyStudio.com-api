@@ -86,8 +86,8 @@ router.get("/", async (req, res, next) => {
     // --- 2️⃣ Extract core properties
 
     const titleBase =
-      landingPage.username || landingPage.title || "Cre8tly Studio";
-    const title = `${titleBase} | Cre8tly Studio`;
+      landingPage.username || landingPage.title || "The Messy Attic";
+    const title = `${titleBase} | The Messy Attic`;
 
     const font = landingPage.font || "Montserrat";
     const bg =
@@ -248,7 +248,7 @@ router.post("/landing-leads", async (req, res) => {
     const emailHtml = `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0d0d0d; padding: 40px 30px; border-radius: 12px; border: 1px solid #1f1f1f; max-width: 600px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 25px;">
-      <img src="https://themessyattic.com/themessyattic-logo.svg" alt="Cre8tly Studio" style="width: 85px; height: auto; margin-bottom: 15px;" />
+      <img src="https://themessyattic.com/themessyattic-logo.png" alt="The Messy Attic" style="width: 85px; height: auto; margin-bottom: 15px;" />
       <h1 style="color: #7bed9f; font-size: 26px; margin: 0;">Your Free Guide Awaits</h1>
     </div>
 
@@ -276,7 +276,7 @@ router.post("/landing-leads", async (req, res) => {
       <p style="font-size: 14px; color: #999; line-height: 1.6; margin: 0;">
         Ready to elevate your next project? Visit
         <a href="https://themessyattic.com" target="_blank" style="color: #7bed9f; text-decoration: none; font-weight: 600;">
-          Cre8tly Studio
+          The Messy Attic
         </a>
         for professional tools that help you design, write, and publish like a pro.
       </p>
@@ -285,7 +285,7 @@ router.post("/landing-leads", async (req, res) => {
     <hr style="border: none; border-top: 1px solid #1f1f1f; margin: 40px 0;" />
 
     <p style="color: #777; font-size: 12px; text-align: center;">
-      © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital<br/>
+      © ${new Date().getFullYear()} The Messy Attic · Alure Digital<br/>
       You received this email because you downloaded a file through <strong style="color: #ccc;">${
         landingPage.username
       }</strong>'s Cre8tly page.
@@ -371,7 +371,7 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
                       Please review this user's activity for potential abuse.
                     </p>
                     <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
-                    <p style="font-size:12px;color:#888;">Sent automatically by Cre8tly Studio Security System</p>
+                    <p style="font-size:12px;color:#888;">Sent automatically by The Messy Attic Security System</p>
                   </div>
                 `,
               });

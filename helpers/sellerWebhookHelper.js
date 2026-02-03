@@ -207,7 +207,7 @@ export async function handleCheckoutCompleted(session) {
         />
         <div style="line-height:1.1;">
           <div style="font-size:18px;font-weight:600;color:#111827;">
-            Cre8tly Studio
+            The Messy Attic
           </div>
         </div>
       </div>
@@ -276,7 +276,7 @@ export async function handleCheckoutCompleted(session) {
         font-size:12px;
         color:#9ca3af;
       ">
-        © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital
+        © ${new Date().getFullYear()} The Messy Attic · Alure Digital
       </p>
     </div>
   </div>
@@ -384,7 +384,7 @@ export async function handleCheckoutCompleted(session) {
           style="width:48px;height:48px;object-fit:contain;"
         />
         <div style="font-size:18px;font-weight:600;color:#111827;">
-          Cre8tly Studio
+          The Messy Attic
         </div>
       </div>
 
@@ -433,7 +433,7 @@ export async function handleCheckoutCompleted(session) {
         font-size:12px;
         color:#9ca3af;
       ">
-        © ${new Date().getFullYear()} Cre8tly Studio · Alure Digital
+        © ${new Date().getFullYear()} The Messy Attic · Alure Digital
       </p>
     </div>
   </div>
@@ -508,9 +508,9 @@ export async function notifySellerOfSale({
     box-shadow:0 20px 40px rgba(0,0,0,0.08);
   ">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-      <img src="https://themessyattic.com/themessyattic-logo.svg" width="40" />
+      <img src="https://themessyattic.com/themessyattic-logo.png" width="40" />
       <div style="font-size:18px;font-weight:600;color:#111827;">
-        Cre8tly Studio
+        The Messy Attic
       </div>
     </div>
 
@@ -531,7 +531,7 @@ export async function notifySellerOfSale({
     </p>
 
     <p style="font-size:13px;color:#6b7280;text-align:center;">
-      This sale was processed through Cre8tly Studio
+      This sale was processed through The Messy Attic
     </p>
   </div>
 </div>

@@ -579,7 +579,7 @@ export async function sendCommunityInviteEmail({
           src="https://themessyattic.com/themessyattic-logo.png"
           width="36"
           height="36"
-          alt="Cre8tly Studio"
+          alt="The Messy Attic"
           style="display:block;"
         />
       </td>
@@ -593,7 +593,7 @@ export async function sendCommunityInviteEmail({
             font-family:Arial,sans-serif;
           "
         >
-          Cre8tly Studio
+          The Messy Attic
         </div>
       </td>
     </tr>
@@ -610,7 +610,7 @@ export async function sendCommunityInviteEmail({
     </p>
 
     <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
-  <strong>${authorName}</strong> has personally invited you to join an amazing private community for writers, authors, and readers on Cre8tly.
+  <strong>${authorName}</strong> has personally invited you to join an amazing private community for writers, authors, and readers on The Messy Attic.
 </p>
 
     <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
@@ -639,7 +639,7 @@ export async function sendCommunityInviteEmail({
     </p>
 
     <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — Cre8tly Studio
+      — The Messy Attic
     </p>
   </div>
 </div>
@@ -648,7 +648,7 @@ export async function sendCommunityInviteEmail({
   try {
     await sendOutLookMail({
       to: email,
-      subject: `${authorName} invited you to subscribe to Cre8tly Community`,
+      subject: `${authorName} invited you to subscribe to The Messy Attic`,
       html: inviteHtml,
     });
   } catch (err) {
@@ -682,7 +682,7 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
               src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
-              alt="Cre8tly Studio"
+              alt="The Messy Attic"
               style="display:block;"
             />
           </td>
@@ -693,7 +693,7 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
               color:#111827;
               line-height:1;
             ">
-              Cre8tly Studio
+              The Messy Attic
             </div>
           </td>
         </tr>
@@ -711,7 +711,7 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
 
     <!-- Body -->
     <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
-      <strong>${subscriberName || "Someone"}</strong> just subscribed to your community on Cre8tly.
+      <strong>${subscriberName || "Someone"}</strong> just subscribed to your community on The Messy Attic.
     </p>
 
     <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
@@ -743,7 +743,7 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
     </p>
 
     <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — Cre8tly Studio
+      — The Messy Attic
     </p>
   </div>
 </div>
@@ -751,7 +751,7 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
 
   await sendOutLookMail({
     to,
-    subject: "You have a new subscriber on Cre8tly",
+    subject: "You have a new subscriber on The Messy Attic",
     html,
   });
 }
@@ -781,7 +781,7 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
               src="https://themessyattic.com/themessyattic-logo.png"
               width="36"
               height="36"
-              alt="Cre8tly Studio"
+              alt="The Messy Attic"
               style="display:block;"
             />
           </td>
@@ -792,7 +792,7 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
               color:#111827;
               line-height:1;
             ">
-              Cre8tly Studio
+              The Messy Attic
             </div>
           </td>
         </tr>
@@ -842,7 +842,7 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
     </p>
 
     <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — Cre8tly Studio
+      — The Messy Attic
     </p>
   </div>
 </div>

@@ -1,6 +1,12 @@
 import nodemailer from "nodemailer";
 
-export async function sendOutLookMail({ to, subject, html, attachments = [], cc = [] }) {
+export async function sendOutLookMail({
+  to,
+  subject,
+  html,
+  attachments = [],
+  cc = [],
+}) {
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.office365.com",
@@ -16,7 +22,7 @@ export async function sendOutLookMail({ to, subject, html, attachments = [], cc 
     });
 
     await transporter.sendMail({
-      from: `"Cre8tly Studio" <${process.env.OUTLOOK_FROM_ADDRESS}>`,
+      from: `"The Messy Attic" <${process.env.OUTLOOK_FROM_ADDRESS}>`,
       to,
       cc,
       subject,

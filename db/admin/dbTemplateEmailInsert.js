@@ -26,11 +26,11 @@ const html = `<div style="background:#f9fafb;padding:60px 0;font-family:Arial,sa
                 <tr>
                   <td>
                     <img
-                      src="https://themessyattic.com/cre8tly-logo-black.png"
+                      src="https://themessyattic.com/themessyattic-logo.png"
                       width="44"
                       height="44"
                       style="display:block;"
-                      alt="Cre8tly Studio"
+                      alt="The Messy Attic"
                     />
                   </td>
                   <td style="padding-left:10px;">
@@ -43,7 +43,7 @@ const html = `<div style="background:#f9fafb;padding:60px 0;font-family:Arial,sa
                         line-height:1.2;
                       "
                     >
-                      Cre8tly Studio
+                      The Messy Attic
                     </span>
                   </td>
                 </tr>
@@ -61,7 +61,7 @@ const html = `<div style="background:#f9fafb;padding:60px 0;font-family:Arial,sa
             color:#111827;
           "
         >
-          Welcome to Cre8tly Studio
+          Welcome to The Messy Attic
         </h2>
 
         <p
@@ -94,15 +94,14 @@ const html = `<div style="background:#f9fafb;padding:60px 0;font-family:Arial,sa
         </p>
 
         <p style="font-size:15px;line-height:1.7;margin:0 0 18px 0;">
-          Cre8tly Studio is an all in one platform for creators. Build everything in one
+          The Messy Attic is an all in one platform for creators. Build everything in one
           place using your own fonts, branding, and visual style. The Live Editor gives you
           real time control over every line of your digital product.
         </p>
 
         <p style="font-size:15px;line-height:1.7;margin:0 0 22px 0;">
-          Sell your digital products directly inside Cre8tly Studio. Connect your Express
-          account, upload your creations, track sales, manage customers, and keep ninety
-          percent of every sale.
+          Sell your digital products directly inside The Messy Attic. Connect your Express
+          account, upload your creations, track sales and manage customers.
         </p>
 
         <!-- Trial Expiration -->

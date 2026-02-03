@@ -27,7 +27,7 @@ router.post("/contact", async (req, res) => {
 
     // 📨 Send the message
     await transporter.sendMail({
-      from: `"Cre8tly Studio Support" <${process.env.MAIL_FROM_ADDRESS_NEW}>`,
+      from: `"The Messy Attic Support" <${process.env.MAIL_FROM_ADDRESS_NEW}>`,
       to: process.env.MAIL_FROM_ADDRESS_NEW, // send to your support inbox
       subject: `📬 Support Request: ${subject || "No Subject"}`,
       html: `
@@ -52,7 +52,7 @@ router.post("/contact", async (req, res) => {
       ">
         💬 New Support Request
       </h1>
-      <p style="color: #aaa; font-size: 14px;">From Cre8tly Studio Contact Form</p>
+      <p style="color: #aaa; font-size: 14px;">From The Messy Attic Contact Form</p>
     </div>
 
     <!-- User Details -->
@@ -94,9 +94,9 @@ router.post("/contact", async (req, res) => {
     <div style="text-align: center; margin-top: 30px; color: #666; font-size: 13px;">
       <p>
         This message was automatically sent from the 
-        <strong style="color: #00E07A;">Cre8tly Studio</strong> support form.
+        <strong style="color: #00E07A;">The Messy Attic</strong> support form.
       </p>
-      <p>© ${new Date().getFullYear()} Cre8tly Studio — All Rights Reserved</p>
+      <p>© ${new Date().getFullYear()} The Messy Attic — All Rights Reserved</p>
     </div>
   </div>
 `,

@@ -22,6 +22,7 @@ import {
   finalizeBook,
   getNewBookSlot,
   archiveBook,
+  spellcheckTextForUser,
 } from "../../db/book/dbBooks.js";
 import {
   enforcePageLimit,
@@ -29,6 +30,7 @@ import {
   validateBookPromptInput,
 } from "../../db/book/dbCreateBookPrompt.js";
 import { generateBookEPUB } from "../../services/generateBookEPUB.js";
+import { addWordToUserDictionary } from "../../helpers/addWordToDictionary.js";
 
 const router = express.Router();
 
@@ -168,6 +170,7 @@ Please split this into another chapter.`,
         title,
         bookName,
         authorName,
+        link,
         font_name,
         font_file,
       });
@@ -478,6 +481,52 @@ router.post("/:id/archive", authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Spellcheck
+router.post("/spellcheck", authenticateToken, async (req, res) => {
+  try {
+    const { text } = req.body;
+    const userId = req.user.id;
+
+    const issues = await spellcheckTextForUser({
+      userId,
+      text,
+    });
+
+    res.json({ issues });
+  } catch (err) {
+    console.error("❌ spellcheck failed:", err);
+    res.status(500).json({ error: "Spellcheck failed" });
+  }
+});
+
+// dictionary route
+router.post("/dictionary/add", authenticateToken, async (req, res) => {
+  try {
+    const { word } = req.body;
+    const userId = req.user.id;
+
+    if (!word) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing word",
+      });
+    }
+
+    await addWordToUserDictionary({
+      userId,
+      word,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ /dictionary/add failed:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to add word to dictionary",
+    });
   }
 });
 

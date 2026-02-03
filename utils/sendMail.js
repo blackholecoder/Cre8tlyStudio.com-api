@@ -11,7 +11,7 @@ export async function sendMail({ to, subject, html }) {
     });
 
     await transporter.sendMail({
-      from: `"Cre8tly Studio" <${process.env.MAIL_FROM_ADDRESS}>`,
+      from: `"The Messy Attic" <${process.env.MAIL_FROM_ADDRESS}>`,
       to,
       subject,
       html,

@@ -65,7 +65,7 @@ export async function generateUserTwoFA(userId) {
   const db = connect();
 
   const secret = speakeasy.generateSecret({
-    name: "Cre8tly Studio", // Label shown inside Google Authenticator
+    name: "The Messy Attic", // Label shown inside Google Authenticator
     length: 20,
   });
 

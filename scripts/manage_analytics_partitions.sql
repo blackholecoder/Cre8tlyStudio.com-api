@@ -1,5 +1,5 @@
 -- ==============================================
--- Cre8tly Studio - Manage Landing Analytics Partitions
+-- The Messy Attic - Manage Landing Analytics Partitions
 -- ==============================================
 
 -- 1️⃣ Create the next month’s partition if missing

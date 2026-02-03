@@ -11,6 +11,8 @@ import {
   markCommunityPostViewed,
   likeCommunityPost,
   unlikeCommunityPost,
+  togglePostBookmark,
+  getUserBookmarkedPosts,
 } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import {
@@ -22,6 +24,7 @@ import fs from "fs";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { optimizeImageUpload } from "../../helpers/optimizeImageUpload.js";
 import { postEmailQueue } from "../../queues/postEmailQueue.js";
+import { getUserRecap, markUserSeen } from "../../db/dbUser.js";
 
 const router = express.Router();
 
@@ -313,6 +316,76 @@ router.delete("/:postId/like", authenticateToken, async (req, res) => {
       success: false,
       message: "Failed to unlike post",
     });
+  }
+});
+
+router.post("/bookmark/:postId", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { postId } = req.params;
+
+    const result = await togglePostBookmark(userId, postId);
+
+    res.json({
+      success: true,
+      bookmarked: result.bookmarked,
+    });
+  } catch (err) {
+    console.error("Bookmark toggle route failed:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update bookmark",
+    });
+  }
+});
+
+router.get("/saved-user-bookmarks", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const page = Number(req.query.page || 1);
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    const posts = await getUserBookmarkedPosts(userId, limit, offset);
+
+    res.json({
+      success: true,
+      posts,
+      nextPage: posts.length === limit ? page + 1 : null,
+    });
+  } catch (err) {
+    console.error("Get bookmarks route failed:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load saved posts",
+    });
+  }
+});
+
+// USER RECAP LOGIC
+router.get("/recap", authenticateToken, async (req, res) => {
+  try {
+    const recap = await getUserRecap(req.user.id);
+    res.json(recap);
+  } catch {
+    res.json({ hasActivity: false });
+  }
+});
+
+router.post("/mark-seen", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false });
+    }
+
+    await markUserSeen(userId);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Mark seen route failed:", err);
+    res.json({ success: false });
   }
 });
 

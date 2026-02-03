@@ -69,7 +69,7 @@ export async function deliverDigitalProduct(
       <!-- Header -->
       <tr>
         <td align="center" style="padding:40px 40px 10px 40px;">
-          <img src="https://themessyattic.com/themessyattic-logo.svg" width="95" style="opacity:0.95;" />
+          <img src="https://themessyattic.com/themessyattic-logo.png" width="95" style="opacity:0.95;" />
           <h2 style="color:#7bed9f;font-size:26px;margin:20px 0 5px 0;">
             Your Download Awaits
           </h2>
@@ -89,7 +89,7 @@ export async function deliverDigitalProduct(
       <!-- Body -->
       <tr>
         <td style="padding:0 50px 10px 50px;font-size:15px;line-height:1.7;text-align:center;">
-          Hi ${userName}, thank you for your purchase on <strong>Cre8tly Studio</strong>.
+          Hi ${userName}, thank you for your purchase on <strong>The Messy Attic</strong>.
         </td>
       </tr>
 
@@ -133,7 +133,7 @@ export async function deliverDigitalProduct(
 
     await sendOutLookMail({
       to: buyerEmail,
-      subject: `Your Cre8tly Studio Purchase: ${name}`,
+      subject: `Your The Messy Attic Purchase: ${name}`,
       html,
     });
 
@@ -177,14 +177,14 @@ export async function deliverDigitalProduct(
     <!-- Header -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <img
-        src="https://themessyattic.com/themessyattic-logo.svg"
+        src="https://themessyattic.com/themessyattic-logo.png"
         width="40"
         height="40"
         style="display:block;"
-        alt="Cre8tly Studio"
+        alt="The Messy Attic"
       />
       <div style="font-size:18px;font-weight:600;color:#111827;">
-        Cre8tly Studio
+        The Messy Attic
       </div>
     </div>
 
@@ -222,7 +222,7 @@ export async function deliverDigitalProduct(
       margin-top:24px;
       text-align:center;
     ">
-      This sale was processed through Cre8tly Studio
+      This sale was processed through The Messy Attic
     </p>
 
   </div>

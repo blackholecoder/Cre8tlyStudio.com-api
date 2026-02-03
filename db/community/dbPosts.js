@@ -50,7 +50,7 @@ export async function getAllCommunityPosts(userId) {
         TIMESTAMPDIFF(HOUR, p.created_at, NOW()) AS age_hours,
 
         CASE
-          WHEN p.is_admin_post = 1 THEN 'Cre8tly Studio'
+          WHEN p.is_admin_post = 1 THEN 'The Messy Attic'
           ELSE u.name
         END AS author,
 
@@ -215,7 +215,7 @@ export async function getPostsByTopic(topicId, userId) {
         COALESCE(s.post_like_count, 0) AS like_count,
 
         CASE
-          WHEN p.is_admin_post = 1 THEN 'Cre8tly Studio'
+          WHEN p.is_admin_post = 1 THEN 'The Messy Attic'
           ELSE u.name
         END AS author,
 
@@ -295,9 +295,10 @@ export async function getPostById(identifier, userId) {
         COALESCE(s.views, 0) AS views,
         COALESCE(s.comment_count, 0) AS comment_count,
         COALESCE(s.post_like_count, 0) AS like_count,
+        COALESCE(pb.save_count, 0) AS save_count,
 
         CASE 
-          WHEN p.is_admin_post = 1 THEN 'Cre8tly Studio'
+          WHEN p.is_admin_post = 1 THEN 'The Messy Attic'
           ELSE u.name
         END AS author,
 
@@ -320,7 +321,12 @@ export async function getPostById(identifier, userId) {
         CASE
         WHEN l.user_id IS NOT NULL THEN 1
         ELSE 0
-      END AS has_liked
+      END AS has_liked,
+
+        CASE
+        WHEN ub.user_id IS NOT NULL THEN 1
+        ELSE 0
+      END AS is_bookmarked
 
         FROM community_posts p
         LEFT JOIN users u 
@@ -332,13 +338,22 @@ export async function getPostById(identifier, userId) {
         LEFT JOIN community_post_likes l
           ON l.post_id = p.id
         AND l.user_id = ?
+        LEFT JOIN post_bookmarks ub
+        ON ub.post_id = p.id
+       AND ub.user_id = ?
+
+        LEFT JOIN (
+          SELECT post_id, COUNT(*) AS save_count
+          FROM post_bookmarks
+          GROUP BY post_id
+        ) pb ON pb.post_id = p.id
 
       WHERE 
         (p.slug = ? OR p.id = ?)
         AND p.deleted_at IS NULL
       LIMIT 1
       `,
-      [userId, identifier, identifier],
+      [userId, userId, identifier, identifier],
     );
 
     return rows[0] || null;
@@ -724,5 +739,145 @@ export async function unlikeCommunityPost({ postId, userId }) {
   } catch (error) {
     console.error("unlikeCommunityPost error:", error);
     throw error;
+  }
+}
+
+// bookmarks
+
+export async function togglePostBookmark(userId, postId) {
+  const db = connect();
+
+  try {
+    // Check if bookmark exists
+    const [existing] = await db.query(
+      `
+      SELECT id
+      FROM post_bookmarks
+      WHERE user_id = ?
+        AND post_id = ?
+      LIMIT 1
+      `,
+      [userId, postId],
+    );
+
+    if (existing.length > 0) {
+      // Remove bookmark
+      await db.query(
+        `
+        DELETE FROM post_bookmarks
+        WHERE user_id = ?
+          AND post_id = ?
+        `,
+        [userId, postId],
+      );
+
+      return { bookmarked: false };
+    }
+
+    // Add bookmark
+    await db.query(
+      `
+      INSERT INTO post_bookmarks (id, user_id, post_id)
+      VALUES (?, ?, ?)
+      `,
+      [uuidv4(), userId, postId],
+    );
+
+    return { bookmarked: true };
+  } catch (err) {
+    console.error("togglePostBookmark failed:", err);
+    throw err;
+  }
+}
+
+export async function getUserBookmarkedPosts(userId, limit = 20, offset = 0) {
+  const db = connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT
+        p.id,
+        p.slug,
+        p.title,
+        p.subtitle,
+        p.created_at,
+        p.image_url,
+        p.topic_id,
+        p.user_id,
+
+        COALESCE(s.views, 0) AS views,
+        COALESCE(s.comment_count, 0) AS comment_count,
+        COALESCE(s.post_like_count, 0) AS like_count,
+        COALESCE(pb.save_count, 0) AS save_count,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN 'The Messy Attic'
+          ELSE u.name
+        END AS author,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN '/themessyattic-logo.png'
+          ELSE u.profile_image_url
+        END AS author_image,
+
+        CASE
+          WHEN p.is_admin_post = 1 THEN 1
+          WHEN ap.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS author_has_profile,
+
+        CASE
+          WHEN l.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_liked,
+
+        v.viewed_at IS NULL AS is_unread,
+
+        b.created_at AS bookmarked_at
+
+      FROM post_bookmarks b
+      JOIN community_posts p
+        ON p.id = b.post_id
+
+      LEFT JOIN users u
+        ON u.id = p.user_id
+
+      LEFT JOIN community_post_stats s
+        ON s.post_id = p.id
+
+      LEFT JOIN author_profiles ap
+        ON ap.user_id = u.id
+
+      LEFT JOIN community_post_views v
+        ON v.post_id = p.id
+        AND v.user_id = ?
+
+      LEFT JOIN community_post_likes l
+        ON l.post_id = p.id
+        AND l.user_id = ?
+
+      LEFT JOIN (
+        SELECT post_id, COUNT(*) AS save_count
+        FROM post_bookmarks
+        GROUP BY post_id
+      ) pb ON pb.post_id = p.id
+
+      WHERE
+        b.user_id = ?
+        AND p.deleted_at IS NULL
+
+      ORDER BY
+        b.created_at DESC
+
+      LIMIT ? OFFSET ?
+      `,
+      [userId, userId, userId, limit, offset],
+    );
+
+    return rows;
+  } catch (err) {
+    console.error("getUserBookmarkedPosts failed:", err);
+    throw err;
   }
 }

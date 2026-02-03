@@ -16,7 +16,7 @@ export function renderFooter({ landingPage, footerTextColor }) {
     rel="noopener noreferrer"
     style="color:${footerTextColor};text-decoration:none;font-weight:bold;"
   >
-    Cre8tly Studio
+    The Messy Attic
   </a>
 </p>
 
