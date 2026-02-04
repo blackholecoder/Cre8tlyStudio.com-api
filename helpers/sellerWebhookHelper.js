@@ -1,5 +1,7 @@
 // /helpers/sellerWebhookHelper.js
 import connect from "../db/connect.js";
+import Stripe from "stripe";
+import { v4 as uuidv4 } from "uuid";
 import {
   updateSellerStatus,
   markProductDelivered,
@@ -11,6 +13,8 @@ import { hasDeliveryBySessionId, insertDelivery } from "../db/dbDeliveries.js";
 import { getUserById } from "../db/dbUser.js";
 import { sendTipReceivedEmail } from "../emails/sendTipReceivedEmail.js";
 import { saveNotification } from "../db/community/notifications/notifications.js";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // 🧠 Fired when a seller completes verification or updates info
 export async function handleAccountUpdated(account) {
@@ -677,6 +681,384 @@ export async function getUserByStripeCustomerId(stripeCustomerId) {
     return user || null;
   } catch (err) {
     console.error("❌ getUserByStripeCustomerId error:", err);
+    throw err;
+  }
+}
+
+export async function handleAuthorCheckoutCompleted(session) {
+  try {
+    // 1. Validate metadata
+    const authorUserId = session.metadata?.author_user_id;
+    const subscriberUserId = session.metadata?.subscriber_user_id;
+
+    if (!authorUserId || !subscriberUserId) {
+      console.warn("⚠️ Missing author subscription metadata", session.id);
+      return;
+    }
+
+    // 2. Ensure this checkout created a subscription
+    if (!session.subscription) {
+      console.warn("⚠️ Checkout completed without subscription", session.id);
+      return;
+    }
+
+    // 3. Retrieve full Stripe subscription
+    const subscription = await stripe.subscriptions.retrieve(
+      session.subscription,
+    );
+
+    const {
+      id: stripeSubscriptionId,
+      customer: stripeCustomerId,
+      status,
+      current_period_end,
+      items,
+    } = subscription;
+
+    // 4. Determine billing interval
+    const billingInterval =
+      items?.data?.[0]?.price?.recurring?.interval ?? null;
+
+    const paid = status === "active" || status === "trialing";
+
+    const db = connect();
+
+    // 5. Upsert author_subscriptions
+    const [existing] = await db.query(
+      `
+      SELECT id
+      FROM author_subscriptions
+      WHERE author_user_id = ?
+        AND subscriber_user_id = ?
+      LIMIT 1
+      `,
+      [authorUserId, subscriberUserId],
+    );
+
+    if (existing.length > 0) {
+      await db.query(
+        `
+        UPDATE author_subscriptions
+        SET
+          paid_subscription = ?,
+          status = ?,
+          stripe_customer_id = ?,
+          stripe_subscription_id = ?,
+          billing_interval = ?,
+          current_period_end = FROM_UNIXTIME(?),
+          deleted_at = NULL,
+          last_activity_at = NOW()
+        WHERE author_user_id = ?
+          AND subscriber_user_id = ?
+        `,
+        [
+          paid ? 1 : 0,
+          status,
+          stripeCustomerId,
+          stripeSubscriptionId,
+          billingInterval,
+          current_period_end,
+          authorUserId,
+          subscriberUserId,
+        ],
+      );
+    } else {
+      await db.query(
+        `
+        INSERT INTO author_subscriptions (
+          id,
+          author_user_id,
+          subscriber_user_id,
+          paid_subscription,
+          status,
+          stripe_customer_id,
+          stripe_subscription_id,
+          billing_interval,
+          current_period_end,
+          created_at,
+          last_activity_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW(), NOW())
+        `,
+        [
+          uuidv4(),
+          authorUserId,
+          subscriberUserId,
+          paid ? 1 : 0,
+          status,
+          stripeCustomerId,
+          stripeSubscriptionId,
+          billingInterval,
+          current_period_end,
+        ],
+      );
+    }
+  } catch (err) {
+    console.error("❌ handleAuthorCheckoutCompleted failed", {
+      sessionId: session?.id,
+      error: err,
+    });
+
+    throw err;
+  }
+}
+
+export async function handleAuthorSubscriptionUpsert(subscription) {
+  try {
+    const authorUserId = subscription.metadata?.author_user_id;
+    const subscriberUserId = subscription.metadata?.subscriber_user_id;
+
+    if (!authorUserId || !subscriberUserId) {
+      console.warn("⚠️ Author subscription missing metadata", subscription.id);
+      return;
+    }
+
+    const {
+      status,
+      current_period_end,
+      customer: stripeCustomerId,
+      id: stripeSubscriptionId,
+      items,
+    } = subscription;
+
+    const billingInterval =
+      items?.data?.[0]?.price?.recurring?.interval ?? null;
+
+    const isPaid = status === "active" || status === "trialing";
+
+    let mappedStatus = status;
+
+    if (status === "unpaid") {
+      mappedStatus = "past_due";
+    }
+
+    const db = connect();
+
+    const [existing] = await db.query(
+      `
+      SELECT id
+      FROM author_subscriptions
+      WHERE author_user_id = ?
+        AND subscriber_user_id = ?
+      LIMIT 1
+      `,
+      [authorUserId, subscriberUserId],
+    );
+
+    if (existing.length === 0) {
+      console.warn(
+        "⚠️ Subscription update with no existing author subscription",
+        {
+          stripeSubscriptionId,
+          authorUserId,
+          subscriberUserId,
+        },
+      );
+      return;
+    }
+
+    await db.query(
+      `
+      UPDATE author_subscriptions
+      SET
+        paid_subscription = ?,
+        status = ?,
+        stripe_customer_id = ?,
+        stripe_subscription_id = ?,
+        billing_interval = ?,
+        current_period_end = FROM_UNIXTIME(?),
+        last_activity_at = NOW()
+      WHERE author_user_id = ?
+        AND subscriber_user_id = ?
+      `,
+      [
+        isPaid ? 1 : 0,
+        mappedStatus,
+        stripeCustomerId,
+        stripeSubscriptionId,
+        billingInterval,
+        current_period_end,
+        authorUserId,
+        subscriberUserId,
+      ],
+    );
+  } catch (err) {
+    console.error("❌ handleAuthorSubscriptionUpsert failed", {
+      subscriptionId: subscription?.id,
+      error: err,
+    });
+
+    throw err;
+  }
+}
+
+// INVOICES SUCCEEDED
+
+export async function handleAuthorInvoicePaid(invoice, subscription) {
+  try {
+    const authorUserId = subscription.metadata?.author_user_id;
+    const subscriberUserId = subscription.metadata?.subscriber_user_id;
+
+    if (!authorUserId || !subscriberUserId) {
+      console.warn(
+        "⚠️ Invoice missing author subscription metadata",
+        invoice.id,
+      );
+      return;
+    }
+
+    const { id: invoiceId, amount_paid } = invoice;
+
+    if (!amount_paid || amount_paid <= 0) {
+      console.warn("⚠️ Invoice paid with zero amount", invoiceId);
+      return;
+    }
+
+    const {
+      id: stripeSubscriptionId,
+      status,
+      current_period_end,
+    } = subscription;
+
+    const db = connect();
+
+    // 1. Fetch existing subscription row
+    const [[row]] = await db.query(
+      `
+      SELECT
+        id,
+        revenue,
+        last_invoice_id
+      FROM author_subscriptions
+      WHERE author_user_id = ?
+        AND subscriber_user_id = ?
+        AND stripe_subscription_id = ?
+      LIMIT 1
+      `,
+      [authorUserId, subscriberUserId, stripeSubscriptionId],
+    );
+
+    if (!row) {
+      console.warn("⚠️ Invoice for missing author subscription", {
+        invoiceId,
+        stripeSubscriptionId,
+      });
+      return;
+    }
+
+    // 2. Idempotency check
+    if (row.last_invoice_id === invoiceId) {
+      console.log("🔁 Invoice already processed", invoiceId);
+      return;
+    }
+
+    const revenueIncrement = amount_paid / 100;
+
+    // 3. Apply revenue update
+    await db.query(
+      `
+      UPDATE author_subscriptions
+      SET
+        revenue = revenue + ?,
+        paid_subscription = 1,
+        status = 'active',
+        current_period_end = FROM_UNIXTIME(?),
+        last_invoice_id = ?,
+        last_activity_at = NOW()
+      WHERE id = ?
+      `,
+      [revenueIncrement, current_period_end, invoiceId, row.id],
+    );
+
+    console.log("💰 Author subscription revenue recorded", {
+      authorUserId,
+      subscriberUserId,
+      revenueIncrement,
+      invoiceId,
+    });
+  } catch (err) {
+    console.error("❌ handleAuthorInvoicePaid failed", {
+      invoiceId: invoice?.id,
+      error: err,
+    });
+
+    throw err;
+  }
+}
+
+// INVOICES FAILED
+
+export async function handleAuthorInvoiceFailed(invoice, subscription) {
+  try {
+    const authorUserId = subscription.metadata?.author_user_id;
+    const subscriberUserId = subscription.metadata?.subscriber_user_id;
+
+    if (!authorUserId || !subscriberUserId) {
+      console.warn(
+        "⚠️ Invoice failed missing author subscription metadata",
+        invoice.id,
+      );
+      return;
+    }
+
+    const {
+      id: stripeSubscriptionId,
+      status,
+      current_period_end,
+    } = subscription;
+
+    const db = connect();
+
+    const [[row]] = await db.query(
+      `
+      SELECT id, status
+      FROM author_subscriptions
+      WHERE author_user_id = ?
+        AND subscriber_user_id = ?
+        AND stripe_subscription_id = ?
+      LIMIT 1
+      `,
+      [authorUserId, subscriberUserId, stripeSubscriptionId],
+    );
+
+    if (!row) {
+      console.warn("⚠️ Invoice failed for missing author subscription", {
+        invoiceId: invoice.id,
+        stripeSubscriptionId,
+      });
+      return;
+    }
+
+    // If already canceled, do nothing
+    if (row.status === "canceled") {
+      return;
+    }
+
+    // Force past_due on failed invoice
+    await db.query(
+      `
+      UPDATE author_subscriptions
+      SET
+        paid_subscription = 0,
+        status = 'past_due',
+        current_period_end = FROM_UNIXTIME(?),
+        last_activity_at = NOW()
+      WHERE id = ?
+      `,
+      [current_period_end, row.id],
+    );
+
+    console.log("⚠️ Author subscription marked past_due", {
+      authorUserId,
+      subscriberUserId,
+      stripeSubscriptionId,
+      invoiceId: invoice.id,
+    });
+  } catch (err) {
+    console.error("❌ handleAuthorInvoiceFailed failed", {
+      invoiceId: invoice?.id,
+      error: err,
+    });
+
     throw err;
   }
 }

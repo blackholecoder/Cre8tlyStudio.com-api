@@ -3,6 +3,10 @@ import express from "express";
 import Stripe from "stripe";
 import {
   handleAccountUpdated,
+  handleAuthorCheckoutCompleted,
+  handleAuthorInvoiceFailed,
+  handleAuthorInvoicePaid,
+  handleAuthorSubscriptionUpsert,
   handleCheckoutCompleted,
   handleExternalAccountChange,
   handlePaymentSucceeded,
@@ -32,7 +36,9 @@ router.post("/", async (req, res) => {
 
   try {
     switch (event.type) {
-      // 🧾 Account lifecycle
+      // ======================
+      // 🧾 CONNECTED ACCOUNTS
+      // ======================
       case "account.updated":
         await handleAccountUpdated(event.data.object);
         break;
@@ -43,40 +49,97 @@ router.post("/", async (req, res) => {
         await handleExternalAccountChange(event);
         break;
 
-      // 💳 Payment + Checkout
-      case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object);
+      // ======================
+      // 💳 CHECKOUT & PAYMENTS
+      // ======================
+      case "checkout.session.completed": {
+        const session = event.data.object;
+
+        switch (session.metadata?.domain) {
+          case "author_subscription":
+            await handleAuthorCheckoutCompleted(session);
+            break;
+
+          case "seller_checkout":
+            await handleCheckoutCompleted(session);
+            break;
+
+          default:
+            console.log("Unhandled checkout domain", session.id);
+        }
+
         break;
+      }
 
       case "payment_intent.succeeded":
         await handlePaymentSucceeded(event.data.object);
         break;
 
-      // 💸 Payouts
+      // ======================
+      // 💸 PAYOUTS
+      // ======================
       case "payout.paid":
         await handlePayoutPaid(event.data.object);
         break;
 
+      // ======================
+      // 🔁 SUBSCRIPTIONS (generic)
+      // ======================
       case "customer.subscription.created":
       case "customer.subscription.updated":
-        await handleSubscriptionUpsert(event.data.object);
-        break;
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
 
-      case "customer.subscription.deleted":
-        await handleSubscriptionUpsert(event.data.object);
-        break;
+        switch (subscription.metadata?.domain) {
+          case "author_subscription":
+            await handleAuthorSubscriptionUpsert(subscription);
+            break;
 
-      case "invoice.payment_failed":
-        if (event.data.object.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(
-            event.data.object.subscription,
-          );
-          await handleSubscriptionUpsert(subscription);
+          case "platform_subscription":
+            await handleSubscriptionUpsert(subscription);
+            break;
+
+          default:
+            console.log("Unknown subscription domain", subscription.id);
         }
-        break;
 
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
+        break;
+      }
+
+      // ======================
+      // 🧾 INVOICES (SUBSCRIPTIONS)
+      // ======================
+      case "invoice.paid": {
+        const invoice = event.data.object;
+
+        if (!invoice.subscription) break;
+
+        const subscription = await stripe.subscriptions.retrieve(
+          invoice.subscription,
+        );
+
+        if (subscription.metadata?.domain === "author_subscription") {
+          await handleAuthorInvoicePaid(invoice, subscription);
+        }
+
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object;
+
+        if (!invoice.subscription) break;
+
+        const subscription = await stripe.subscriptions.retrieve(
+          invoice.subscription,
+        );
+
+        if (subscription.metadata?.domain === "author_subscription") {
+          await handleAuthorInvoiceFailed(invoice, subscription);
+        }
+
+        break;
+      }
     }
 
     res.status(200).json({ received: true });

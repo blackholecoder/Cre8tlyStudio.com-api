@@ -14,12 +14,19 @@ export async function getAuthorProfile(authorUserId) {
     u.name,
     u.username,
     u.profile_image_url,
+    u.stripe_customer_id,
+
     p.bio,
     p.about,
     p.current_employment,
     p.interests,
     p.services,
     p.media_links,
+
+    p.subscriptions_enabled,
+    p.monthly_price_cents,
+    p.annual_price_cents,
+
     (
       SELECT COUNT(*)
       FROM author_subscriptions s
@@ -82,6 +89,14 @@ export async function getAuthorProfile(authorUserId) {
       interests: normalizeList(row.interests),
       services: normalizeList(row.services),
       media_links: normalizeJson(row.media_links),
+      stripe_customer_id: row.stripe_customer_id,
+      subscriptions_enabled: !!row.subscriptions_enabled,
+      monthly_price: row.monthly_price_cents
+        ? row.monthly_price_cents / 100
+        : null,
+      annual_price: row.annual_price_cents
+        ? row.annual_price_cents / 100
+        : null,
       subscriber_count: Number(row.subscriber_count) || 0,
     };
   } catch (err) {
@@ -367,5 +382,86 @@ export function validateEmailTemplateSize(bodyHtml) {
 
   if (bodyHtml.length > MAX_EMAIL_HTML_LENGTH) {
     throw new Error("Email body exceeds maximum allowed size");
+  }
+}
+
+// PAID SUBSCRIBER SETTINGS AUTHOR PROFILE
+
+export async function updateAuthorSubscriptionPricing({
+  userId,
+  subscriptionsEnabled,
+  monthlyPriceCents,
+  annualPriceCents,
+}) {
+  const db = connect();
+
+  try {
+    await db.query(
+      `
+      UPDATE author_profiles
+      SET
+        subscriptions_enabled = ?,
+        monthly_price_cents = ?,
+        annual_price_cents = ?
+      WHERE user_id = ?
+      `,
+      [
+        subscriptionsEnabled ? 1 : 0,
+        monthlyPriceCents,
+        annualPriceCents,
+        userId,
+      ],
+    );
+  } catch (err) {
+    console.error("❌ updateAuthorSubscriptionPricing error", {
+      userId,
+      subscriptionsEnabled,
+      monthlyPriceCents,
+      annualPriceCents,
+      error: err,
+    });
+    throw err;
+  }
+}
+
+export async function getAuthorSubscriptionPricing(authorUserId) {
+  try {
+    const db = connect();
+
+    const [[row]] = await db.query(
+      `
+      SELECT
+        subscriptions_enabled,
+        monthly_price_cents,
+        annual_price_cents
+      FROM author_profiles
+      WHERE user_id = ?
+      LIMIT 1
+      `,
+      [authorUserId],
+    );
+
+    if (!row || row.subscriptions_enabled !== 1) {
+      return {
+        enabled: false,
+        monthly_price_cents: null,
+        annual_price_cents: null,
+      };
+    }
+
+    return {
+      enabled: true,
+      monthly_price_cents:
+        typeof row.monthly_price_cents === "number"
+          ? row.monthly_price_cents
+          : null,
+      annual_price_cents:
+        typeof row.annual_price_cents === "number"
+          ? row.annual_price_cents
+          : null,
+    };
+  } catch (err) {
+    console.error("getAuthorSubscriptionPricing error:", err);
+    throw err;
   }
 }

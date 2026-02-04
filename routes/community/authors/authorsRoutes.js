@@ -6,6 +6,7 @@ import {
   getNotificationPreferences,
   getUserEmailAndNameById,
   updateAuthorProfile,
+  updateAuthorSubscriptionPricing,
   updateNotificationPreferences,
   upsertAuthorEmailTemplate,
   validateEmailTemplateSize,
@@ -175,6 +176,40 @@ router.post("/test", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("test author email template error:", err);
     res.status(500).json({ error: "Failed to send test email" });
+  }
+});
+
+// PAID SUBSCRIBERS SETTINGS FOR AUTHORS PROFILE SETTINGS
+
+router.post("/me/subscription-pricing", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { subscriptions_enabled, monthly_price_cents, annual_price_cents } =
+      req.body;
+
+    // basic validation
+    if (subscriptions_enabled && !monthly_price_cents && !annual_price_cents) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one price is required",
+      });
+    }
+
+    await updateAuthorSubscriptionPricing({
+      userId,
+      subscriptionsEnabled: subscriptions_enabled,
+      monthlyPriceCents: monthly_price_cents,
+      annualPriceCents: annual_price_cents,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Save subscription pricing route error", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save subscription pricing",
+    });
   }
 });
 

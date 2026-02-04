@@ -1,6 +1,7 @@
 import express from "express";
 import {
   acceptSubscriptionInvite,
+  authorHasPaidSubscription,
   cancelSubscriptionInvite,
   createSubscriptionInvites,
   getMySubscribers,
@@ -58,6 +59,7 @@ router.delete(
 /**
  * Subscription state (for post UI)
  */
+
 router.get("/:authorUserId/status", authenticateToken, async (req, res) => {
   try {
     const { authorUserId } = req.params;
@@ -68,7 +70,12 @@ router.get("/:authorUserId/status", authenticateToken, async (req, res) => {
       subscriberUserId,
     );
 
-    res.json({ subscribed });
+    const hasPaidSubscription = await authorHasPaidSubscription(authorUserId);
+
+    res.json({
+      subscribed,
+      has_paid_subscription: hasPaidSubscription,
+    });
   } catch (err) {
     console.error("Subscription status route error:", err);
     res.status(400).json({ error: err.message });

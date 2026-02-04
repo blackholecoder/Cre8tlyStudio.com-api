@@ -887,3 +887,37 @@ export async function getSubscribersByAuthorId(authorUserId) {
     throw err;
   }
 }
+
+// PAID SUBSCRIPTIONS
+
+export async function authorHasPaidSubscription(authorUserId) {
+  try {
+    const db = connect();
+
+    const [[row]] = await db.query(
+      `
+      SELECT
+        p.subscriptions_enabled,
+        p.monthly_price_cents,
+        p.annual_price_cents,
+        u.stripe_connect_account_id
+      FROM author_profiles p
+      JOIN users u ON u.id = p.user_id
+      WHERE p.user_id = ?
+      LIMIT 1
+      `,
+      [authorUserId],
+    );
+
+    if (!row) return false;
+
+    return (
+      row.subscriptions_enabled === 1 &&
+      (row.monthly_price_cents > 0 || row.annual_price_cents > 0) &&
+      !!row.stripe_connect_account_id
+    );
+  } catch (err) {
+    console.error("authorHasPaidSubscription error:", err);
+    throw err;
+  }
+}

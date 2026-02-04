@@ -1556,3 +1556,22 @@ export async function markUserSeen(userId) {
     return { success: false };
   }
 }
+
+export async function updateUserStripeAuthorProductId(userId, productId) {
+  try {
+    const db = connect();
+
+    await db.query(
+      `
+      UPDATE users
+      SET stripe_author_product_id = ?
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [productId, userId],
+    );
+  } catch (err) {
+    console.error("❌ updateUserStripeAuthorProductId error", err);
+    throw err;
+  }
+}

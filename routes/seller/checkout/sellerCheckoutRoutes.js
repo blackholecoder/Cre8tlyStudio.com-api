@@ -3,10 +3,14 @@ import Stripe from "stripe";
 import { getLandingPageById } from "../../../db/landing/dbLanding.js";
 import { getLeadMagnetByPdfUrl } from "../../../db/dbLeadMagnet.js";
 import { getDeliveryBySessionId } from "../../../db/dbDeliveries.js";
-import { getUserById } from "../../../db/dbUser.js";
+import {
+  getUserById,
+  updateUserStripeAuthorProductId,
+} from "../../../db/dbUser.js";
 import { updateUserStripeCustomerId } from "../../../helpers/sellerWebhookHelper.js";
 import { authenticateToken } from "../../../middleware/authMiddleware.js";
 import connect from "../../../db/connect.js";
+import { getAuthorSubscriptionPricing } from "../../../db/community/authors/dbAuthors.js";
 
 const router = express.Router();
 
@@ -285,6 +289,7 @@ router.post("/create-checkout-session", async (req, res) => {
         },
       },
       metadata: {
+        domain: "seller_checkout",
         landingPageId: landingPage.id,
         blockId,
         productSource,
@@ -359,6 +364,7 @@ router.post(
           },
         ],
         metadata: {
+          domain: "platform_subscription",
           subscriptionType: "authors_assistant",
           userId: user.id,
         },
@@ -538,5 +544,106 @@ router.get("/downloads/:sessionId/info", async (req, res) => {
     });
   }
 });
+
+// Author Subscription Checkout
+
+router.post(
+  "/create-author-subscription-checkout",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const subscriberUserId = req.user.id;
+      const { authorUserId, billingInterval } = req.body;
+
+      const pricing = await getAuthorSubscriptionPricing(authorUserId);
+
+      if (!pricing || pricing.enabled !== true) {
+        return res.status(400).json({ success: false });
+      }
+
+      if (!authorUserId || !["monthly", "annual"].includes(billingInterval)) {
+        return res.status(400).json({ success: false });
+      }
+
+      const amountInCents =
+        billingInterval === "monthly"
+          ? pricing.monthly_price_cents
+          : pricing.annual_price_cents;
+
+      if (!amountInCents || amountInCents < 100) {
+        return res.status(400).json({ success: false });
+      }
+
+      const author = await getUserById(authorUserId);
+      const subscriber = await getUserById(subscriberUserId);
+
+      if (!author || !subscriber) {
+        return res.status(404).json({ success: false });
+      }
+
+      // 1️⃣ Ensure Stripe customer for subscriber
+      let customerId = subscriber.stripe_customer_id;
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: subscriber.email,
+          metadata: { userId: subscriberUserId },
+        });
+
+        customerId = customer.id;
+        await updateUserStripeCustomerId(subscriberUserId, customerId);
+      }
+
+      // 2️⃣ Ensure Stripe product for author (one-time)
+      let productId = author.stripe_author_product_id;
+
+      if (!productId) {
+        const product = await stripe.products.create({
+          name: `${author.name}'s Subscription`,
+          metadata: { author_user_id: authorUserId },
+        });
+
+        productId = product.id;
+        await updateUserStripeAuthorProductId(authorUserId, productId);
+      }
+
+      // 3️⃣ Create recurring price dynamically
+      const price = await stripe.prices.create({
+        unit_amount: amountInCents,
+        currency: "usd",
+        recurring: {
+          interval: billingInterval === "monthly" ? "month" : "year",
+        },
+        product: productId,
+      });
+
+      // 4️⃣ Create checkout session
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        customer: customerId,
+        line_items: [
+          {
+            price: price.id,
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          domain: "author_subscription",
+          author_user_id: authorUserId,
+          subscriber_user_id: subscriberUserId,
+          billing_interval: billingInterval,
+          amount_in_cents: amountInCents,
+        },
+        success_url: `${process.env.FRONTEND_URL}/community?subscribed=1`,
+        cancel_url: `${process.env.FRONTEND_URL}/community`,
+      });
+
+      res.json({ success: true, url: session.url });
+    } catch (err) {
+      console.error("❌ Author subscription checkout error", err);
+      res.status(500).json({ success: false });
+    }
+  },
+);
 
 export default router;

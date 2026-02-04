@@ -166,6 +166,7 @@ export async function getFragmentById(fragmentId, userId = null) {
             AND c.target_id = f.id
             AND c.deleted_at IS NULL
         ) AS comment_count,
+         
 
         f.reshare_count,
 
@@ -173,10 +174,18 @@ export async function getFragmentById(fragmentId, userId = null) {
         u.name AS author,
         u.username AS author_username,
         u.profile_image_url AS author_image,
-        u.is_verified AS author_is_verified
+        u.is_verified AS author_is_verified,
+
+        CASE
+          WHEN ap.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS author_has_profile
 
       FROM fragments f
       JOIN users u ON u.id = f.user_id
+
+      LEFT JOIN author_profiles ap
+        ON ap.user_id = u.id
 
       LEFT JOIN fragment_likes fl
         ON fl.fragment_id = f.id
@@ -184,6 +193,8 @@ export async function getFragmentById(fragmentId, userId = null) {
       LEFT JOIN fragment_likes ul
         ON ul.fragment_id = f.id
        AND ul.user_id = ${escapedUserId}
+
+       
 
       WHERE f.id = ?
       GROUP BY f.id
