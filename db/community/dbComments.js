@@ -109,6 +109,7 @@ export async function addCommentToTarget({
         actorId: userId,
         type: targetType === "post" ? "comment" : "fragment_comment",
         postId: targetType === "post" ? targetId : null,
+        fragmentId: targetType === "fragment" ? targetId : null, // ✅ THIS
         parentId: null,
         commentId,
         message:
@@ -638,9 +639,13 @@ export async function createReplyToComment({ userId, parentId, body }) {
         userId: replyToUserIdFinal,
         actorId: userId,
         type: target_type === "post" ? "reply" : "fragment_reply",
+
         postId: target_type === "post" ? target_id : null,
+        fragmentId: target_type === "fragment" ? target_id : null,
+
         parentId,
         commentId: replyId,
+
         message:
           target_type === "post"
             ? "replied to your comment"

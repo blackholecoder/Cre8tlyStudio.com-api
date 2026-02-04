@@ -728,6 +728,7 @@ export async function likeTarget({ targetType, targetId, userId }) {
       userId: ownerUserId,
       actorId: userId,
       type: "fragment_like",
+      fragmentId: targetId,
       postId: null,
       parentId: null,
       commentId: null,

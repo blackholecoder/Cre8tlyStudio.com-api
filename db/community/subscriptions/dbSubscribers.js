@@ -82,7 +82,6 @@ export async function subscribeToAuthor(authorUserId, subscriberUserId) {
       userId: authorUserId,
       actorId: subscriberUserId,
       type: "subscription",
-      referenceId: subscriberUserId,
       message: "subscribed to you",
     });
 

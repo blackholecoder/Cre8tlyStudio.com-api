@@ -85,8 +85,9 @@ router.get("/my-fragments", authenticateToken, async (req, res) => {
 router.get("/:fragmentId", authenticateToken, async (req, res) => {
   try {
     const { fragmentId } = req.params;
+    const userId = req.user?.id || null;
 
-    const fragment = await getFragmentById(fragmentId);
+    const fragment = await getFragmentById(fragmentId, userId);
 
     if (!fragment) {
       return res.status(404).json({
@@ -112,13 +113,12 @@ router.get("/:fragmentId", authenticateToken, async (req, res) => {
 router.put("/:fragmentId", authenticateToken, async (req, res) => {
   try {
     const { fragmentId } = req.params;
-    const { body, image_url } = req.body;
+    const { body } = req.body;
 
     await updateFragment({
       fragmentId,
       userId: req.user.id,
       body,
-      image_url,
     });
 
     res.json({ success: true });

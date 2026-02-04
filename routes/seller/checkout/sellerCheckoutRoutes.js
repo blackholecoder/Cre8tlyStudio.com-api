@@ -4,15 +4,65 @@ import { getLandingPageById } from "../../../db/landing/dbLanding.js";
 import { getLeadMagnetByPdfUrl } from "../../../db/dbLeadMagnet.js";
 import { getDeliveryBySessionId } from "../../../db/dbDeliveries.js";
 import { getUserById } from "../../../db/dbUser.js";
-import { getCommunityPostById } from "../../../db/community/dbPosts.js";
 import { updateUserStripeCustomerId } from "../../../helpers/sellerWebhookHelper.js";
 import { authenticateToken } from "../../../middleware/authMiddleware.js";
+import connect from "../../../db/connect.js";
 
 const router = express.Router();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // 🎯 Create a checkout session for a connected account
+
+export async function getTipTarget({ targetType, targetId }) {
+  try {
+    const db = connect();
+
+    if (targetType === "post") {
+      const [[row]] = await db.query(
+        `
+        SELECT id, user_id AS owner_user_id, slug
+        FROM community_posts
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [targetId],
+      );
+      return row || null;
+    }
+
+    if (targetType === "fragment") {
+      const [[row]] = await db.query(
+        `
+        SELECT id, user_id AS owner_user_id
+        FROM fragments
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [targetId],
+      );
+      return row || null;
+    }
+
+    if (targetType === "comment") {
+      const [[row]] = await db.query(
+        `
+        SELECT id, user_id AS owner_user_id
+        FROM community_comments
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [targetId],
+      );
+      return row || null;
+    }
+
+    return null;
+  } catch (err) {
+    console.error("❌ getTipTarget error:", err);
+    return null;
+  }
+}
 
 router.post("/create-checkout-session", async (req, res) => {
   try {
@@ -23,49 +73,44 @@ router.post("/create-checkout-session", async (req, res) => {
       productSource,
       sellerId,
       price_in_cents,
-      postId,
-      writerUserId,
-      tipAmountInCents,
     } = req.body;
 
     // 🔹 TIP CHECKOUT (early exit)
     if (checkoutType === "tip") {
-      if (!postId) {
+      const { targetType = "post", targetId, tipAmountInCents } = req.body;
+
+      if (!targetId || !tipAmountInCents) {
         return res.status(400).json({
           success: false,
-          message: "Missing postId for tip checkout",
+          message: "Missing tip target or amount",
         });
       }
 
-      if (!writerUserId || !tipAmountInCents) {
-        return res.status(400).json({
-          success: false,
-          message: "Missing writerUserId or tip amount",
-        });
-      }
+      const target = await getTipTarget({
+        targetType,
+        targetId,
+      });
 
-      const writer = await getUserById(writerUserId);
-
-      const post = await getCommunityPostById(postId);
-
-      if (!post) {
+      if (!target) {
         return res.status(404).json({
           success: false,
-          message: "Post not found",
+          message: "Tip target not found",
         });
       }
 
-      if (req.user?.id === writerUserId) {
+      if (req.user?.id === target.owner_user_id) {
         return res.status(400).json({
           success: false,
           message: "You cannot tip yourself",
         });
       }
 
+      const writer = await getUserById(target.owner_user_id);
+
       if (!writer?.stripe_connect_account_id) {
         return res.status(400).json({
           success: false,
-          message: "Writer is not set up to receive tips",
+          message: "Recipient cannot receive tips",
         });
       }
 
@@ -77,8 +122,8 @@ router.post("/create-checkout-session", async (req, res) => {
             price_data: {
               currency: "usd",
               product_data: {
-                name: "Tip for writer",
-                description: "Thanks for the great writing",
+                name: "Tip",
+                description: "Thanks for the great work",
               },
               unit_amount: tipAmountInCents,
             },
@@ -86,20 +131,20 @@ router.post("/create-checkout-session", async (req, res) => {
           },
         ],
         payment_intent_data: {
-          application_fee_amount: Math.round(tipAmountInCents * 0.1), // optional
+          application_fee_amount: Math.round(tipAmountInCents * 0.1),
           transfer_data: {
             destination: writer.stripe_connect_account_id,
           },
         },
         metadata: {
           checkoutType: "tip",
-          postId,
-          postSlug: post.slug,
-          writerUserId,
+          targetType,
+          targetId,
+          writerUserId: target.owner_user_id,
           tipperUserId: req.user?.id || null,
         },
-        success_url: `${process.env.FRONTEND_URL}/community/post/${post.slug}?tipped=1`,
-        cancel_url: `${process.env.FRONTEND_URL}/community`,
+        success_url: `${process.env.FRONTEND_URL}/community/fragments?tipped=1`,
+        cancel_url: `${process.env.FRONTEND_URL}`,
       });
 
       return res.json({ success: true, url: session.url });

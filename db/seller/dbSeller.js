@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import connect from "../connect.js";
 import OpenAI from "openai";
 import { checkTipBadges } from "../badges/dbBadges.js";
+import { v4 as uuidv4 } from "uuid";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -174,7 +175,6 @@ export async function markThankYouSent(saleId) {
 export async function insertTip({
   stripe_session_id,
   writer_user_id,
-  post_id,
   amount_cents,
   currency,
   tipper_email,
@@ -184,23 +184,25 @@ export async function insertTip({
 
     await db.query(
       `
-      INSERT INTO post_tips (
-        id,
-        stripe_session_id,
-        writer_user_id,
-        post_id,
-        amount_cents,
-        currency,
-        tipper_email
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?
-      )
-      `,
+  INSERT INTO post_tips (
+    id,
+    stripe_session_id,
+    writer_user_id,
+    post_id,
+    target_type,
+    target_id,
+    amount_cents,
+    currency,
+    tipper_email
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `,
       [
         uuidv4(),
         stripe_session_id,
         writer_user_id,
-        post_id,
+        targetType === "post" ? targetId : null,
+        targetType,
+        targetId,
         amount_cents,
         currency,
         tipper_email,

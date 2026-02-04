@@ -1,30 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
 import connect from "../../connect.js";
-
-export async function createNotification({
-  userId,
-  actorId = null,
-  type,
-  referenceId,
-  message,
-}) {
-  const db = connect();
-  const id = uuidv4();
-
-  try {
-    await db.query(
-      `INSERT INTO user_notifications
-        (id, user_id, actor_id, type, reference_id, message)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, userId, actorId, type, referenceId, message],
-    );
-
-    return { success: true, id };
-  } catch (err) {
-    console.error("❌ createNotification error:", err);
-    throw err;
-  }
-}
 
 export async function getUserNotifications(userId, limit = 50, offset = 0) {
   const db = connect();
@@ -33,11 +7,32 @@ export async function getUserNotifications(userId, limit = 50, offset = 0) {
     const [rows] = await db.query(
       `
       SELECT
-        n.*,
+        n.id,
+        n.user_id,
+        n.actor_id,
+        n.type,
+        n.message,  
+        n.reference_id,
+        n.is_read,
+        n.created_at,
 
+        /* 🔹 target resolution */
+        CASE
+          WHEN n.post_id IS NOT NULL THEN 'post'
+          ELSE 'fragment'
+        END AS target_type,
+
+        CASE
+          WHEN n.post_id IS NOT NULL THEN n.post_id
+          ELSE n.fragment_id
+        END AS target_id,
+
+
+        /* 🔹 actor */
         u.name AS actor_name,
         u.profile_image_url AS actor_image,
 
+        /* 🔹 post preview (only when post) */
         p.image_url AS post_image,
         p.title AS post_title
 
@@ -64,6 +59,7 @@ export async function getUserNotifications(userId, limit = 50, offset = 0) {
     throw err;
   }
 }
+
 export async function markNotificationsRead(userId, ids = []) {
   if (!ids.length) return;
 
@@ -104,18 +100,26 @@ export async function getUnreadNotificationCount(userId) {
 export async function saveNotification({
   userId,
   actorId,
-  type, // "comment" or "reply"
-  postId,
+  type, // e.g. "post_like", "comment", "reply", "fragment_comment"
+  postId = null, // ONLY for posts
+  fragmentId = null,
   parentId = null,
-  commentId,
-  referenceId,
+  commentId = null,
+  referenceId = null,
   message,
 }) {
   const db = connect();
   const id = crypto.randomUUID();
 
   try {
-    const resolvedReferenceId = referenceId ?? commentId ?? parentId ?? postId;
+    // 🔐 Single source of truth for navigation
+    const resolvedReferenceId =
+      referenceId ??
+      fragmentId ??
+      commentId ??
+      parentId ??
+      postId ??
+      (type === "subscription" ? actorId : null);
 
     if (!resolvedReferenceId) {
       throw new Error("Notification reference_id could not be resolved");
@@ -124,8 +128,19 @@ export async function saveNotification({
     await db.query(
       `
       INSERT INTO user_notifications
-      (id, user_id, actor_id, type, message, reference_id, post_id, parent_id, comment_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (
+        id,
+        user_id,
+        actor_id,
+        type,
+        message,
+        reference_id,
+        fragment_id,
+        post_id,
+        parent_id,
+        comment_id
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         id,
@@ -134,7 +149,8 @@ export async function saveNotification({
         type,
         message,
         resolvedReferenceId,
-        postId,
+        fragmentId,
+        postId, // NULL for fragments ✅
         parentId,
         commentId,
       ],

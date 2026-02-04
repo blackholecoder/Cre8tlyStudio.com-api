@@ -68,6 +68,8 @@ export async function getFragmentFeed({
       f.id,
       f.body,
       f.created_at,
+      f.updated_at,
+      f.views,
 
       COUNT(fl.id) AS like_count,
 
@@ -88,6 +90,7 @@ export async function getFragmentFeed({
       u.name AS author,
       u.username AS author_username,
       u.profile_image_url AS author_image,
+      u.is_verified AS author_is_verified,
 
       rf.id AS reshared_id,
       rf.body AS reshared_body,
@@ -121,32 +124,48 @@ export async function getFragmentFeed({
 
   return rows.map((r) => ({
     ...r,
+    views: Number(r.views) || 0,
     like_count: Number(r.like_count) || 0,
     has_liked: Boolean(r.has_liked),
     comment_count: Number(r.comment_count) || 0,
   }));
 }
 
-export async function getFragmentById(fragmentId) {
+export async function getFragmentById(fragmentId, userId = null) {
   const db = connect();
+  const escapedUserId = userId ? db.escape(userId) : "NULL";
 
   try {
+    await db.query(
+      `
+      UPDATE fragments
+      SET views = views + 1
+      WHERE id = ?
+        AND user_id != ?
+      `,
+      [fragmentId, userId],
+    );
+
     const [[row]] = await db.query(
       `
       SELECT
         f.id,
-        f.user_id AS user_id,
+        f.user_id,
         f.body,
         f.created_at,
-        f.like_count,
+        f.updated_at,
+        f.views, 
+
+        COUNT(fl.id) AS like_count,
+        MAX(ul.user_id IS NOT NULL) AS has_liked,
 
         (
-        SELECT COUNT(*)
-        FROM community_comments c
-        WHERE c.target_type = 'fragment'
-          AND c.target_id = f.id
-          AND c.deleted_at IS NULL
-      ) AS comment_count,
+          SELECT COUNT(*)
+          FROM community_comments c
+          WHERE c.target_type = 'fragment'
+            AND c.target_id = f.id
+            AND c.deleted_at IS NULL
+        ) AS comment_count,
 
         f.reshare_count,
 
@@ -154,32 +173,34 @@ export async function getFragmentById(fragmentId) {
         u.name AS author,
         u.username AS author_username,
         u.profile_image_url AS author_image,
-
-        rf.id AS reshared_id,
-        rf.body AS reshared_body,
-        rf.created_at AS reshared_created_at,
-
-        ru.id AS reshared_author_id,
-        ru.name AS reshared_author,
-        ru.username AS reshared_author_username,
-        ru.profile_image_url AS reshared_author_image
+        u.is_verified AS author_is_verified
 
       FROM fragments f
       JOIN users u ON u.id = f.user_id
 
-      LEFT JOIN fragments rf
-        ON f.reshare_fragment_id = rf.id
+      LEFT JOIN fragment_likes fl
+        ON fl.fragment_id = f.id
 
-      LEFT JOIN users ru
-        ON ru.id = rf.user_id
+      LEFT JOIN fragment_likes ul
+        ON ul.fragment_id = f.id
+       AND ul.user_id = ${escapedUserId}
 
       WHERE f.id = ?
+      GROUP BY f.id
       LIMIT 1
       `,
       [fragmentId],
     );
 
-    return row || null;
+    return row
+      ? {
+          ...row,
+          views: Number(row.views) || 0,
+          like_count: Number(row.like_count) || 0,
+          has_liked: Boolean(row.has_liked),
+          comment_count: Number(row.comment_count) || 0,
+        }
+      : null;
   } catch (err) {
     console.error("❌ getFragmentById failed:", err);
     throw err;
@@ -230,15 +251,15 @@ export async function deleteFragmentById(fragmentId, userId) {
   }
 }
 
-export async function updateFragment({ fragmentId, userId, body, image_url }) {
+export async function updateFragment({ fragmentId, userId, body }) {
   const db = connect();
 
   await db.query(
     `
     UPDATE fragments
-    SET body = ?, image_url = ?, updated_at = NOW()
+    SET body = ?, updated_at = NOW()
     WHERE id = ? AND user_id = ? AND deleted_at IS NULL
     `,
-    [body, image_url, fragmentId, userId],
+    [body, fragmentId, userId],
   );
 }
