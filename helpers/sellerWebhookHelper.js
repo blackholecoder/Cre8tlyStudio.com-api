@@ -13,6 +13,7 @@ import { hasDeliveryBySessionId, insertDelivery } from "../db/dbDeliveries.js";
 import { getUserById } from "../db/dbUser.js";
 import { sendTipReceivedEmail } from "../emails/sendTipReceivedEmail.js";
 import { saveNotification } from "../db/community/notifications/notifications.js";
+import { sendPaidSubscriberEmail } from "../db/community/subscriptions/dbSubscribers.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -687,25 +688,25 @@ export async function getUserByStripeCustomerId(stripeCustomerId) {
 
 export async function handleAuthorCheckoutCompleted(session) {
   try {
-    // 1. Validate metadata
-    const authorUserId = session.metadata?.author_user_id;
-    const subscriberUserId = session.metadata?.subscriber_user_id;
-
-    if (!authorUserId || !subscriberUserId) {
-      console.warn("⚠️ Missing author subscription metadata", session.id);
-      return;
-    }
-
-    // 2. Ensure this checkout created a subscription
     if (!session.subscription) {
       console.warn("⚠️ Checkout completed without subscription", session.id);
       return;
     }
 
-    // 3. Retrieve full Stripe subscription
     const subscription = await stripe.subscriptions.retrieve(
       session.subscription,
     );
+
+    const authorUserId = subscription.metadata?.author_user_id;
+    const subscriberUserId = subscription.metadata?.subscriber_user_id;
+
+    if (!authorUserId || !subscriberUserId) {
+      console.warn("⚠️ Missing author subscription metadata", {
+        sessionId: session.id,
+        subscriptionId: session.subscription,
+      });
+      return;
+    }
 
     const {
       id: stripeSubscriptionId,
@@ -715,18 +716,19 @@ export async function handleAuthorCheckoutCompleted(session) {
       items,
     } = subscription;
 
-    // 4. Determine billing interval
-    const billingInterval =
-      items?.data?.[0]?.price?.recurring?.interval ?? null;
+    let billingInterval = null;
+    const stripeInterval = items?.data?.[0]?.price?.recurring?.interval;
+
+    if (stripeInterval === "month") billingInterval = "monthly";
+    if (stripeInterval === "year") billingInterval = "yearly";
 
     const paid = status === "active" || status === "trialing";
 
     const db = connect();
 
-    // 5. Upsert author_subscriptions
-    const [existing] = await db.query(
+    const [[existing]] = await db.query(
       `
-      SELECT id
+      SELECT id, stripe_subscription_id
       FROM author_subscriptions
       WHERE author_user_id = ?
         AND subscriber_user_id = ?
@@ -735,13 +737,16 @@ export async function handleAuthorCheckoutCompleted(session) {
       [authorUserId, subscriberUserId],
     );
 
-    if (existing.length > 0) {
+    if (existing?.stripe_subscription_id === stripeSubscriptionId) {
+      return;
+    }
+
+    if (existing) {
       await db.query(
         `
         UPDATE author_subscriptions
         SET
           paid_subscription = ?,
-          status = ?,
           stripe_customer_id = ?,
           stripe_subscription_id = ?,
           billing_interval = ?,
@@ -753,7 +758,6 @@ export async function handleAuthorCheckoutCompleted(session) {
         `,
         [
           paid ? 1 : 0,
-          status,
           stripeCustomerId,
           stripeSubscriptionId,
           billingInterval,
@@ -770,21 +774,21 @@ export async function handleAuthorCheckoutCompleted(session) {
           author_user_id,
           subscriber_user_id,
           paid_subscription,
-          status,
           stripe_customer_id,
           stripe_subscription_id,
           billing_interval,
           current_period_end,
           created_at,
           last_activity_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW(), NOW())
+        ) VALUES (
+          ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW(), NOW()
+        )
         `,
         [
           uuidv4(),
           authorUserId,
           subscriberUserId,
           paid ? 1 : 0,
-          status,
           stripeCustomerId,
           stripeSubscriptionId,
           billingInterval,
@@ -797,7 +801,6 @@ export async function handleAuthorCheckoutCompleted(session) {
       sessionId: session?.id,
       error: err,
     });
-
     throw err;
   }
 }
@@ -820,20 +823,18 @@ export async function handleAuthorSubscriptionUpsert(subscription) {
       items,
     } = subscription;
 
-    const billingInterval =
-      items?.data?.[0]?.price?.recurring?.interval ?? null;
+    // 🔁 map Stripe interval → DB enum
+    let billingInterval = null;
+    const stripeInterval = items?.data?.[0]?.price?.recurring?.interval;
+
+    if (stripeInterval === "month") billingInterval = "monthly";
+    if (stripeInterval === "year") billingInterval = "yearly";
 
     const isPaid = status === "active" || status === "trialing";
 
-    let mappedStatus = status;
-
-    if (status === "unpaid") {
-      mappedStatus = "past_due";
-    }
-
     const db = connect();
 
-    const [existing] = await db.query(
+    const [[existing]] = await db.query(
       `
       SELECT id
       FROM author_subscriptions
@@ -844,35 +845,56 @@ export async function handleAuthorSubscriptionUpsert(subscription) {
       [authorUserId, subscriberUserId],
     );
 
-    if (existing.length === 0) {
-      console.warn(
-        "⚠️ Subscription update with no existing author subscription",
-        {
-          stripeSubscriptionId,
+    // 🆕 insert if missing
+    if (!existing) {
+      await db.query(
+        `
+        INSERT INTO author_subscriptions (
+          id,
+          author_user_id,
+          subscriber_user_id,
+          paid_subscription,
+          stripe_customer_id,
+          stripe_subscription_id,
+          billing_interval,
+          current_period_end,
+          last_activity_at
+        ) VALUES (
+          ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW()
+        )
+        `,
+        [
+          uuidv4(),
           authorUserId,
           subscriberUserId,
-        },
+          isPaid ? 1 : 0,
+          stripeCustomerId,
+          stripeSubscriptionId,
+          billingInterval,
+          current_period_end,
+        ],
       );
+
       return;
     }
 
+    // 🔄 update existing
     await db.query(
       `
       UPDATE author_subscriptions
       SET
         paid_subscription = ?,
-        status = ?,
         stripe_customer_id = ?,
         stripe_subscription_id = ?,
         billing_interval = ?,
         current_period_end = FROM_UNIXTIME(?),
+        deleted_at = NULL,
         last_activity_at = NOW()
       WHERE author_user_id = ?
         AND subscriber_user_id = ?
       `,
       [
         isPaid ? 1 : 0,
-        mappedStatus,
         stripeCustomerId,
         stripeSubscriptionId,
         billingInterval,
@@ -893,48 +915,39 @@ export async function handleAuthorSubscriptionUpsert(subscription) {
 
 // INVOICES SUCCEEDED
 
-export async function handleAuthorInvoicePaid(invoice, subscription) {
+export async function handleAuthorInvoicePaid(invoice) {
   try {
-    const authorUserId = subscription.metadata?.author_user_id;
-    const subscriberUserId = subscription.metadata?.subscriber_user_id;
-
-    if (!authorUserId || !subscriberUserId) {
-      console.warn(
-        "⚠️ Invoice missing author subscription metadata",
-        invoice.id,
-      );
-      return;
-    }
-
-    const { id: invoiceId, amount_paid } = invoice;
+    const {
+      id: invoiceId,
+      amount_paid,
+      subscription: stripeSubscriptionId,
+    } = invoice;
 
     if (!amount_paid || amount_paid <= 0) {
       console.warn("⚠️ Invoice paid with zero amount", invoiceId);
       return;
     }
 
-    const {
-      id: stripeSubscriptionId,
-      status,
-      current_period_end,
-    } = subscription;
+    if (!stripeSubscriptionId) {
+      console.warn("⚠️ Invoice missing subscription ID", invoiceId);
+      return;
+    }
 
     const db = connect();
 
-    // 1. Fetch existing subscription row
     const [[row]] = await db.query(
       `
       SELECT
         id,
+        author_user_id,
+        subscriber_user_id,
         revenue,
         last_invoice_id
       FROM author_subscriptions
-      WHERE author_user_id = ?
-        AND subscriber_user_id = ?
-        AND stripe_subscription_id = ?
+      WHERE stripe_subscription_id = ?
       LIMIT 1
       `,
-      [authorUserId, subscriberUserId, stripeSubscriptionId],
+      [stripeSubscriptionId],
     );
 
     if (!row) {
@@ -945,7 +958,7 @@ export async function handleAuthorInvoicePaid(invoice, subscription) {
       return;
     }
 
-    // 2. Idempotency check
+    // 🔁 idempotency guard
     if (row.last_invoice_id === invoiceId) {
       console.log("🔁 Invoice already processed", invoiceId);
       return;
@@ -953,34 +966,54 @@ export async function handleAuthorInvoicePaid(invoice, subscription) {
 
     const revenueIncrement = amount_paid / 100;
 
-    // 3. Apply revenue update
     await db.query(
       `
       UPDATE author_subscriptions
       SET
         revenue = revenue + ?,
         paid_subscription = 1,
-        status = 'active',
-        current_period_end = FROM_UNIXTIME(?),
         last_invoice_id = ?,
         last_activity_at = NOW()
       WHERE id = ?
       `,
-      [revenueIncrement, current_period_end, invoiceId, row.id],
+      [revenueIncrement, invoiceId, row.id],
     );
 
-    console.log("💰 Author subscription revenue recorded", {
-      authorUserId,
-      subscriberUserId,
-      revenueIncrement,
+    // 📧 Send paid subscription email to author
+    const [[author]] = await db.query(
+      `
+      SELECT email
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [row.author_user_id],
+    );
+
+    const interval =
+      invoice.lines?.data?.[0]?.price?.recurring?.interval === "year"
+        ? "year"
+        : "month";
+
+    if (invoice.billing_reason === "subscription_create" && author?.email) {
+      await sendPaidSubscriberEmail({
+        to: author.email,
+        subscriberName: "A new member",
+        amount: (invoice.amount_paid / 100).toFixed(2),
+        interval,
+      });
+    }
+
+    console.log("💰 Author subscription revenue recorded + email sent", {
+      stripeSubscriptionId,
       invoiceId,
+      revenueIncrement,
     });
   } catch (err) {
     console.error("❌ handleAuthorInvoicePaid failed", {
       invoiceId: invoice?.id,
       error: err,
     });
-
     throw err;
   }
 }
@@ -1059,6 +1092,69 @@ export async function handleAuthorInvoiceFailed(invoice, subscription) {
       error: err,
     });
 
+    throw err;
+  }
+}
+
+export async function handleAuthorSubscriptionDeleted(subscription) {
+  try {
+    const stripeSubscriptionId = subscription.id;
+
+    const db = connect();
+
+    const [[row]] = await db.query(
+      `
+      SELECT id, author_user_id
+      FROM author_subscriptions
+      WHERE stripe_subscription_id = ?
+      LIMIT 1
+      `,
+      [stripeSubscriptionId],
+    );
+
+    if (!row) {
+      console.warn(
+        "⚠️ Subscription deleted but row missing",
+        stripeSubscriptionId,
+      );
+      return;
+    }
+
+    await db.query(
+      `
+      UPDATE author_subscriptions
+      SET
+        paid_subscription = 0,
+        deleted_at = NOW(),
+        last_activity_at = NOW()
+      WHERE id = ?
+      `,
+      [row.id],
+    );
+
+    const [[author]] = await db.query(
+      `
+      SELECT email
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [row.author_user_id],
+    );
+
+    if (author?.email) {
+      await sendPaidUnsubscribedEmail({
+        to: author.email,
+        subscriberName: "A member",
+      });
+    }
+
+    console.log(
+      "🚪 Paid subscription canceled + email sent",
+      stripeSubscriptionId,
+    );
+  } catch (err) {
+    console.error("❌ handleAuthorSubscriptionDeleted failed", err);
     throw err;
   }
 }

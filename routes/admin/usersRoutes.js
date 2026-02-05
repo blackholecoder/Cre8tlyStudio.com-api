@@ -1,9 +1,14 @@
 import express from "express";
+
 import {
   authenticateAdminToken,
   requireAdmin,
 } from "../../middleware/authMiddleware.js";
-import { getAllUsers, deleteUserById } from "../../db/dbGetAllUsers.js";
+import {
+  getAllUsers,
+  deleteUserById,
+  repairAuthorSubscription,
+} from "../../db/dbGetAllUsers.js";
 import { createReferralSlug } from "../../db/referrals/dbReferrals.js";
 
 const router = express.Router();
@@ -83,5 +88,37 @@ router.post("/create-referral", authenticateAdminToken, async (req, res) => {
     });
   }
 });
+
+router.post(
+  "/stripe/repair-author-subscription",
+  authenticateAdminToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { stripeSubscriptionId } = req.body;
+
+      if (!stripeSubscriptionId) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing stripeSubscriptionId",
+        });
+      }
+
+      const result = await repairAuthorSubscription(stripeSubscriptionId);
+
+      res.json({
+        success: true,
+        result,
+      });
+    } catch (err) {
+      console.error("❌ Repair author subscription failed", err);
+
+      res.status(500).json({
+        success: false,
+        message: err.message,
+      });
+    }
+  },
+);
 
 export default router;

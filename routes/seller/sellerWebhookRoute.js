@@ -6,6 +6,7 @@ import {
   handleAuthorCheckoutCompleted,
   handleAuthorInvoiceFailed,
   handleAuthorInvoicePaid,
+  handleAuthorSubscriptionDeleted,
   handleAuthorSubscriptionUpsert,
   handleCheckoutCompleted,
   handleExternalAccountChange,
@@ -55,11 +56,26 @@ router.post("/", async (req, res) => {
       case "checkout.session.completed": {
         const session = event.data.object;
 
-        switch (session.metadata?.domain) {
-          case "author_subscription":
-            await handleAuthorCheckoutCompleted(session);
-            break;
+        // Subscription checkout — metadata lives on the subscription
+        if (session.mode === "subscription" && session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(
+            session.subscription,
+          );
 
+          if (subscription.metadata?.domain === "author_subscription") {
+            await handleAuthorCheckoutCompleted(session);
+          } else {
+            console.warn(
+              "⚠️ Subscription checkout missing or unknown domain",
+              subscription.id,
+            );
+          }
+
+          break;
+        }
+
+        // One-time / tip / seller checkout
+        switch (session.metadata?.domain) {
           case "seller_checkout":
             await handleCheckoutCompleted(session);
             break;
@@ -86,8 +102,7 @@ router.post("/", async (req, res) => {
       // 🔁 SUBSCRIPTIONS (generic)
       // ======================
       case "customer.subscription.created":
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
+      case "customer.subscription.updated": {
         const subscription = event.data.object;
 
         switch (subscription.metadata?.domain) {
@@ -101,6 +116,16 @@ router.post("/", async (req, res) => {
 
           default:
             console.log("Unknown subscription domain", subscription.id);
+        }
+
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+
+        if (subscription.metadata?.domain === "author_subscription") {
+          await handleAuthorSubscriptionDeleted(subscription);
         }
 
         break;

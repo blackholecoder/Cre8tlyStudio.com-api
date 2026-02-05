@@ -226,6 +226,10 @@ export async function getMySubscribers(authorUserId) {
         u.email,
         u.profile_image_url,
         s.paid_subscription,
+        CASE
+          WHEN s.paid_subscription = 1 THEN 1
+          ELSE 0
+        END AS has_subscription,
         COALESCE(s.activity, 0) AS activity,
         s.revenue,
         s.created_at,
@@ -755,6 +759,118 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
   });
 }
 
+// PIAD EMAIL
+export async function sendPaidSubscriberEmail({
+  to,
+  subscriberName,
+  amount,
+  interval,
+}) {
+  if (!to) {
+    throw new Error("No email recipient provided to sendPaidSubscriberEmail");
+  }
+
+  const html = `
+<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+  <div style="
+    max-width:420px;
+    margin:0 auto;
+    background:#ffffff;
+    padding:32px;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+  ">
+    <!-- Brand -->
+    <div style="margin-bottom:32px;">
+      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="padding-right:10px;vertical-align:middle;">
+            <img
+              src="https://themessyattic.com/themessyattic-logo.png"
+              width="36"
+              height="36"
+              alt="The Messy Attic"
+              style="display:block;"
+            />
+          </td>
+          <td style="vertical-align:middle;">
+            <div style="
+              font-size:20px;
+              font-weight:700;
+              color:#111827;
+              line-height:1;
+            ">
+              The Messy Attic
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Heading -->
+    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0;">
+      You have a new paid subscriber
+    </h2>
+
+    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+      Someone just chose to support your work
+    </p>
+
+    <!-- Body -->
+    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
+      <strong>${subscriberName || "Someone"}</strong> just started a
+      <strong>paid subscription</strong> to your community on The Messy Attic.
+    </p>
+
+    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:16px;">
+      This subscriber is now supporting you at
+      <strong>$${amount}/${interval}</strong> and has full access to your
+      community and paid content.
+    </p>
+
+    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
+      You’ve officially earned from your writing. Keep going.
+    </p>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin:30px 0;">
+      <a
+        href="https://themessyattic.com/community"
+        target="_blank"
+        style="
+          background:#7bed9f;
+          color:#000;
+          padding:14px 36px;
+          border-radius:8px;
+          text-decoration:none;
+          font-weight:700;
+          display:inline-block;
+        "
+      >
+        View your community
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <p style="font-size:13px;color:#6b7280;text-align:center;">
+      You can manage paid subscribers and earnings from your dashboard.
+    </p>
+
+    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
+      — The Messy Attic
+    </p>
+  </div>
+</div>
+`;
+
+  await sendOutLookMail({
+    to,
+    subject: "You have a new paid subscriber 🎉",
+    html,
+  });
+}
+
 export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
   if (!to) {
     throw new Error("No email recipient provided to sendFreeUnsubscribedEmail");
@@ -854,6 +970,99 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
   });
 }
 
+// PAID UNSUBSCRIBED EMAIL
+export async function sendPaidUnsubscribedEmail({ to, subscriberName }) {
+  if (!to) {
+    throw new Error("No email recipient provided to sendPaidUnsubscribedEmail");
+  }
+
+  const html = `
+<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+  <div style="
+    max-width:420px;
+    margin:0 auto;
+    background:#ffffff;
+    padding:32px;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+  ">
+    <!-- Brand -->
+    <div style="margin-bottom:32px;">
+      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="padding-right:10px;vertical-align:middle;">
+            <img
+              src="https://themessyattic.com/themessyattic-logo.png"
+              width="36"
+              height="36"
+              alt="The Messy Attic"
+              style="display:block;"
+            />
+          </td>
+          <td style="vertical-align:middle;">
+            <div style="font-size:20px;font-weight:700;color:#111827;">
+              The Messy Attic
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0;">
+      A paid subscriber canceled
+    </h2>
+
+    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+      A supporter has ended their paid subscription
+    </p>
+
+    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
+      <strong>${subscriberName || "Someone"}</strong> has canceled their
+      <strong>paid subscription</strong> to your community.
+    </p>
+
+    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
+      They will no longer be billed and will lose access to paid content once
+      their billing period ends.
+    </p>
+
+    <div style="text-align:center;margin:30px 0;">
+      <a
+        href="https://themessyattic.com/community"
+        target="_blank"
+        style="
+          background:#7bed9f;
+          color:#000;
+          padding:14px 36px;
+          border-radius:8px;
+          text-decoration:none;
+          font-weight:700;
+          display:inline-block;
+        "
+      >
+        View your community
+      </a>
+    </div>
+
+    <p style="font-size:13px;color:#6b7280;text-align:center;">
+      You can review subscribers and earnings in your dashboard.
+    </p>
+
+    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
+      — The Messy Attic
+    </p>
+  </div>
+</div>
+`;
+
+  await sendOutLookMail({
+    to,
+    subject: "A paid subscriber canceled",
+    html,
+  });
+}
+
 export async function getSubscribersByAuthorId(authorUserId) {
   try {
     const db = connect();
@@ -865,10 +1074,14 @@ export async function getSubscribersByAuthorId(authorUserId) {
         u.name,
         u.username,
         u.profile_image_url,
+
+        s.paid_subscription AS has_subscription,
+
         CASE
           WHEN ap.user_id IS NOT NULL THEN 1
           ELSE 0
         END AS has_profile
+
       FROM author_subscriptions s
       JOIN users u
         ON u.id = s.subscriber_user_id

@@ -135,7 +135,7 @@ router.post("/create-checkout-session", async (req, res) => {
           },
         ],
         payment_intent_data: {
-          application_fee_amount: Math.round(tipAmountInCents * 0.1),
+          application_fee_amount: Math.round(tipAmountInCents * 0.2),
           transfer_data: {
             destination: writer.stripe_connect_account_id,
           },
@@ -627,12 +627,18 @@ router.post(
             quantity: 1,
           },
         ],
-        metadata: {
-          domain: "author_subscription",
-          author_user_id: authorUserId,
-          subscriber_user_id: subscriberUserId,
-          billing_interval: billingInterval,
-          amount_in_cents: amountInCents,
+        subscription_data: {
+          application_fee_percent: 20, // 💰 YOUR 20%
+          transfer_data: {
+            destination: author.stripe_connect_account_id, // 👤 AUTHOR
+          },
+          metadata: {
+            domain: "author_subscription",
+            author_user_id: authorUserId,
+            subscriber_user_id: subscriberUserId,
+            billing_interval: billingInterval,
+            amount_in_cents: amountInCents,
+          },
         },
         success_url: `${process.env.FRONTEND_URL}/community?subscribed=1`,
         cancel_url: `${process.env.FRONTEND_URL}/community`,

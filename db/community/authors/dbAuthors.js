@@ -14,7 +14,7 @@ export async function getAuthorProfile(authorUserId) {
     u.name,
     u.username,
     u.profile_image_url,
-    u.stripe_customer_id,
+    u.stripe_connect_account_id,
 
     p.bio,
     p.about,
@@ -26,6 +26,9 @@ export async function getAuthorProfile(authorUserId) {
     p.subscriptions_enabled,
     p.monthly_price_cents,
     p.annual_price_cents,
+    p.monthly_benefits,
+    p.annual_benefits,
+
 
     (
       SELECT COUNT(*)
@@ -89,7 +92,7 @@ export async function getAuthorProfile(authorUserId) {
       interests: normalizeList(row.interests),
       services: normalizeList(row.services),
       media_links: normalizeJson(row.media_links),
-      stripe_customer_id: row.stripe_customer_id,
+      stripe_connect_account_id: row.stripe_connect_account_id,
       subscriptions_enabled: !!row.subscriptions_enabled,
       monthly_price: row.monthly_price_cents
         ? row.monthly_price_cents / 100
@@ -97,6 +100,8 @@ export async function getAuthorProfile(authorUserId) {
       annual_price: row.annual_price_cents
         ? row.annual_price_cents / 100
         : null,
+      monthly_benefits: normalizeJson(row.monthly_benefits).slice(0, 10),
+      annual_benefits: normalizeJson(row.annual_benefits).slice(0, 10),
       subscriber_count: Number(row.subscriber_count) || 0,
     };
   } catch (err) {
@@ -117,7 +122,12 @@ export async function updateAuthorProfile(userId, data) {
       interests,
       services,
       media_links,
+      monthly_benefits,
+      annual_benefits,
     } = data;
+
+    const clampBenefits = (list) =>
+      Array.isArray(list) ? list.slice(0, 10) : [];
 
     if (username) {
       // basic validation
@@ -160,9 +170,11 @@ export async function updateAuthorProfile(userId, data) {
         current_employment,
         interests,
         services,
-        media_links
+        media_links,
+        monthly_benefits,
+        annual_benefits
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         bio = VALUES(bio),
         about = VALUES(about),
@@ -170,6 +182,8 @@ export async function updateAuthorProfile(userId, data) {
         interests = VALUES(interests),
         services = VALUES(services),
         media_links = VALUES(media_links),
+        monthly_benefits = VALUES(monthly_benefits),
+        annual_benefits = VALUES(annual_benefits),
         updated_at = NOW()
       `,
       [
@@ -180,6 +194,8 @@ export async function updateAuthorProfile(userId, data) {
         JSON.stringify(interests || []),
         JSON.stringify(services || []),
         JSON.stringify(media_links || []),
+        JSON.stringify(clampBenefits(monthly_benefits)),
+        JSON.stringify(clampBenefits(annual_benefits)),
       ],
     );
 
