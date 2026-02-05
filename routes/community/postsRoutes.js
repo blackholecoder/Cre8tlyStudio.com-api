@@ -13,6 +13,7 @@ import {
   getUserBookmarkedPosts,
   unlikeTarget,
   likeTarget,
+  getCommunityFeed,
 } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import {
@@ -27,6 +28,43 @@ import { postEmailQueue } from "../../queues/postEmailQueue.js";
 import { getUserRecap, markUserSeen } from "../../db/dbUser.js";
 
 const router = express.Router();
+
+// Community feed route
+
+router.get("/feed", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const limit = Math.max(1, Math.min(Number(req.query.limit) || 20, 50));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+
+    const { items, hasMore } = await getCommunityFeed({
+      userId,
+      limit,
+      offset,
+    });
+
+    res.json({
+      success: true,
+      items,
+      hasMore,
+    });
+  } catch (err) {
+    console.error("❌ GET /community/feed error:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to load community feed",
+    });
+  }
+});
 
 // Get all posts
 

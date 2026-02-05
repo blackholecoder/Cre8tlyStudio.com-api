@@ -5,6 +5,56 @@ import connect from "../connect.js";
 import { v4 as uuidv4 } from "uuid";
 import { checkPostBadges } from "../badges/dbBadges.js";
 import { saveNotification } from "./notifications/notifications.js";
+import { getFragmentFeed } from "../fragments/dbFragments.js";
+
+// Community Feed
+export async function getCommunityFeed({ userId, limit = 20, offset = 0 }) {
+  const db = connect();
+
+  try {
+    const fetchSize = limit + offset;
+
+    const posts = await getAllCommunityPosts({
+      userId,
+      limit: fetchSize,
+      offset: 0,
+    });
+
+    const fragments = await getFragmentFeed({
+      userId,
+      limit: fetchSize,
+      offset: 0,
+    });
+
+    const normalizedPosts = posts.map((p) => ({
+      id: p.id,
+      type: "post",
+      created_at: p.created_at,
+      data: p,
+    }));
+
+    const normalizedFragments = fragments.map((f) => ({
+      id: f.id,
+      type: "fragment",
+      created_at: f.created_at,
+      data: f,
+    }));
+
+    const merged = [...normalizedPosts, ...normalizedFragments].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
+
+    const items = merged.slice(offset, offset + limit);
+
+    return {
+      items,
+      hasMore: merged.length > offset + limit,
+    };
+  } catch (err) {
+    console.error("getCommunityFeed error:", err);
+    throw err;
+  }
+}
 
 async function generateUniqueSlug(db, title) {
   const base = slugify(title);
