@@ -87,6 +87,14 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
         p.image_url,
         p.topic_id,
         p.user_id,
+        p.comments_visibility,
+        p.comments_locked,
+
+         CASE
+          WHEN p.user_id = ? THEN 1
+          ELSE 0
+        END AS is_owner,
+
 
         COALESCE(s.views, 0) AS views,
         COALESCE(s.comment_count, 0) AS comment_count,
@@ -118,6 +126,11 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
           ELSE 0
         END AS author_has_profile,
 
+        CASE
+          WHEN sub.id IS NOT NULL THEN 1
+          ELSE 0
+        END AS is_subscribed,
+
           CASE
           WHEN l.user_id IS NOT NULL THEN 1
           ELSE 0
@@ -132,13 +145,18 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
       LEFT JOIN author_profiles ap ON ap.user_id = u.id
       
       LEFT JOIN community_post_views v
-  ON v.post_id = p.id
-  AND v.user_id = ?
+          ON v.post_id = p.id
+        AND v.user_id = ?
 
       LEFT JOIN community_post_likes l
           ON l.target_type = 'post'
         AND l.target_id = p.id
         AND l.user_id = ?
+
+        LEFT JOIN author_subscriptions sub
+          ON sub.author_user_id = p.user_id
+        AND sub.subscriber_user_id = ?
+        AND sub.deleted_at IS NULL
 
       WHERE p.deleted_at IS NULL
       ORDER BY
@@ -147,7 +165,7 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
   p.created_at DESC
       LIMIT ? OFFSET ?
       `,
-      [userId, userId, limit, offset],
+      [userId, userId, userId, userId, limit, offset],
     );
 
     return rows;
@@ -164,6 +182,7 @@ export async function createPost(
   body,
   imageUrl = null,
   relatedTopicIds = [],
+  commentsVisibility,
 ) {
   const db = connect();
 
@@ -179,6 +198,13 @@ export async function createPost(
 
     const slug = await generateUniqueSlug(db, title);
 
+    const visibility =
+      commentsVisibility === "paid" || commentsVisibility === "private"
+        ? commentsVisibility
+        : "public";
+
+    const commentsLocked = 0;
+
     const filtered = Array.isArray(relatedTopicIds)
       ? relatedTopicIds.filter((t) => t && t !== topicId).slice(0, 3)
       : [];
@@ -186,8 +212,19 @@ export async function createPost(
     await db.query(
       `
       INSERT INTO community_posts
-        (id, user_id, topic_id, title, subtitle, body, slug, image_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (
+          id,
+          user_id,
+          topic_id,
+          title,
+          subtitle,
+          body,
+          slug,
+          image_url,
+          comments_visibility,
+          comments_locked
+        )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         id,
@@ -198,6 +235,8 @@ export async function createPost(
         cleanBody,
         slug,
         imageUrl,
+        visibility,
+        commentsLocked,
       ],
     );
 
@@ -237,6 +276,8 @@ export async function createPost(
       body: cleanBody,
       slug,
       image_url: imageUrl,
+      comments_visibility: visibility,
+      comments_locked: commentsLocked,
       related_topic_ids: filtered,
     };
   } catch (error) {
@@ -261,6 +302,8 @@ export async function getPostsByTopic(topicId, userId) {
         p.updated_at,
         p.is_pinned,
         p.is_locked,
+        p.comments_visibility,
+        p.comments_locked,
         p.topic_id,
         p.user_id,
 
@@ -297,7 +340,19 @@ export async function getPostsByTopic(topicId, userId) {
         CASE
           WHEN l.user_id IS NOT NULL THEN 1
           ELSE 0
-        END AS has_liked
+        END AS has_liked,
+
+        CASE
+          WHEN p.user_id = ? THEN 1
+          WHEN sub.id IS NOT NULL THEN 1
+          ELSE 0
+        END AS is_subscribed,
+
+        CASE
+          WHEN p.user_id = ? THEN 1
+          WHEN sub.paid_subscription = 1 THEN 1
+          ELSE 0
+        END AS has_paid_subscription
 
       FROM community_posts p
       LEFT JOIN users u ON p.user_id = u.id
@@ -308,6 +363,11 @@ export async function getPostsByTopic(topicId, userId) {
           ON l.target_type = 'post'
         AND l.target_id = p.id
         AND l.user_id = ?
+
+      LEFT JOIN author_subscriptions sub
+          ON sub.author_user_id = p.user_id
+        AND sub.subscriber_user_id = ?
+        AND sub.deleted_at IS NULL
 
           WHERE
       p.deleted_at IS NULL
@@ -324,10 +384,13 @@ export async function getPostsByTopic(topicId, userId) {
       ORDER BY p.is_pinned DESC, p.created_at DESC
       `,
       [
-        topicId, // is_primary_topic
-        userId, // has_liked
-        topicId, // main topic
-        topicId,
+        topicId, // (1) is_primary_topic
+        userId, // (2) has_liked
+        userId, // (3) sub.subscriber_user_id
+        userId, // (4) is_subscribed CASE
+        userId, // (5) has_paid_subscription CASE
+        topicId, // (6) main topic filter
+        topicId, // (7) related topic filter
       ],
     );
 
@@ -540,11 +603,28 @@ export async function updateUserPost(userId, postId, data) {
   try {
     const db = connect();
 
-    const { title, subtitle, body, image_url, is_pinned, is_locked } = data;
+    const {
+      title,
+      subtitle,
+      body,
+      image_url,
+      is_pinned,
+      is_locked,
+      comments_visibility,
+    } = data;
 
     const safeTitle = title?.trim() || null;
     const safeSubtitle = subtitle?.trim() || null;
-    const safeBody = sanitizeHtml(body);
+    const safeBody = body ? sanitizeHtml(body) : null;
+
+    // normalize visibility
+    const visibility =
+      comments_visibility === "paid" || comments_visibility === "private"
+        ? comments_visibility
+        : "public";
+
+    // derive lock state
+    const commentsLocked = is_locked ?? 0;
 
     const [result] = await db.query(
       `
@@ -556,6 +636,8 @@ export async function updateUserPost(userId, postId, data) {
         image_url = COALESCE(?, image_url),
         is_pinned = ?,
         is_locked = ?,
+        comments_visibility = ?,
+        comments_locked = ?,
         updated_at = NOW()
       WHERE id = ? AND user_id = ?
       `,
@@ -566,6 +648,8 @@ export async function updateUserPost(userId, postId, data) {
         image_url ?? null,
         is_pinned ?? 0,
         is_locked ?? 0,
+        visibility,
+        commentsLocked,
         postId,
         userId,
       ],

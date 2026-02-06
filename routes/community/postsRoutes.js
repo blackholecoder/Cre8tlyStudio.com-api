@@ -115,7 +115,7 @@ router.get("/topics/:topicId/posts", authenticateToken, async (req, res) => {
         .json({ success: false, message: "Topic not found" });
     }
 
-    const posts = await getPostsByTopic(topicId);
+    const posts = await getPostsByTopic(topicId, userId);
     res.json({ success: true, topic, posts });
   } catch (error) {
     console.error("GET /community/topics/:id/posts error:", error);
@@ -144,12 +144,21 @@ router.get("/posts/user", authenticateToken, async (req, res) => {
 router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
   try {
     const { topicId } = req.params;
-    const { title, subtitle, body, image_url, relatedTopicIds } = req.body;
+    const userId = req.user.id;
 
-    if (!title) {
+    const {
+      title,
+      subtitle,
+      body,
+      image_url,
+      relatedTopicIds,
+      comments_visibility = "public",
+    } = req.body;
+
+    if (!title || !body) {
       return res
         .status(400)
-        .json({ success: false, message: "Title is required" });
+        .json({ success: false, message: "Missing required fields" });
     }
 
     const topic = await getTopicById(topicId);
@@ -159,18 +168,19 @@ router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
         .json({ success: false, message: "Topic not found" });
     }
 
-    const post = await createPost(
-      req.user.id,
+    const post = await createPost({
+      userId,
       topicId,
       title,
-      subtitle || null,
+      subtitle,
       body,
-      image_url,
+      imageUrl: image_url,
       relatedTopicIds,
-    );
+      commentsVisibility: comments_visibility,
+    });
 
     await postEmailQueue.add("send-post-email", {
-      authorUserId: req.user.id,
+      authorUserId: userId,
       authorName: req.user.name,
       postTitle: post.title,
       postBody: body,

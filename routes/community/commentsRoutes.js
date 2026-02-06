@@ -1,14 +1,13 @@
 import express from "express";
 import {
-  addComment,
   addCommentToTarget,
   createReply,
   deleteComment,
-  getCommentsByPost,
   getCommentsPaginated,
   getRepliesPaginated,
   getUserByUsername,
   getUserPreviewByUsername,
+  hasPaidAuthorSubscription,
   likeComment,
   searchUsersForMentions,
   unlikeComment,
@@ -17,30 +16,9 @@ import {
 import { getPostById } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import { getFragmentById } from "../../db/fragments/dbFragments.js";
+import { hasAuthorSubscription } from "../../db/community/subscriptions/dbSubscribers.js";
 
 const router = express.Router();
-
-// GET comments on a post
-router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
-  try {
-    const { postId } = req.params;
-
-    const post = await getPostById(postId);
-    if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
-
-    const comments = await getCommentsByPost(postId, req.user.id);
-    res.json({ success: true, comments });
-  } catch (error) {
-    console.error("GET /community/posts/:id/comments error:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to load comments" });
-  }
-});
 
 // CREATE comment
 router.post("/comments", authenticateToken, async (req, res) => {
@@ -93,12 +71,39 @@ router.post("/comments", authenticateToken, async (req, res) => {
 router.get("/posts/:postId/comments", authenticateToken, async (req, res) => {
   try {
     const { postId } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const viewerUserId = req.user.id;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+
+    const post = await getPostById(postId);
+    if (!post) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Post not found" });
+    }
+
+    let hasPaidSubscription = false;
+    let isSubscribed = false;
+
+    // post owner always allowed
+    if (viewerUserId !== post.user_id) {
+      isSubscribed = await hasAuthorSubscription({
+        authorUserId: post.user_id,
+        subscriberUserId: viewerUserId,
+      });
+
+      hasPaidSubscription = await hasPaidAuthorSubscription({
+        authorUserId: post.user_id,
+        subscriberUserId: viewerUserId,
+      });
+    }
 
     const comments = await getCommentsPaginated(
+      "post",
       postId,
-      req.user.id,
+      viewerUserId,
+      hasPaidSubscription,
+      isSubscribed,
       page,
       limit,
     );

@@ -162,7 +162,12 @@ export async function addComment(postId, userId, body) {
   });
 }
 
-export async function getCommentsByPost(postId, userId) {
+export async function getCommentsByPost(
+  postId,
+  userId,
+  hasPaidSubscription,
+  isSubscribed,
+) {
   try {
     const db = connect();
 
@@ -207,15 +212,37 @@ export async function getCommentsByPost(postId, userId) {
         ) AS user_liked
 
       FROM community_comments c
+      JOIN community_posts p ON p.id = c.target_id
       JOIN users u ON c.user_id = u.id
       LEFT JOIN author_profiles ap ON ap.user_id = u.id
+
       WHERE c.target_type = 'post'
         AND c.target_id = ?
         AND c.parent_id IS NULL
         AND c.deleted_at IS NULL
+
+        AND (
+          p.user_id = ?                             -- 👈 OWNER BYPASS
+          OR p.comments_visibility = 'public'
+          OR (
+            p.comments_visibility = 'paid'
+            AND ? = 1
+          )
+          OR (
+            p.comments_visibility = 'private'
+            AND ? = 1
+          )
+        )
+
       ORDER BY c.created_at ASC
       `,
-      [userId, postId],
+      [
+        userId,
+        postId,
+        userId,
+        hasPaidSubscription ? 1 : 0,
+        isSubscribed ? 1 : 0,
+      ],
     );
 
     return rows;
@@ -469,12 +496,82 @@ export async function getCommentsPaginated(
   targetType,
   targetId,
   userId,
+  hasPaidSubscription = false,
+  isSubscribed = false,
   page = 1,
   limit = 10,
 ) {
   const db = connect();
   const offset = (page - 1) * limit;
 
+  // POSTS (visibility + locking)
+  if (targetType === "post") {
+    const [comments] = await db.query(
+      `
+      SELECT 
+        c.id,
+        c.user_id,
+        c.body,
+        c.created_at,
+
+        u.name AS author,
+        u.role AS author_role,
+        u.profile_image_url AS author_image,
+
+        (
+          SELECT COUNT(*)
+          FROM community_comments r
+          WHERE r.parent_id = c.id
+            AND r.deleted_at IS NULL
+        ) AS reply_count,
+
+        (
+          SELECT COUNT(*)
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+        ) AS like_count,
+
+        EXISTS (
+          SELECT 1
+          FROM community_comment_likes l
+          WHERE l.comment_id = c.id
+            AND l.user_id = ?
+        ) AS user_liked
+
+      FROM community_comments c
+      JOIN community_posts p ON p.id = c.target_id
+      JOIN users u ON c.user_id = u.id
+
+      WHERE c.target_type = 'post'
+        AND c.target_id = ?
+        AND c.parent_id IS NULL
+        AND c.deleted_at IS NULL
+
+        AND (
+          p.user_id = ?                             
+          OR p.comments_visibility = 'public'
+          OR (p.comments_visibility = 'paid' AND ? = 1)
+          OR (p.comments_visibility = 'private' AND ? = 1)
+        )
+
+      ORDER BY c.created_at ASC
+      LIMIT ? OFFSET ?
+      `,
+      [
+        userId,
+        targetId,
+        userId,
+        hasPaidSubscription ? 1 : 0,
+        isSubscribed ? 1 : 0,
+        limit,
+        offset,
+      ],
+    );
+
+    return comments.map(normalizeComment);
+  }
+
+  // FRAGMENTS (always public)
   const [comments] = await db.query(
     `
     SELECT 
@@ -509,22 +606,28 @@ export async function getCommentsPaginated(
 
     FROM community_comments c
     JOIN users u ON c.user_id = u.id
-    WHERE c.target_type = ?
+
+    WHERE c.target_type = 'fragment'
       AND c.target_id = ?
       AND c.parent_id IS NULL
       AND c.deleted_at IS NULL
+
     ORDER BY c.created_at ASC
     LIMIT ? OFFSET ?
     `,
-    [userId, targetType, targetId, limit, offset],
+    [userId, targetId, limit, offset],
   );
 
-  return comments.map((c) => ({
+  return comments.map(normalizeComment);
+}
+
+function normalizeComment(c) {
+  return {
     ...c,
     like_count: Number(c.like_count) || 0,
-    user_liked: Number(c.user_liked) || 0,
     reply_count: Number(c.reply_count) || 0,
-  }));
+    user_liked: Number(c.user_liked) || 0,
+  };
 }
 
 export async function createReplyToComment({ userId, parentId, body }) {
@@ -999,6 +1102,34 @@ export async function userLikedComment(commentId, userId) {
     return rows.length > 0;
   } catch (err) {
     console.error("❌ Error in userLikedComment:", err);
+    throw err;
+  }
+}
+
+// Check for Paid Subscription
+export async function hasPaidAuthorSubscription({
+  authorUserId,
+  subscriberUserId,
+}) {
+  try {
+    const db = connect();
+
+    const [[row]] = await db.query(
+      `
+      SELECT 1
+      FROM author_subscriptions
+      WHERE author_user_id = ?
+        AND subscriber_user_id = ?
+        AND paid_subscription = 1
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [authorUserId, subscriberUserId],
+    );
+
+    return !!row;
+  } catch (err) {
+    console.error("hasPaidAuthorSubscription error:", err);
     throw err;
   }
 }

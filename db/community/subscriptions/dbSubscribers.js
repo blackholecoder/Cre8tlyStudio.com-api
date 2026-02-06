@@ -1134,3 +1134,24 @@ export async function authorHasPaidSubscription(authorUserId) {
     throw err;
   }
 }
+
+export async function hasAuthorSubscription({
+  authorUserId,
+  subscriberUserId,
+}) {
+  const db = connect();
+
+  const [[row]] = await db.query(
+    `
+    SELECT 1
+    FROM author_subscriptions
+    WHERE author_user_id = ?
+      AND subscriber_user_id = ?
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [authorUserId, subscriberUserId],
+  );
+
+  return !!row;
+}
