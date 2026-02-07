@@ -4,6 +4,7 @@ import {
   authorHasPaidSubscription,
   cancelSubscriptionInvite,
   createSubscriptionInvites,
+  getAuthorSubscriptionByUsers,
   getMySubscribers,
   getPendingInvites,
   getSubscribersByAuthorId,
@@ -97,7 +98,8 @@ router.get("/me", authenticateToken, async (req, res) => {
         email: s.email,
         profile_image_url: s.profile_image_url,
         has_profile: !!s.has_profile,
-        type: s.paid_subscription ? "Monthly Paid" : "Free",
+        paid: s.paid_subscription === 1,
+        type: s.type ?? "Free",
         activity: s.activity, // ✅ ADD THIS
         created_at: s.created_at, // ✅ KEEP RAW DATE
         revenue: Number(s.revenue || 0),
@@ -240,6 +242,39 @@ router.get(
         success: false,
         message: "Failed to load subscribers",
       });
+    }
+  },
+);
+
+// Cancel Subscription
+router.post(
+  "/subscriptions/:authorUserId/cancel",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const subscriberUserId = req.user.id;
+      const { authorUserId } = req.params;
+
+      const subscription = await getAuthorSubscriptionByUsers({
+        authorUserId,
+        subscriberUserId,
+      });
+
+      if (!subscription || !subscription.stripe_subscription_id) {
+        return res.status(404).json({ error: "Subscription not found" });
+      }
+
+      await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+        cancel_at_period_end: true,
+      });
+
+      // Stripe will emit customer.subscription.updated
+      // Webhook will update DB
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Cancel subscription error", err);
+      res.status(500).json({ error: "Failed to cancel subscription" });
     }
   },
 );

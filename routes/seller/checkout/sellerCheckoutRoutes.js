@@ -561,14 +561,30 @@ router.post(
         return res.status(400).json({ success: false });
       }
 
-      if (!authorUserId || !["monthly", "annual"].includes(billingInterval)) {
+      if (
+        !authorUserId ||
+        !["monthly", "annual", "vip"].includes(billingInterval)
+      ) {
         return res.status(400).json({ success: false });
       }
 
-      const amountInCents =
-        billingInterval === "monthly"
-          ? pricing.monthly_price_cents
-          : pricing.annual_price_cents;
+      let amountInCents;
+      let stripeInterval;
+
+      if (billingInterval === "monthly") {
+        amountInCents = pricing.monthly_price_cents;
+        stripeInterval = "month";
+      }
+
+      if (billingInterval === "annual") {
+        amountInCents = pricing.annual_price_cents;
+        stripeInterval = "year";
+      }
+
+      if (billingInterval === "vip") {
+        amountInCents = pricing.vip_price_cents; // NEW
+        stripeInterval = "year"; // VIP is annual by design
+      }
 
       if (!amountInCents || amountInCents < 100) {
         return res.status(400).json({ success: false });
@@ -612,7 +628,7 @@ router.post(
         unit_amount: amountInCents,
         currency: "usd",
         recurring: {
-          interval: billingInterval === "monthly" ? "month" : "year",
+          interval: stripeInterval,
         },
         product: productId,
       });

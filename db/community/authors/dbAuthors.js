@@ -26,8 +26,10 @@ export async function getAuthorProfile(authorUserId) {
     p.subscriptions_enabled,
     p.monthly_price_cents,
     p.annual_price_cents,
+    p.vip_price_cents,
     p.monthly_benefits,
     p.annual_benefits,
+    p.vip_benefits,
 
 
     (
@@ -100,8 +102,11 @@ export async function getAuthorProfile(authorUserId) {
       annual_price: row.annual_price_cents
         ? row.annual_price_cents / 100
         : null,
+      vip_price: row.vip_price_cents ? row.vip_price_cents / 100 : null,
+
       monthly_benefits: normalizeJson(row.monthly_benefits).slice(0, 10),
       annual_benefits: normalizeJson(row.annual_benefits).slice(0, 10),
+      vip_benefits: normalizeJson(row.vip_benefits).slice(0, 10),
       subscriber_count: Number(row.subscriber_count) || 0,
     };
   } catch (err) {
@@ -124,6 +129,7 @@ export async function updateAuthorProfile(userId, data) {
       media_links,
       monthly_benefits,
       annual_benefits,
+      vip_benefits,
     } = data;
 
     const clampBenefits = (list) =>
@@ -172,9 +178,10 @@ export async function updateAuthorProfile(userId, data) {
         services,
         media_links,
         monthly_benefits,
-        annual_benefits
+        annual_benefits,
+        vip_benefits
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         bio = VALUES(bio),
         about = VALUES(about),
@@ -184,6 +191,7 @@ export async function updateAuthorProfile(userId, data) {
         media_links = VALUES(media_links),
         monthly_benefits = VALUES(monthly_benefits),
         annual_benefits = VALUES(annual_benefits),
+        vip_benefits = VALUES(vip_benefits),
         updated_at = NOW()
       `,
       [
@@ -196,6 +204,7 @@ export async function updateAuthorProfile(userId, data) {
         JSON.stringify(media_links || []),
         JSON.stringify(clampBenefits(monthly_benefits)),
         JSON.stringify(clampBenefits(annual_benefits)),
+        JSON.stringify(clampBenefits(vip_benefits)),
       ],
     );
 
@@ -408,6 +417,7 @@ export async function updateAuthorSubscriptionPricing({
   subscriptionsEnabled,
   monthlyPriceCents,
   annualPriceCents,
+  vipPriceCents,
 }) {
   const db = connect();
 
@@ -418,13 +428,15 @@ export async function updateAuthorSubscriptionPricing({
       SET
         subscriptions_enabled = ?,
         monthly_price_cents = ?,
-        annual_price_cents = ?
+        annual_price_cents = ?,
+        vip_price_cents = ?
       WHERE user_id = ?
       `,
       [
         subscriptionsEnabled ? 1 : 0,
-        monthlyPriceCents,
-        annualPriceCents,
+        monthlyPriceCents ?? null,
+        annualPriceCents ?? null,
+        vipPriceCents ?? null,
         userId,
       ],
     );
@@ -434,6 +446,7 @@ export async function updateAuthorSubscriptionPricing({
       subscriptionsEnabled,
       monthlyPriceCents,
       annualPriceCents,
+      vipPriceCents,
       error: err,
     });
     throw err;
@@ -449,7 +462,8 @@ export async function getAuthorSubscriptionPricing(authorUserId) {
       SELECT
         subscriptions_enabled,
         monthly_price_cents,
-        annual_price_cents
+        annual_price_cents,
+        vip_price_cents
       FROM author_profiles
       WHERE user_id = ?
       LIMIT 1
@@ -462,6 +476,7 @@ export async function getAuthorSubscriptionPricing(authorUserId) {
         enabled: false,
         monthly_price_cents: null,
         annual_price_cents: null,
+        vip_price_cents: null,
       };
     }
 
@@ -471,10 +486,14 @@ export async function getAuthorSubscriptionPricing(authorUserId) {
         typeof row.monthly_price_cents === "number"
           ? row.monthly_price_cents
           : null,
+
       annual_price_cents:
         typeof row.annual_price_cents === "number"
           ? row.annual_price_cents
           : null,
+
+      vip_price_cents:
+        typeof row.vip_price_cents === "number" ? row.vip_price_cents : null,
     };
   } catch (err) {
     console.error("getAuthorSubscriptionPricing error:", err);

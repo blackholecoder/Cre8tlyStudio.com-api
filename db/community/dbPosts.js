@@ -196,6 +196,18 @@ export async function createPost(
       throw new Error("Post body is required");
     }
 
+    const wordCount = textOnly.replace(/\s+/g, " ").split(" ").length;
+
+    const MIN_POST_WORDS = 501;
+
+    if (wordCount < MIN_POST_WORDS) {
+      const err = new Error(
+        `Posts require at least ${MIN_POST_WORDS} words. Please post a fragment instead.`,
+      );
+      err.code = "POST_TOO_SHORT";
+      throw err;
+    }
+
     const slug = await generateUniqueSlug(db, title);
 
     const visibility =

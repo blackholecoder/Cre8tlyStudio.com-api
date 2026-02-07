@@ -185,11 +185,20 @@ router.post("/me/subscription-pricing", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const { subscriptions_enabled, monthly_price_cents, annual_price_cents } =
-      req.body;
+    const {
+      subscriptions_enabled,
+      monthly_price_cents,
+      annual_price_cents,
+      vip_price_cents,
+    } = req.body;
 
     // basic validation
-    if (subscriptions_enabled && !monthly_price_cents && !annual_price_cents) {
+    if (
+      subscriptions_enabled &&
+      !monthly_price_cents &&
+      !annual_price_cents &&
+      !vip_price_cents
+    ) {
       return res.status(400).json({
         success: false,
         message: "At least one price is required",
@@ -199,8 +208,9 @@ router.post("/me/subscription-pricing", authenticateToken, async (req, res) => {
     await updateAuthorSubscriptionPricing({
       userId,
       subscriptionsEnabled: subscriptions_enabled,
-      monthlyPriceCents: monthly_price_cents,
-      annualPriceCents: annual_price_cents,
+      monthlyPriceCents: monthly_price_cents ?? null,
+      annualPriceCents: annual_price_cents ?? null,
+      vipPriceCents: vip_price_cents ?? null,
     });
 
     res.json({ success: true });

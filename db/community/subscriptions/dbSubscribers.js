@@ -226,6 +226,7 @@ export async function getMySubscribers(authorUserId) {
         u.email,
         u.profile_image_url,
         s.paid_subscription,
+        s.type,  
         CASE
           WHEN s.paid_subscription = 1 THEN 1
           ELSE 0
@@ -1113,6 +1114,7 @@ export async function authorHasPaidSubscription(authorUserId) {
         p.subscriptions_enabled,
         p.monthly_price_cents,
         p.annual_price_cents,
+        p.vip_price_cents,
         u.stripe_connect_account_id
       FROM author_profiles p
       JOIN users u ON u.id = p.user_id
@@ -1124,9 +1126,14 @@ export async function authorHasPaidSubscription(authorUserId) {
 
     if (!row) return false;
 
+    const hasAnyPaidPrice =
+      (row.monthly_price_cents && row.monthly_price_cents > 0) ||
+      (row.annual_price_cents && row.annual_price_cents > 0) ||
+      (row.vip_price_cents && row.vip_price_cents > 0);
+
     return (
       row.subscriptions_enabled === 1 &&
-      (row.monthly_price_cents > 0 || row.annual_price_cents > 0) &&
+      hasAnyPaidPrice &&
       !!row.stripe_connect_account_id
     );
   } catch (err) {
@@ -1154,4 +1161,106 @@ export async function hasAuthorSubscription({
   );
 
   return !!row;
+}
+
+// Cancel Subscription
+export async function markSubscriptionCanceling({ id, currentPeriodEnd }) {
+  const db = connect();
+
+  await db.query(
+    `
+    UPDATE author_subscriptions
+    SET
+      cancel_at_period_end = 1,
+      current_period_end = ?
+    WHERE id = ?
+    `,
+    [currentPeriodEnd, id],
+  );
+}
+
+export async function getAuthorSubscriptionByUsers({
+  authorUserId,
+  subscriberUserId,
+}) {
+  try {
+    const db = connect();
+
+    const [[row]] = await db.query(
+      `
+      SELECT
+        id,
+        author_user_id,
+        subscriber_user_id,
+        paid_subscription,
+        stripe_subscription_id,
+        billing_interval,
+        type,
+        current_period_end,
+        deleted_at
+      FROM author_subscriptions
+      WHERE author_user_id = ?
+        AND subscriber_user_id = ?
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [authorUserId, subscriberUserId],
+    );
+
+    return row || null;
+  } catch (err) {
+    console.error("getAuthorSubscriptionByUsers error:", err);
+    throw err;
+  }
+}
+
+export async function finalizeCanceledSubscription({
+  stripeSubscriptionId,
+  currentPeriodEnd,
+}) {
+  const db = connect();
+
+  await db.query(
+    `
+    UPDATE author_subscriptions
+    SET
+      deleted_at = NOW(),
+      current_period_end = FROM_UNIXTIME(?)
+    WHERE stripe_subscription_id = ?
+    `,
+    [currentPeriodEnd, stripeSubscriptionId],
+  );
+}
+
+export async function handleAuthorSubscriptionUpdated(subscription) {
+  try {
+    const db = connect();
+
+    await db.query(
+      `
+      UPDATE author_subscriptions
+      SET
+        cancel_at_period_end = ?,
+        current_period_end = FROM_UNIXTIME(?),
+        last_activity_at = NOW()
+      WHERE stripe_subscription_id = ?
+        AND deleted_at IS NULL
+      `,
+      [
+        subscription.cancel_at_period_end ? 1 : 0,
+        subscription.current_period_end,
+        subscription.id,
+      ],
+    );
+
+    console.log(
+      subscription.cancel_at_period_end
+        ? "⏳ Subscription set to cancel at period end"
+        : "🔁 Subscription cancellation reversed",
+      subscription.id,
+    );
+  } catch (err) {
+    console.error("❌ handleAuthorSubscriptionUpdated failed", err);
+    throw err;
+  }
 }

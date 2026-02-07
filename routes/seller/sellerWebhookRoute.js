@@ -14,6 +14,7 @@ import {
   handlePayoutPaid,
   handleSubscriptionUpsert,
 } from "../../helpers/sellerWebhookHelper.js";
+import { handleAuthorSubscriptionUpdated } from "../../db/community/subscriptions/dbSubscribers.js";
 
 const router = express.Router();
 // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -105,19 +106,27 @@ router.post("/", async (req, res) => {
       case "customer.subscription.updated": {
         const subscription = event.data.object;
 
-        switch (subscription.metadata?.domain) {
-          case "author_subscription":
-            await handleAuthorSubscriptionUpsert(subscription);
-            break;
+        if (subscription.metadata?.domain === "author_subscription") {
+          // Always keep subscription in sync
+          await handleAuthorSubscriptionUpsert(subscription);
 
-          case "platform_subscription":
-            await handleSubscriptionUpsert(subscription);
-            break;
+          // 🔔 Only runs when user clicks "Cancel at period end"
+          if (
+            event.type === "customer.subscription.updated" &&
+            subscription.cancel_at_period_end === true
+          ) {
+            await handleAuthorSubscriptionUpdated(subscription);
+          }
 
-          default:
-            console.log("Unknown subscription domain", subscription.id);
+          break;
         }
 
+        if (subscription.metadata?.domain === "platform_subscription") {
+          await handleSubscriptionUpsert(subscription);
+          break;
+        }
+
+        console.log("Unknown subscription domain", subscription.id);
         break;
       }
 

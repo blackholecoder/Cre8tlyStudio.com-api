@@ -13,7 +13,10 @@ import { hasDeliveryBySessionId, insertDelivery } from "../db/dbDeliveries.js";
 import { getUserById } from "../db/dbUser.js";
 import { sendTipReceivedEmail } from "../emails/sendTipReceivedEmail.js";
 import { saveNotification } from "../db/community/notifications/notifications.js";
-import { sendPaidSubscriberEmail } from "../db/community/subscriptions/dbSubscribers.js";
+import {
+  sendPaidSubscriberEmail,
+  sendPaidUnsubscribedEmail,
+} from "../db/community/subscriptions/dbSubscribers.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
