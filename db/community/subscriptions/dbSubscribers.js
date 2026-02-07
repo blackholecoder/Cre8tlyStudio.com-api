@@ -1264,3 +1264,45 @@ export async function handleAuthorSubscriptionUpdated(subscription) {
     throw err;
   }
 }
+
+// get All users Subscriptiuons they are subcribed to
+export async function getMyAuthorSubscriptions(subscriberUserId) {
+  const db = connect();
+
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT
+        s.id,
+        s.author_user_id,
+        s.subscriber_user_id,
+
+        s.paid_subscription,
+        s.type,
+        s.billing_interval,
+        s.current_period_end,
+        s.cancel_at_period_end,
+        s.created_at,
+
+        u.name AS author_name,
+        u.username AS author_username,
+        u.profile_image_url AS author_image_url
+
+      FROM author_subscriptions s
+      JOIN users u
+        ON u.id = s.author_user_id
+
+      WHERE s.subscriber_user_id = ?
+        AND s.deleted_at IS NULL
+
+      ORDER BY s.created_at DESC
+      `,
+      [subscriberUserId],
+    );
+
+    return rows;
+  } catch (err) {
+    console.error("❌ getMyAuthorSubscriptions error", err);
+    throw err;
+  }
+}

@@ -5,6 +5,7 @@ import {
   cancelSubscriptionInvite,
   createSubscriptionInvites,
   getAuthorSubscriptionByUsers,
+  getMyAuthorSubscriptions,
   getMySubscribers,
   getPendingInvites,
   getSubscribersByAuthorId,
@@ -108,6 +109,20 @@ router.get("/me", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("GET /subscriptions/me error:", err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Get all Users subscribers they are subscribed to
+router.get("/my", authenticateToken, async (req, res) => {
+  try {
+    const subscriberUserId = req.user.id;
+
+    const subscriptions = await getMyAuthorSubscriptions(subscriberUserId);
+
+    res.json({ subscriptions });
+  } catch (err) {
+    console.error("❌ Failed to fetch my subscriptions", err);
+    res.status(500).json({ error: "Failed to load subscriptions" });
   }
 });
 
