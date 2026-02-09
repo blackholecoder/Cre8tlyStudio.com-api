@@ -8,6 +8,7 @@ import {
   getUserFragments,
   updateFragment,
 } from "../../db/fragments/dbFragments.js";
+import { fragmentEmailQueue } from "../../queues/fragmentEmailQueue.js";
 
 const router = express.Router();
 
@@ -26,6 +27,13 @@ router.post("/", authenticateToken, async (req, res) => {
       userId: req.user.id,
       body,
       reshareFragmentId,
+    });
+
+    await fragmentEmailQueue.add("send-fragment-email", {
+      authorUserId: req.user.id,
+      authorName: req.user.name,
+      fragmentBody: body,
+      fragmentUrl: `${process.env.FRONTEND_URL}/community/fragments/${fragmentId}`,
     });
 
     res.json({

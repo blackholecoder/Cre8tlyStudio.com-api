@@ -46,6 +46,7 @@ export async function getUserNotifications(userId, limit = 50, offset = 0) {
         AND p.deleted_at IS NULL
 
       WHERE n.user_id = ?
+        AND n.created_at >= NOW() - INTERVAL 45 DAY
 
       ORDER BY n.created_at DESC
       LIMIT ? OFFSET ?
@@ -85,7 +86,9 @@ export async function getUnreadNotificationCount(userId) {
       `
       SELECT COUNT(*) AS count
       FROM user_notifications
-      WHERE user_id = ? AND is_read = 0
+      WHERE user_id = ?
+        AND is_read = 0
+        AND created_at >= NOW() - INTERVAL 45 DAY
       `,
       [userId],
     );

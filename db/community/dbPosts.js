@@ -422,6 +422,12 @@ export async function getPostById(identifier, userId) {
       SELECT 
         p.*,
 
+        (
+        SELECT JSON_ARRAYAGG(prt.topic_id)
+        FROM community_post_related_topics prt
+        WHERE prt.post_id = p.id
+        ) AS related_topic_ids,
+
         COALESCE(s.views, 0) AS views,
         COALESCE(s.comment_count, 0) AS comment_count,
         COALESCE(s.post_like_count, 0) AS like_count,
@@ -487,7 +493,17 @@ export async function getPostById(identifier, userId) {
       [userId, userId, identifier, identifier],
     );
 
-    return rows[0] || null;
+    const post = rows[0] || null;
+    if (!post) return null;
+
+    // ✅ THIS IS THE MISSING PIECE
+    post.related_topic_ids = post.related_topic_ids
+      ? Array.isArray(post.related_topic_ids)
+        ? post.related_topic_ids
+        : JSON.parse(post.related_topic_ids)
+      : [];
+
+    return post;
   } catch (error) {
     console.error("Error in getPostById:", error);
     throw error;

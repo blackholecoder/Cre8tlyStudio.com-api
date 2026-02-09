@@ -2,10 +2,6 @@
 import nspell from "nspell";
 import dictionaryEn from "dictionary-en";
 
-console.log("dictionaryEn:", dictionaryEn);
-console.log("typeof dictionaryEn:", typeof dictionaryEn);
-console.log("dictionaryEn keys:", Object.keys(dictionaryEn || {}));
-
 let spell;
 
 export async function getSpell() {
