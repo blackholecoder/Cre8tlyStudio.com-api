@@ -16,7 +16,7 @@ router.post("/", authenticateToken, async (req, res) => {
   try {
     const { body, reshareFragmentId = null } = req.body;
 
-    if (!body?.trim()) {
+    if (!body?.trim() && !reshareFragmentId) {
       return res.status(400).json({
         success: false,
         message: "Fragment body is required",

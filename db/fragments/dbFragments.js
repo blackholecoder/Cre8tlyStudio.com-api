@@ -9,7 +9,7 @@ export async function createFragment({
 
   try {
     const cleanBody = body?.trim();
-    if (!cleanBody) {
+    if (!cleanBody && !reshareFragmentId) {
       throw new Error("Fragment body is empty");
     }
 
@@ -99,7 +99,8 @@ export async function getFragmentFeed({
       ru.id AS reshared_author_id,
       ru.name AS reshared_author,
       ru.username AS reshared_author_username,
-      ru.profile_image_url AS reshared_author_image
+      ru.profile_image_url AS reshared_author_image,
+      ru.is_verified AS reshared_author_is_verified
 
     FROM fragments f
     JOIN users u ON u.id = f.user_id
@@ -176,6 +177,16 @@ export async function getFragmentById(fragmentId, userId = null) {
         u.profile_image_url AS author_image,
         u.is_verified AS author_is_verified,
 
+        rf.id AS reshared_id,
+        rf.body AS reshared_body,
+        rf.created_at AS reshared_created_at,
+
+        ru.id AS reshared_author_id,
+        ru.name AS reshared_author,
+        ru.username AS reshared_author_username,
+        ru.profile_image_url AS reshared_author_image,
+        ru.is_verified AS reshared_author_is_verified,
+
         CASE
           WHEN ap.user_id IS NOT NULL THEN 1
           ELSE 0
@@ -183,6 +194,12 @@ export async function getFragmentById(fragmentId, userId = null) {
 
       FROM fragments f
       JOIN users u ON u.id = f.user_id
+
+      LEFT JOIN fragments rf
+        ON rf.id = f.reshare_fragment_id
+
+      LEFT JOIN users ru
+        ON ru.id = rf.user_id
 
       LEFT JOIN author_profiles ap
         ON ap.user_id = u.id
@@ -225,14 +242,30 @@ export async function getUserFragments(userId) {
     const [rows] = await db.query(
       `
       SELECT
-        id,
-        body,
-        image_url,
-        created_at,
-        updated_at
-      FROM fragments
-      WHERE user_id = ?
-      ORDER BY created_at DESC
+        f.id,
+        f.body,
+        f.image_url,
+        f.created_at,
+        f.updated_at,
+        f.reshare_fragment_id,
+
+        rf.body AS reshared_body,
+        rf.created_at AS reshared_created_at,
+
+        ru.name AS reshared_author,
+        ru.profile_image_url AS reshared_author_image,
+        ru.is_verified AS reshared_author_is_verified
+
+      FROM fragments f
+
+      LEFT JOIN fragments rf
+        ON rf.id = f.reshare_fragment_id
+
+      LEFT JOIN users ru
+        ON ru.id = rf.user_id
+
+      WHERE f.user_id = ?
+      ORDER BY f.created_at DESC
       `,
       [userId],
     );
