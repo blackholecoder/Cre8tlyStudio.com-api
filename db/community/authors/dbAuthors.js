@@ -22,6 +22,9 @@ export async function getAuthorProfile(authorUserId) {
     p.interests,
     p.services,
     p.media_links,
+    p.publication_logo_url,
+    p.publication_name,
+
 
     p.subscriptions_enabled,
     p.monthly_price_cents,
@@ -94,6 +97,8 @@ export async function getAuthorProfile(authorUserId) {
       interests: normalizeList(row.interests),
       services: normalizeList(row.services),
       media_links: normalizeJson(row.media_links),
+      publication_logo_url: row.publication_logo_url || null,
+      publication_name: row.publication_name || "",
       stripe_connect_account_id: row.stripe_connect_account_id,
       subscriptions_enabled: !!row.subscriptions_enabled,
       monthly_price: row.monthly_price_cents
@@ -127,6 +132,8 @@ export async function updateAuthorProfile(userId, data) {
       interests,
       services,
       media_links,
+      publication_logo_url,
+      publication_name,
       monthly_benefits,
       annual_benefits,
       vip_benefits,
@@ -167,6 +174,37 @@ export async function updateAuthorProfile(userId, data) {
       );
     }
 
+    const normalizedPublicationName =
+      typeof publication_name === "string" && publication_name.trim()
+        ? publication_name.trim()
+        : null;
+
+    if (normalizedPublicationName) {
+      if (
+        normalizedPublicationName.length < 3 ||
+        normalizedPublicationName.length > 120
+      ) {
+        throw new Error(
+          "Publication name must be between 3 and 120 characters",
+        );
+      }
+
+      const [[existingPublication]] = await db.query(
+        `
+    SELECT user_id
+    FROM author_profiles
+    WHERE publication_name = ?
+      AND user_id != ?
+    LIMIT 1
+    `,
+        [normalizedPublicationName, userId],
+      );
+
+      if (existingPublication) {
+        throw new Error("That publication name is already in use");
+      }
+    }
+
     await db.query(
       `
       INSERT INTO author_profiles (
@@ -177,11 +215,13 @@ export async function updateAuthorProfile(userId, data) {
         interests,
         services,
         media_links,
+        publication_logo_url,
+        publication_name,
         monthly_benefits,
         annual_benefits,
         vip_benefits
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         bio = VALUES(bio),
         about = VALUES(about),
@@ -189,6 +229,8 @@ export async function updateAuthorProfile(userId, data) {
         interests = VALUES(interests),
         services = VALUES(services),
         media_links = VALUES(media_links),
+        publication_logo_url = COALESCE(VALUES(publication_logo_url), publication_logo_url),
+        publication_name = VALUES(publication_name),
         monthly_benefits = VALUES(monthly_benefits),
         annual_benefits = VALUES(annual_benefits),
         vip_benefits = VALUES(vip_benefits),
@@ -202,6 +244,8 @@ export async function updateAuthorProfile(userId, data) {
         JSON.stringify(interests || []),
         JSON.stringify(services || []),
         JSON.stringify(media_links || []),
+        publication_logo_url || null,
+        normalizedPublicationName,
         JSON.stringify(clampBenefits(monthly_benefits)),
         JSON.stringify(clampBenefits(annual_benefits)),
         JSON.stringify(clampBenefits(vip_benefits)),
@@ -211,6 +255,88 @@ export async function updateAuthorProfile(userId, data) {
     return true;
   } catch (err) {
     console.error("upsertAuthorProfile error:", err);
+    throw err;
+  }
+}
+
+// Authors publication Page
+
+// db/community/dbPublications.js
+
+export async function getAuthorPublication(
+  authorUserId,
+  viewerUserId,
+  limit = 10,
+  offset = 0,
+) {
+  try {
+    const db = connect();
+
+    limit = Math.max(1, Math.min(Number(limit) || 10, 50));
+    offset = Math.max(0, Number(offset) || 0);
+
+    const [[profile]] = await db.query(
+      `
+      SELECT
+        u.id,
+        u.name,
+        u.username,
+        ap.publication_name,
+        ap.publication_logo_url,
+        u.profile_image_url,
+        ap.bio,
+        ap.about,
+        ap.media_links
+      FROM users u
+      LEFT JOIN author_profiles ap ON ap.user_id = u.id
+      WHERE u.id = ?
+      `,
+      [authorUserId],
+    );
+
+    if (!profile) throw new Error("Author not found");
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        p.id,
+        p.slug,
+        p.title,
+        p.subtitle,
+        p.created_at,
+        p.image_url,
+
+        COALESCE(s.views, 0) AS views,
+        COALESCE(s.comment_count, 0) AS comment_count,
+        COALESCE(s.post_like_count, 0) AS like_count,
+
+        CASE
+          WHEN l.user_id IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_liked
+
+      FROM community_posts p
+      LEFT JOIN community_post_stats s ON s.post_id = p.id
+      LEFT JOIN community_post_likes l
+        ON l.target_type = 'post'
+        AND l.target_id = p.id
+        AND l.user_id = ?
+
+      WHERE p.user_id = ?
+        AND p.deleted_at IS NULL
+
+      ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
+      `,
+      [viewerUserId, authorUserId, limit + 1, offset],
+    );
+
+    const hasMore = rows.length > limit;
+    const posts = hasMore ? rows.slice(0, limit) : rows;
+
+    return { profile, posts, hasMore };
+  } catch (err) {
+    console.error("getAuthorPublication error:", err);
     throw err;
   }
 }

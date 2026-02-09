@@ -1,7 +1,6 @@
 import express from "express";
 import Stripe from "stripe";
 import { getLandingPageById } from "../../../db/landing/dbLanding.js";
-import { getLeadMagnetByPdfUrl } from "../../../db/dbLeadMagnet.js";
 import { getDeliveryBySessionId } from "../../../db/dbDeliveries.js";
 import {
   getUserById,
@@ -231,33 +230,22 @@ router.post("/create-checkout-session", async (req, res) => {
       });
     }
 
-    const leadMagnet =
-      productSource === "internal"
-        ? await getLeadMagnetByPdfUrl(downloadUrl)
-        : null;
-
     const productImage = checkoutBlock.product_image_url
       ? [checkoutBlock.product_image_url]
       : checkoutBlock.image_url
         ? [checkoutBlock.image_url]
-        : leadMagnet?.cover_image
-          ? [leadMagnet.cover_image]
-          : [
-              landingPage.cover_image_url ||
-                "https://themessyattic.com/default-cover.png",
-            ];
+        : [
+            landingPage.cover_image_url ||
+              "https://themessyattic.com/default-cover.png",
+          ];
 
     // external upload
-    let productTitle;
 
-    // INTERNAL = lead magnet title
-    if (productSource === "internal") {
-      productTitle =
-        checkoutBlock.product_name ||
-        leadMagnet?.title ||
-        landingPage.title ||
-        "Digital Download";
-    }
+    const productTitle =
+      checkoutBlock.product_name ||
+      checkoutBlock.external_file_name ||
+      landingPage.title ||
+      "Download";
 
     if (productSource === "external") {
       productTitle =

@@ -174,7 +174,7 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
   }
 }
 
-export async function createPost(
+export async function createPost({
   userId,
   topicId,
   title,
@@ -183,7 +183,7 @@ export async function createPost(
   imageUrl = null,
   relatedTopicIds = [],
   commentsVisibility,
-) {
+}) {
   const db = connect();
 
   try {

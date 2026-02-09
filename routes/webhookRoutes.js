@@ -1,6 +1,5 @@
 import express from "express";
 import Stripe from "stripe";
-import { handleCheckoutCompleted } from "../services/leadMagnetService.js";
 import {
   activateBusinessBuilder,
   deactivateBusinessBuilder,
@@ -91,15 +90,6 @@ router.post("/", async (req, res) => {
           console.log(`⚙️ Unrecognized product type: ${product}`);
           break;
       }
-
-      // optional expansion
-      const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-        expand: ["line_items"],
-      });
-      await handleCheckoutCompleted(fullSession);
-
-      if (handledUpgrade)
-        console.log(`✅ Finished processing ${product} upgrade for ${email}`);
     }
 
     // 💳 SUBSCRIPTION PAYMENT SUCCEEDED

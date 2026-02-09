@@ -3,7 +3,6 @@ import {
   checkUsernameAvailability,
   deleteLandingTemplate,
   flattenBlocks,
-  getCoverImageByPdfUrl,
   getLandingPageById,
   getLandingPageByUserIdHost,
   getLandingTemplatesByPage,
@@ -131,12 +130,6 @@ router.get("/", async (req, res, next) => {
       console.error("❌ Failed to render content blocks:", err);
       contentHTML = "";
     }
-
-    let coverImageUrl = null;
-    if (landingPage.pdf_url) {
-      coverImageUrl = await getCoverImageByPdfUrl(landingPage.pdf_url);
-    }
-    landingPage.cover_image_url = coverImageUrl;
 
     // ✅ Move offer_banner above cover image automatically
     let bannerHTML = "";
@@ -699,27 +692,6 @@ router.post("/upload-product", async (req, res) => {
       success: false,
       message: "Product upload failed",
     });
-  }
-});
-
-router.get("/lead-magnets/cover", async (req, res) => {
-  try {
-    const { pdfUrl } = req.query;
-    if (!pdfUrl) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing pdfUrl" });
-    }
-
-    const cover = await getCoverImageByPdfUrl(pdfUrl);
-    if (!cover) {
-      return res.json({ success: false, message: "No cover found" });
-    }
-
-    res.json({ success: true, cover_image: cover });
-  } catch (err) {
-    console.error("❌ Error in /lead-magnets/cover route:", err);
-    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 

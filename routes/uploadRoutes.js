@@ -76,13 +76,13 @@ router.put("/user/settings/update-cta", authenticateToken, async (req, res) => {
 
 router.post("/upload-avatar", async (req, res) => {
   try {
-    const { userId, profileImage } = req.body;
+    const { userId, profileImage, target } = req.body;
 
     if (!userId || !profileImage) {
       return res.status(400).json({ error: "Missing userId or image" });
     }
 
-    const result = await uploadUserAvatar(userId, profileImage);
+    const result = await uploadUserAvatar(userId, profileImage, target);
 
     res.json({
       success: true,

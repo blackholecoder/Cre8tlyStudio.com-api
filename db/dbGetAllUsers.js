@@ -34,15 +34,6 @@ export async function deleteUserById(userId) {
 
     const user = rows[0];
 
-    // 2️⃣ Delete all lead magnet slots for this user
-    const [slotsResult] = await db.query(
-      "DELETE FROM lead_magnets WHERE user_id = ?",
-      [userId],
-    );
-    console.log(
-      `🧹 Deleted ${slotsResult.affectedRows} lead magnet slots for user ${user.email}`,
-    );
-
     // 3️⃣ Delete the user record
     const [result] = await db.query("DELETE FROM users WHERE id = ?", [userId]);
 

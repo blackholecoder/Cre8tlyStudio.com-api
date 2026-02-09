@@ -791,20 +791,6 @@ export async function updateLandingLogo(landingId, logoUrl) {
   }
 }
 
-export async function getCoverImageByPdfUrl(pdfUrl) {
-  const db = connect();
-  try {
-    const [rows] = await db.query(
-      "SELECT cover_image FROM lead_magnets WHERE pdf_url = ? LIMIT 1",
-      [pdfUrl],
-    );
-    return rows[0]?.cover_image || null;
-  } catch (err) {
-    console.error("❌ Error in getCoverImageByPdfUrl:", err);
-    throw err;
-  }
-}
-
 export async function getUserLeads(userId, page = 1, limit = 20) {
   const db = connect();
   const offset = (page - 1) * limit;

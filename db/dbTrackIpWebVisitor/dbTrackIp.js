@@ -14,7 +14,7 @@ export async function logWebsiteVisitor({
   timezone,
   language,
   ipAddress,
-  countryHeader
+  countryHeader,
 }) {
   let city = null;
   let region = null;
@@ -26,7 +26,7 @@ export async function logWebsiteVisitor({
   try {
     if (ipAddress) {
       const { data: geo } = await axios.get(
-        `http://ip-api.com/json/${ipAddress}`
+        `http://ip-api.com/json/${ipAddress}`,
       );
 
       if (geo?.status === "success") {
@@ -40,7 +40,6 @@ export async function logWebsiteVisitor({
   }
 
   const db = connect();
-
 
   /* -------------------------
       Check if visitor exists
@@ -56,7 +55,7 @@ export async function logWebsiteVisitor({
       ORDER BY created_at DESC
       LIMIT 1
       `,
-      [ipAddress]
+      [ipAddress],
     );
 
     if (rows.length > 0) {
@@ -105,8 +104,8 @@ export async function logWebsiteVisitor({
           country,
           region,
           city,
-          existing.id
-        ]
+          existing.id,
+        ],
       );
     } catch (err) {
       console.error("Failed updating returning visitor:", err);
@@ -114,7 +113,6 @@ export async function logWebsiteVisitor({
 
     return existing.id;
   }
-
 
   /* -------------------------
       First time visitor → INSERT
@@ -157,8 +155,8 @@ export async function logWebsiteVisitor({
         language,
         country,
         region,
-        city
-      ]
+        city,
+      ],
     );
   } catch (err) {
     console.error("Failed inserting visitor:", err);
@@ -167,14 +165,12 @@ export async function logWebsiteVisitor({
   return id;
 }
 
-
-
 export async function logVisitorExitEvent({
   visitor_id,
   page,
   max_scroll,
   time_on_page,
-  clicks
+  clicks,
 }) {
   try {
     const db = connect();
@@ -188,8 +184,8 @@ export async function logVisitorExitEvent({
         page,
         max_scroll,
         time_on_page,
-        JSON.stringify(clicks || [])
-      ]
+        JSON.stringify(clicks || []),
+      ],
     );
   } catch (err) {
     console.error("Failed inserting exit event:", err);

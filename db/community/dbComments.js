@@ -178,6 +178,7 @@ export async function getCommentsByPost(
         c.user_id, 
         c.body,
         c.created_at,
+        c.updated_at,
 
         u.name AS author,
         u.role AS author_role,
@@ -263,6 +264,7 @@ export async function getCommentById(commentId, userId) {
         c.user_id,
         c.body,
         c.created_at,
+        c.updated_at,
 
         c.target_type,
         c.target_id,
@@ -513,6 +515,7 @@ export async function getCommentsPaginated(
         c.user_id,
         c.body,
         c.created_at,
+        c.updated_at, 
 
         u.name AS author,
         u.role AS author_role,
@@ -579,6 +582,7 @@ export async function getCommentsPaginated(
       c.user_id,
       c.body,
       c.created_at,
+      c.updated_at,
 
       u.name AS author,
       u.role AS author_role,
@@ -806,6 +810,7 @@ export async function getRepliesPaginated(parentId, userId, limit, offset) {
       c.parent_id,
       c.body,
       c.created_at,
+      c.updated_at,
 
       c.target_type,
       c.target_id,
@@ -877,7 +882,7 @@ export async function updateComment(commentId, userId, body) {
   try {
     const db = connect();
 
-    const [result] = await db.query(
+    await db.query(
       `
       UPDATE community_comments
       SET body = ?, updated_at = NOW()
@@ -887,7 +892,16 @@ export async function updateComment(commentId, userId, body) {
       [body.trim(), commentId, userId],
     );
 
-    return result.affectedRows > 0;
+    const [[comment]] = await db.query(
+      `
+      SELECT id, body, updated_at
+      FROM community_comments
+      WHERE id = ?
+      `,
+      [commentId],
+    );
+
+    return comment;
   } catch (error) {
     console.error("Error updating comment:", error);
     throw error;

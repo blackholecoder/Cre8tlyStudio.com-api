@@ -228,7 +228,8 @@ export async function getUserFragments(userId) {
         id,
         body,
         image_url,
-        created_at
+        created_at,
+        updated_at
       FROM fragments
       WHERE user_id = ?
       ORDER BY created_at DESC

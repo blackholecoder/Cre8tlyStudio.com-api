@@ -17,7 +17,7 @@ import {
 import { getBookTypeById, saveBookPdf } from "./dbBooks.js";
 import { normalizePunctuation } from "../../utils/normalizePunctuation.js";
 import { getUserById } from "../dbUser.js";
-import { sendContentReadyEmail } from "../../services/leadMagnetService.js";
+import { sendContentReadyEmail } from "../../services/bookService.js";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

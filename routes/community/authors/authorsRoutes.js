@@ -3,6 +3,7 @@ import {
   getAuthorEmailTemplateByType,
   getAuthorPostsPreview,
   getAuthorProfile,
+  getAuthorPublication,
   getNotificationPreferences,
   getUserEmailAndNameById,
   updateAuthorProfile,
@@ -43,6 +44,39 @@ router.post("/me", authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Publication Page Routes
+// routes/community/publicationRoutes.js
+
+router.get("/:userId/publication", authenticateToken, async (req, res) => {
+  try {
+    const authorUserId = req.params.userId;
+    const viewerUserId = req.user.id; // 👈 THIS is the missing piece
+
+    const limit = Math.min(Number(req.query.limit) || 10, 20);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+    const { profile, posts, hasMore } = await getAuthorPublication(
+      authorUserId,
+      viewerUserId,
+      limit,
+      offset,
+    );
+
+    return res.json({
+      success: true,
+      profile,
+      posts,
+      hasMore,
+    });
+  } catch (err) {
+    console.error("❌ GET publication failed", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load publication",
+    });
   }
 });
 

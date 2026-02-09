@@ -23,7 +23,7 @@ export async function askGPT(userIdea, options = {}) {
   if (!totalWords) totalWords = safePages * wordsPerPage;
 
   console.log(
-    `🧠 askGPT generating: ${mode} — ${safePages} sections (${totalWords} words total)`
+    `🧠 askGPT generating: ${mode} — ${safePages} sections (${totalWords} words total)`,
   );
 
   // 🧩 Base system prompt
@@ -118,10 +118,10 @@ Mode: ${mode}
         reject(
           Object.assign(new Error("GPT request timed out after 240 seconds"), {
             code: "TIMEOUT",
-          })
+          }),
         ),
-      240000
-    )
+      240000,
+    ),
   );
 
   try {
@@ -139,124 +139,10 @@ Mode: ${mode}
   } catch (error) {
     if (error.code === "TIMEOUT") {
       console.error(
-        "⚠️ GPT timeout — suggest fewer sections or shorter content."
+        "⚠️ GPT timeout — suggest fewer sections or shorter content.",
       );
     }
     console.error("❌ GPT error:", error);
-    throw error;
-  }
-}
-
-export async function generateLearningDoc(topic, options = {}) {
-  const { totalWords = 5000, safePages = 5, wordsPerPage = 500 } = options;
-
-  // ⏱ Timeout safeguard
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(
-      () =>
-        reject(
-          Object.assign(new Error("GPT request timed out after 240 seconds"), {
-            code: "TIMEOUT",
-          })
-        ),
-      480000
-    )
-  );
-
-  try {
-    const gptPromise = client.chat.completions.create({
-      model: "gpt-4.1",
-      temperature: 0.7,
-      messages: [
-        {
-          role: "system",
-          content: `
-You are Cre8tlyStudio Author — a world-class subject-matter writer who creates comprehensive, book-quality, intellectually honest deep dives on any topic.
-This is not marketing copy, inspirational writing, or illustrative fiction.
-
-The writing must be grounded in:
-• Direct human experience
-• Verifiable real-world processes
-• Observed patterns across industries or time
-• Documented systems, behaviors, or failures
-
-Do NOT invent people, businesses, anecdotes, or fictional case studies.
-• AVOID “imagine someone who…”
-• AVOID placeholder stories.
-• AVOID synthetic narratives.
-• AVOID unnecessary adjectives and adverbs
-• AVOID generalizations
-
-If a claim cannot be grounded in lived experience, documented reality, or widely observed practice, do not include it.
-
-### 🎯 Goal
-Write a full, structured document that teaches, explains, and explores a single subject in complete depth — not a summary, not a quick guide.
-
-### 🧩 Document Structure (use clean, semantic HTML)
-1. <h1>Title</h1> — The main topic.
-2. <h2>Introduction</h2> — Define the problem clearly, why it matters now, and what has changed, and hook the reader.
-3. <h2>Foundations</h2> — Establish first principles, terminology, and historical context without storytelling shortcuts.
-4. <h2>Core Development</h2> — Dive deep into how, why, and when the concepts work.  
-   Analyze how the system actually works in practice.
-   Focus on mechanisms, incentives, tradeoffs, and failure modes.
-5. <h2>Expert Application</h2> — Show how experienced practitioners approach this differently than beginners.
-   Emphasize judgment, constraints, and decision-making.
-6. <h2>Case Study or Walkthrough</h2> — Use real processes, documented examples, or step-by-step breakdowns.
-   If first-person experience is available, write from that perspective.
-   Otherwise, use factual industry examples without dramatization.
-7. <h2>Reflections & Insights</h2> — Synthesize lessons, second-order effects, and nuanced truths.
-8. <h2>Conclusion</h2> — Summarize what matters, what is misunderstood, and what comes next.
-
-### 🧠 Writing Style
-- For code: include <pre><code> examples.
-- Write like a world-class mentor authoring a definitive book.  
-- Use clear, simple language.
-- use short, impactful sentences.
-- use active voice, avoid passive voice.
-- use "you" and "your" to directly address the reader.
-- Do **not** include shallow teaching labels like “Recap,” “Practice,” “Objectives,” or “Overview.”  
-• AVOID fictional anecdotes or invented characters.
-• AVOID inspirational filler.
-• AVOID vague generalities.
-• AVOID moralizing language.  
-- Use concrete examples, data, or scenarios to demonstrate mastery.  
-• AVOID using any dashes or hyphens, use commas instead. 
-- Every section must stand alone with depth and completeness.   
-- Maintain a professional, book-quality tone suitable for experts.
-- Assume the reader is intelligent and skeptical.
-- Write with precision, restraint, and authority.
-- Write in a natural, human voice. Favor clarity over polish, and allow the writing to feel lived in rather than perfected.
-
-Audience: professionals, entrepreneurs, and experts who value clarity, truth, and depth over persuasion.
-`,
-        },
-        {
-          role: "user",
-          content: `
-Write a comprehensive deep-dive document on the topic:
-"${topic}"
-
-Target length: roughly ${totalWords} words total, divided into ${safePages} main sections (about ${wordsPerPage} words each).
-
-Each section should:
-• Explore one major pillar of the topic with rich explanation, examples, and insight.  
-• Flow logically from one section to the next, forming a cohesive narrative.  
-• Include real-world context or case study material where relevant.  
-• Avoid any educational scaffolding (no "Recap", "Applied Practice", or "Lesson Objectives").  
-• Feel like a premium, book-worthy deep dive intended for professionals.
-
-Insert "<!--PAGEBREAK-->" between sections to clearly separate them.
-
-Do not stop early — expand fully until all sections are complete.
-`,
-        },
-      ],
-    });
-
-    const response = await Promise.race([gptPromise, timeoutPromise]);
-    return response.choices[0].message.content;
-  } catch (error) {
-    console.error("GPT error:", error);
     throw error;
   }
 }
@@ -273,10 +159,10 @@ export async function generateAILandingPage({ prompt, blockType }) {
         reject(
           Object.assign(new Error("GPT request timed out after 60 seconds"), {
             code: "TIMEOUT",
-          })
+          }),
         ),
-      60000
-    )
+      60000,
+    ),
   );
 
   const systemPrompt = `

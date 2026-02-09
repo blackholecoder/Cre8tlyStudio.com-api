@@ -224,15 +224,26 @@ router.get(
 router.put("/comments/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { body } = req.body;
-  const userId = req.user.id; // from auth
-  const role = req.user.role; // admin or user
+  const userId = req.user.id;
+  const role = req.user.role;
 
   try {
-    await updateComment(id, userId, body, role);
-    res.json({ success: true });
+    const comment = await updateComment(id, userId, body, role);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: "Comment not found or not authorized",
+      });
+    }
+
+    res.json({ comment });
   } catch (err) {
     console.error("Edit failed:", err);
-    res.status(500).json({ success: false, message: "Failed to edit comment" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to edit comment",
+    });
   }
 });
 

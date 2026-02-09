@@ -21,7 +21,6 @@ function escapeHtml(str = "") {
 import indexRoutes from "./routes/indexRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
-import leadMagnetRoutes from "./routes/leadMagnetRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import gptRoutes from "./routes/gptRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
@@ -30,7 +29,6 @@ import tempCoverRoutes from "./routes/uploads/tempCoverRoutes.js";
 import bookRoutes from "./routes/books/bookRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import unsplashRoutes from "./routes/unsplashRoutes.js";
-import editorRoutes from "./routes/editor/editorRoutes.js";
 import messagesUserRoutes from "./routes/messagesRoutes.js";
 
 import bodyParser from "body-parser";
@@ -45,14 +43,12 @@ import statsRoutes from "./routes/admin/statsRoutes.js";
 import leadsRoutes from "./routes/admin/leadsRoutes.js";
 import reportsRoutes from "./routes/admin/reportsRoutes.js";
 import messagesRoutes from "./routes/admin/messagesRoutes.js";
-import addAdminRoutes from "./routes/admin/addAdminRoutes.js";
+
 import ebooksRoutes from "./routes/admin/ebookRoutes.js";
 import freeBookRoutes from "./routes/admin/freeBookRoutes.js";
 import settingsRoutes from "./routes/admin/settingsRoutes.js";
 import adminCommunityRoutes from "./routes/admin/communityRoutes.js";
 import deliveriesRoutes from "./routes/admin/deliveriesRoutes.js";
-import latestMagnetsRoutes from "./routes/admin/latestMagnetsRoutes.js";
-
 import leadVipRoutes from "./routes/subDomain/leadVipRoutes.js";
 import adminAnalyticsRoutes from "./routes/admin/analytics/adminAnalyticsRoutes.js";
 import authAdminRoutes from "./routes/admin/authAdminRoutes.js";
@@ -73,7 +69,7 @@ import communityComments from "./routes/community/commentsRoutes.js";
 import communitySubscriptions from "./routes/community/subscriptions/subscriberRoutes.js";
 import communityAuthors from "./routes/community/authors/authorsRoutes.js";
 import notificationsRoutes from "./routes/community/notifications/notificationsRoutes.js";
-import careersRoutes from "./routes/careers/careeersRoutes.js";
+
 import badgesRoutes from "./routes/badges/badgeRoutes.js";
 import fragmentRoutes from "./routes/fragments/fragmentRoutes.js";
 import websiteAnalyticsRoutes from "./routes/analytics/websiteAnalyticsRoutes.js";
@@ -186,13 +182,11 @@ app.get("/r/:slug", async (req, res) => {
 
 app.use("/api", indexRoutes);
 app.use("/api/checkout", checkoutRoutes);
-app.use("/api/lead-magnets", leadMagnetRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/gpt", gptRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/uploads", tempCoverRoutes);
-app.use("/api/edit", editorRoutes);
 app.use("/api/vip", leadVipRoutes);
 app.use("/api/messages/user", messagesUserRoutes);
 
@@ -205,7 +199,7 @@ app.use("/", landingPageRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/seller-checkout", sellerCheckoutRoutes);
 app.use("/api/reviews", reviewsRoutes);
-app.use("/api/careers", careersRoutes);
+
 app.use("/api/badges", badgesRoutes);
 app.use("/api/fragments", fragmentRoutes);
 
@@ -225,7 +219,6 @@ app.use("/api/admin/stats", statsRoutes);
 app.use("/api/admin/leads", leadsRoutes);
 app.use("/api/admin/reports", reportsRoutes);
 app.use("/api/admin/messages", messagesRoutes);
-app.use("/api/admin", addAdminRoutes);
 app.use("/api/admin", freeBookRoutes);
 app.use("/api/admin/deliveries", deliveriesRoutes);
 app.use("/api/ebooks", ebooksRoutes);
@@ -235,7 +228,6 @@ app.use("/api/upload-data", uploadRoutes);
 app.use("/api/unsplash", unsplashRoutes);
 app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/admin/web-analytics", adminAnalyticsRoutes);
-app.use("/api/admin/lead-magnets", latestMagnetsRoutes);
 app.use("/api/admin/referral", referralRoutes);
 app.use("/api/admin/email", adminEmailRoutes);
 

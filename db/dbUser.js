@@ -1221,7 +1221,7 @@ export async function updateStripeAccountId(userId, accountId) {
   return true;
 }
 // Image Upload
-export async function uploadUserAvatar(userId, profileImage) {
+export async function uploadUserAvatar(userId, profileImage, target = "user") {
   const db = connect();
 
   // Remove prefix & decode base64
@@ -1238,7 +1238,10 @@ export async function uploadUserAvatar(userId, profileImage) {
     secretAccessKey: process.env.DO_SPACES_SECRET,
   });
 
-  const filename = `profiles/${uuidv4()}.${type}`;
+  const filename =
+    target === "publication"
+      ? `publications/${uuidv4()}.${type}`
+      : `profiles/${uuidv4()}.${type}`;
 
   // Upload
   const params = {
@@ -1252,11 +1255,26 @@ export async function uploadUserAvatar(userId, profileImage) {
 
   const upload = await s3.upload(params).promise();
 
-  // Save in DB
-  await db.query("UPDATE users SET profile_image_url = ? WHERE id = ?", [
-    upload.Location,
-    userId,
-  ]);
+  // 🔑 ONLY DIFFERENCE IS HERE
+  if (target === "publication") {
+    await db.query(
+      `
+      UPDATE author_profiles
+      SET publication_logo_url = ?
+      WHERE user_id = ?
+      `,
+      [upload.Location, userId],
+    );
+  } else {
+    await db.query(
+      `
+      UPDATE users
+      SET profile_image_url = ?
+      WHERE id = ?
+      `,
+      [upload.Location, userId],
+    );
+  }
 
   return { profileImage: upload.Location };
 }
