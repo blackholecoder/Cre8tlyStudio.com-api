@@ -6,6 +6,7 @@ import {
   getFragmentById,
   getFragmentFeed,
   getUserFragments,
+  getUserNameById,
   updateFragment,
 } from "../../db/fragments/dbFragments.js";
 import { fragmentEmailQueue } from "../../queues/fragmentEmailQueue.js";
@@ -29,9 +30,11 @@ router.post("/", authenticateToken, async (req, res) => {
       reshareFragmentId,
     });
 
+    const authorName = await getUserNameById(req.user.id);
+
     await fragmentEmailQueue.add("send-fragment-email", {
       authorUserId: req.user.id,
-      authorName: req.user.name,
+      authorName: authorName || "Someone you follow",
       fragmentBody: body,
       fragmentUrl: `${process.env.FRONTEND_URL}/community/fragments/${fragmentId}`,
     });

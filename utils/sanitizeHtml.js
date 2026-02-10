@@ -33,7 +33,7 @@ export function sanitizeHtml(html) {
     ],
 
     // ⚠️ IMPORTANT: use ARRAY, not object
-    ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "style"],
+    ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "style", "class"],
 
     KEEP_CONTENT: true,
 

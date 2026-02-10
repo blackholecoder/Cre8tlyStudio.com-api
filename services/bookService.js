@@ -1,4 +1,4 @@
-import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../utils/sendOutlookMail.js";
 
 // EMAIL SENT AFTER COMPLETION OF BOOK
 export async function sendContentReadyEmail({

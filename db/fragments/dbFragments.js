@@ -308,3 +308,24 @@ export async function updateFragment({ fragmentId, userId, body }) {
     [body, fragmentId, userId],
   );
 }
+
+export async function getUserNameById(userId) {
+  const db = connect();
+
+  try {
+    const [[row]] = await db.query(
+      `
+      SELECT name
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [userId],
+    );
+
+    return row?.name || null;
+  } catch (err) {
+    console.error("❌ getUserNameById error:", err);
+    throw err;
+  }
+}

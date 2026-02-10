@@ -8,7 +8,7 @@ import {
   insertTip,
 } from "../db/seller/dbSeller.js";
 import { deliverDigitalProduct } from "../services/deliveryService.js";
-import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../utils/sendOutlookMail.js";
 import { hasDeliveryBySessionId, insertDelivery } from "../db/dbDeliveries.js";
 import { getUserById } from "../db/dbUser.js";
 import { sendTipReceivedEmail } from "../emails/sendTipReceivedEmail.js";

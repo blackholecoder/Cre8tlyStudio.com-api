@@ -1,4 +1,4 @@
-import { sendOutLookMail } from "../utils/sendOutllokMail";
+import { sendOutLookMail } from "../utils/sendOutlookMail.js";
 
 export async function sendNewFragmentEmail({
   to,

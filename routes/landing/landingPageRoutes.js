@@ -18,7 +18,7 @@ import {
   updateLandingPage,
   updateTemplateVersion,
 } from "../../db/landing/dbLanding.js";
-import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../../utils/sendOutlookMail.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { isSafeUrl } from "../../utils/isSafeUrl.js";

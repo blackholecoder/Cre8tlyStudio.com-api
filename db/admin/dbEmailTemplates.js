@@ -1,4 +1,4 @@
-import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../../utils/sendOutlookMail.js";
 import connect from "../connect.js";
 
 export async function getEmailTemplates() {
@@ -7,7 +7,7 @@ export async function getEmailTemplates() {
     const [rows] = await db.query(
       `SELECT id, name
        FROM email_templates
-       ORDER BY created_at DESC`
+       ORDER BY created_at DESC`,
     );
     return rows;
   } catch (err) {
@@ -25,7 +25,7 @@ export async function createEmailCampaign(data) {
       `INSERT INTO email_campaigns
        (template_id, subject, target, status)
        VALUES (?, ?, ?, ?)`,
-      [template_id, subject, target, status]
+      [template_id, subject, target, status],
     );
 
     return result.insertId; // 👈 IMPORTANT
@@ -52,7 +52,7 @@ export async function getEmailCampaigns(limit = 20, offset = 0) {
        JOIN email_templates et ON ec.template_id = et.id
        ORDER BY ec.created_at DESC
        LIMIT ? OFFSET ?`,
-      [limit, offset]
+      [limit, offset],
     );
 
     return rows;
@@ -70,7 +70,7 @@ export async function getTrialUsers() {
        FROM users
        WHERE free_trial_expires_at IS NOT NULL
        AND free_trial_expires_at > NOW()
-       AND pro_status = 'inactive'`
+       AND pro_status = 'inactive'`,
     );
 
     return rows;
@@ -87,7 +87,7 @@ export async function getPaidUsers() {
       `SELECT id, email, name
        FROM users
        WHERE pro_status = 'active'
-       AND status = 'active'`
+       AND status = 'active'`,
     );
 
     return rows;
@@ -103,7 +103,7 @@ export async function getAllUsers() {
     const [rows] = await db.query(
       `SELECT id, email, name
        FROM users
-       WHERE status = 'active'`
+       WHERE status = 'active'`,
     );
 
     return rows;
@@ -121,7 +121,7 @@ export async function createEmailTemplate({ name, html_body }) {
     await db.query(
       `INSERT INTO email_templates (name, html_body)
        VALUES (?, ?)`,
-      [name, html_body]
+      [name, html_body],
     );
   } catch (err) {
     console.error("createEmailTemplate error", err);
@@ -152,7 +152,7 @@ export async function searchUsersByEmailOrName(query) {
        FROM users
        WHERE email LIKE ? OR name LIKE ?
        LIMIT 10`,
-      [`%${query}%`, `%${query}%`]
+      [`%${query}%`, `%${query}%`],
     );
     return rows;
   } catch (err) {
@@ -169,7 +169,7 @@ export async function getEmailTemplateById(templateId) {
        FROM email_templates
        WHERE id = ?
        LIMIT 1`,
-      [templateId]
+      [templateId],
     );
     return rows[0] || null;
   } catch (err) {
@@ -185,7 +185,7 @@ export async function updateEmailTemplate(id, { name, html_body }) {
       `UPDATE email_templates
        SET name = ?, html_body = ?
        WHERE id = ?`,
-      [name, html_body, id]
+      [name, html_body, id],
     );
   } catch (err) {
     console.error("updateEmailTemplate error", err);
@@ -200,7 +200,7 @@ export async function sendEmailCampaign(campaignId) {
   // 1. Load campaign
   const [[campaign]] = await db.query(
     `SELECT * FROM email_campaigns WHERE id = ?`,
-    [campaignId]
+    [campaignId],
   );
 
   if (!campaign) throw new Error("Campaign not found");
@@ -208,7 +208,7 @@ export async function sendEmailCampaign(campaignId) {
   // 2. Load template
   const [[template]] = await db.query(
     `SELECT html_body FROM email_templates WHERE id = ?`,
-    [campaign.template_id]
+    [campaign.template_id],
   );
 
   if (!template) throw new Error("Template not found");
@@ -247,7 +247,7 @@ export async function sendEmailCampaign(campaignId) {
       await db.query(
         `INSERT INTO email_campaign_sends (campaign_id, user_id, status)
          VALUES (?, ?, 'sent')`,
-        [campaignId, user.id]
+        [campaignId, user.id],
       );
     } catch (err) {
       console.error("Email send failed for", user.email, err);
@@ -255,7 +255,7 @@ export async function sendEmailCampaign(campaignId) {
       await db.query(
         `INSERT INTO email_campaign_sends (campaign_id, user_id, status)
          VALUES (?, ?, 'failed')`,
-        [campaignId, user.id]
+        [campaignId, user.id],
       );
     }
   }
@@ -312,7 +312,7 @@ export async function getEmailCampaignById(id) {
       `SELECT id, target
        FROM email_campaigns
        WHERE id = ?`,
-      [id]
+      [id],
     );
 
     return row || null;
@@ -331,7 +331,7 @@ export async function getCampaignTemplateHtml(campaignId) {
        FROM email_campaigns ec
        JOIN email_templates et ON ec.template_id = et.id
        WHERE ec.id = ?`,
-      [campaignId]
+      [campaignId],
     );
 
     return row?.html_body || "";

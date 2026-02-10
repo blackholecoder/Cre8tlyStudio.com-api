@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { saveLead } from "../../db/subDomain/dbLeads.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../../utils/sendOutlookMail.js";
 
 const router = express.Router();
 

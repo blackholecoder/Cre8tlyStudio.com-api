@@ -1,7 +1,7 @@
 // /services/deliveryService.js
 import connect from "../db/connect.js";
 import { v4 as uuidv4 } from "uuid";
-import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../utils/sendOutlookMail.js";
 
 /**
  * deliverDigitalProduct

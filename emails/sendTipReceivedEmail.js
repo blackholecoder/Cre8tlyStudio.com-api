@@ -1,4 +1,4 @@
-import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../utils/sendOutlookMail.js";
 
 export async function sendTipReceivedEmail({
   to,

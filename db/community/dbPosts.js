@@ -174,6 +174,13 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
   }
 }
 
+function linkifyMentions(html) {
+  return html.replace(
+    /(^|>|\s)@([a-zA-Z0-9_]+)/g,
+    `$1<a href="/api/community/u/$2" class="mention">@\$2</a>`,
+  );
+}
+
 export async function createPost({
   userId,
   topicId,
@@ -189,14 +196,16 @@ export async function createPost({
   try {
     const id = uuidv4();
 
-    const cleanBody = body ? sanitizeHtml(body) : null;
-    const textOnly = cleanBody?.replace(/<[^>]*>/g, "").trim();
+    const rawTextOnly = body
+      ?.replace(/<[^>]*>/g, " ")
+      ?.replace(/\s+/g, " ")
+      ?.trim();
 
-    if (!textOnly) {
+    if (!rawTextOnly) {
       throw new Error("Post body is required");
     }
 
-    const wordCount = textOnly.replace(/\s+/g, " ").split(" ").length;
+    const wordCount = rawTextOnly.split(" ").length;
 
     const MIN_POST_WORDS = 501;
 
@@ -207,6 +216,16 @@ export async function createPost({
       err.code = "POST_TOO_SHORT";
       throw err;
     }
+
+    const withMentions = body ? linkifyMentions(body) : null;
+
+    // ✅ SANITIZE FINAL HTML
+    const cleanBody = withMentions ? sanitizeHtml(withMentions) : null;
+
+    console.log("🧪 FINAL BODY CHECK", {
+      containsLink: cleanBody?.includes("<a"),
+      preview: cleanBody?.slice(0, 200),
+    });
 
     const slug = await generateUniqueSlug(db, title);
 
@@ -1095,6 +1114,22 @@ export async function getUserBookmarkedPosts(userId, limit = 20, offset = 0) {
     return rows;
   } catch (err) {
     console.error("getUserBookmarkedPosts failed:", err);
+    throw err;
+  }
+}
+
+export async function getUserIdByUsername(username) {
+  const db = connect();
+
+  try {
+    const [[user]] = await db.query(
+      `SELECT id FROM users WHERE username = ? LIMIT 1`,
+      [username],
+    );
+
+    return user?.id || null;
+  } catch (err) {
+    console.error("❌ getUserIdByUsername failed:", err);
     throw err;
   }
 }

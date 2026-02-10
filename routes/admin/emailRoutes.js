@@ -15,7 +15,7 @@ import {
 } from "../../db/admin/dbEmailTemplates.js";
 import { getUserById } from "../../db/dbUser.js";
 import { renderEmailTemplate } from "../../helpers/renderEmailtemplate.js";
-import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../../utils/sendOutlookMail.js";
 
 const router = express.Router();
 
@@ -215,7 +215,7 @@ router.get(
       console.error("GET /campaigns/:id/recipient-count error", err);
       res.status(500).json({ error: "Failed to get recipient count" });
     }
-  }
+  },
 );
 
 router.get(
@@ -229,7 +229,7 @@ router.get(
       console.error("PREVIEW CAMPAIGN error", err);
       res.status(500).json({ error: "Failed to load preview" });
     }
-  }
+  },
 );
 
 export default router;

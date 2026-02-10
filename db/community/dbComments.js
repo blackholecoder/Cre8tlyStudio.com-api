@@ -4,7 +4,7 @@ import { saveNotification } from "./notifications/notifications.js";
 import { incrementSubscriberActivity } from "./subscriptions/dbSubscribers.js";
 import { ACTIVITY_POINTS } from "../../helpers/activityPoints.js";
 import { getCommentPreview } from "../../utils/getCommentPreview.js";
-import { sendOutLookMail } from "../../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../../utils/sendOutlookMail.js";
 import { extractMentions } from "../../utils/extractMentions.js";
 import { checkCommentBadges } from "../badges/dbBadges.js";
 

@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 
 import redis from "../lib/redis.js";
 import connect from "../db/connect.js";
-import { sendNewFragmentEmail } from "../emails/sendNewFragmentEmail.js";
+import { sendNewFragmentEmail } from "./../emails/sendNewFragmentEmail.js";
 
 new Worker(
   "fragment-email",

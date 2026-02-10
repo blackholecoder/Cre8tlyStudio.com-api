@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import connect from "../../connect.js";
-import { sendOutLookMail } from "../../../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../../../utils/sendOutlookMail.js";
 import { getUserById } from "../../dbUser.js";
 import { emailQueue } from "../../../queues/emailQueue.js";
 import { saveNotification } from "../notifications/notifications.js";

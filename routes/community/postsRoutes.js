@@ -14,6 +14,7 @@ import {
   unlikeTarget,
   likeTarget,
   getCommunityFeed,
+  getUserIdByUsername,
 } from "../../db/community/dbPosts.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 import {
@@ -26,6 +27,7 @@ import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 import { optimizeImageUpload } from "../../helpers/optimizeImageUpload.js";
 import { postEmailQueue } from "../../queues/postEmailQueue.js";
 import { getUserRecap, markUserSeen } from "../../db/dbUser.js";
+import { getUserNameById } from "../../db/fragments/dbFragments.js";
 
 const router = express.Router();
 
@@ -179,9 +181,11 @@ router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
       commentsVisibility: comments_visibility,
     });
 
+    const authorName = await getUserNameById(req.user.id);
+
     await postEmailQueue.add("send-post-email", {
       authorUserId: userId,
-      authorName: req.user.name,
+      authorName: authorName,
       postTitle: post.title,
       postBody: body,
       postImageUrl: image_url,
@@ -192,6 +196,25 @@ router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("POST /community/topics/:id/posts error:", error);
     res.status(500).json({ success: false, message: "Failed to create post" });
+  }
+});
+
+// mentions unique id route
+
+router.get("/u/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const userId = await getUserIdByUsername(username);
+
+    if (!userId) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.redirect(`/community/profile/${userId}`);
+  } catch (err) {
+    console.error("❌ Username redirect failed:", err);
+    return res.status(500).end();
   }
 });
 

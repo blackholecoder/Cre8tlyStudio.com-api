@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import connect from "./connect.js";
 import AWS from "aws-sdk";
-import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../utils/sendOutlookMail.js";
 import axios from "axios";
 
 async function sendFreeTrialNotification({ name, email, userId, expiresAt }) {

@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 import bcrypt from "bcryptjs";
 import connect from "./connect.js";
-import { sendOutLookMail } from "../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../utils/sendOutlookMail.js";
 
 export const forgotPassword = async (email) => {
   const db = connect();

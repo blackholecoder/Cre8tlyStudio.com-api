@@ -14,7 +14,7 @@ import {
 } from "../../../db/community/authors/dbAuthors.js";
 import { authenticateToken } from "../../../middleware/authMiddleware.js";
 import { renderAuthorEmailTemplate } from "../../../emails/renderAuthorEmailTemplate.js";
-import { sendOutLookMail } from "../../../utils/sendOutllokMail.js";
+import { sendOutLookMail } from "../../../utils/sendOutlookMail.js";
 import { checkTestEmailRateLimit } from "../../../helpers/testEmailRateLimiter.js";
 import { ALLOWED_TEST_EMAIL_TEMPLATES } from "../../../emails/constants.js";
 import { wrapEmailHtml } from "../../../emails/wrapEmailHtml.js";
