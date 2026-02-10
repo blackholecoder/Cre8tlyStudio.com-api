@@ -24,13 +24,14 @@ router.post("/", authenticateToken, async (req, res) => {
       });
     }
 
+    const authorName = await getUserNameById(req.user.id);
+
     const fragmentId = await createFragment({
       userId: req.user.id,
+      authorUsername: authorName,
       body,
       reshareFragmentId,
     });
-
-    const authorName = await getUserNameById(req.user.id);
 
     await fragmentEmailQueue.add("send-fragment-email", {
       authorUserId: req.user.id,

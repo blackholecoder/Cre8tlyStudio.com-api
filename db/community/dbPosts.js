@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { checkPostBadges } from "../badges/dbBadges.js";
 import { saveNotification } from "./notifications/notifications.js";
 import { getFragmentFeed } from "../fragments/dbFragments.js";
+import { notifyMentions } from "../../helpers/notifyMentions.js";
 
 // Community Feed
 export async function getCommunityFeed({ userId, limit = 20, offset = 0 }) {
@@ -174,7 +175,7 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
   }
 }
 
-function linkifyMentions(html) {
+export function linkifyMentions(html) {
   return html.replace(
     /(^|>|\s)@([a-zA-Z0-9_]+)/g,
     `$1<a href="/api/community/u/$2" class="mention">@\$2</a>`,
@@ -183,6 +184,7 @@ function linkifyMentions(html) {
 
 export async function createPost({
   userId,
+  authorUsername,
   topicId,
   title,
   subtitle,
@@ -282,6 +284,13 @@ export async function createPost({
       `,
       [id],
     );
+
+    await notifyMentions({
+      body,
+      authorId: userId,
+      authorUsername,
+      postId: id,
+    });
 
     if (filtered.length > 0) {
       const values = filtered.map((relatedTopicId) => [id, relatedTopicId]);

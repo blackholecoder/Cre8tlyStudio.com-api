@@ -170,8 +170,11 @@ router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
         .json({ success: false, message: "Topic not found" });
     }
 
+    const authorName = await getUserNameById(req.user.id);
+
     const post = await createPost({
       userId,
+      authorUsername: authorName,
       topicId,
       title,
       subtitle,
@@ -180,8 +183,6 @@ router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
       relatedTopicIds,
       commentsVisibility: comments_visibility,
     });
-
-    const authorName = await getUserNameById(req.user.id);
 
     await postEmailQueue.add("send-post-email", {
       authorUserId: userId,

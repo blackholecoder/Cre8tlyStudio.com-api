@@ -1,19 +1,31 @@
+import { notifyMentions } from "../../helpers/notifyMentions.js";
+import { sanitizeHtml } from "../../utils/sanitizeHtml.js";
+import { linkifyMentions } from "../community/dbPosts.js";
 import connect from "../connect.js";
 
 export async function createFragment({
   userId,
+  authorUsername,
   body,
   reshareFragmentId = null,
 }) {
   const db = connect();
 
   try {
-    const cleanBody = body?.trim();
-    if (!cleanBody && !reshareFragmentId) {
+    const rawTextOnly = body
+      ?.replace(/<[^>]*>/g, " ")
+      ?.replace(/\s+/g, " ")
+      ?.trim();
+
+    if (!rawTextOnly && !reshareFragmentId) {
       throw new Error("Fragment body is empty");
     }
 
     const fragmentId = crypto.randomUUID();
+
+    // ✅ same pipeline as posts
+    const withMentions = body ? linkifyMentions(body) : null;
+    const cleanBody = withMentions ? sanitizeHtml(withMentions) : null;
 
     await db.query(
       `
@@ -26,6 +38,13 @@ export async function createFragment({
       `,
       [fragmentId, userId, cleanBody, reshareFragmentId],
     );
+
+    await notifyMentions({
+      body,
+      authorId: userId,
+      authorUsername,
+      fragmentId,
+    });
 
     // Increment reshare count if this is a reshare
     if (reshareFragmentId) {
