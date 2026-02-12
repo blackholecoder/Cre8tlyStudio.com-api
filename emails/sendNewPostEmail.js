@@ -14,49 +14,60 @@ export async function sendNewPostEmail({
   }
 
   const html = `
-<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+<div style="min-height:100%;background:#f9fafb;padding:60px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="
-    max-width:420px;
+    max-width:460px;
     margin:0 auto;
     background:#ffffff;
-    padding:32px;
-    border-radius:16px;
+    padding:40px 32px;
+    border-radius:18px;
     border:1px solid #e5e7eb;
-    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+    box-shadow:0 25px 60px rgba(0,0,0,0.06);
   ">
+
     <!-- Brand -->
-    <div style="margin-bottom:32px;">
-      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
-        <tr>
-          <td style="padding-right:10px;vertical-align:middle;">
-            <img
-              src="https://themessyattic.com/themessyattic-logo.png"
-              width="36"
-              height="36"
-              alt="The Messy Attic"
-              style="display:block;"
-            />
-          </td>
-          <td style="vertical-align:middle;">
-            <div style="
-              font-size:20px;
-              font-weight:700;
-              color:#111827;
-              line-height:1;
-            ">
-              The Messy Attic
-            </div>
-          </td>
-        </tr>
-      </table>
+    <div style="text-align:center;margin-bottom:36px;">
+      <img
+        src="https://themessyattic.com/themessyattic-logo.png"
+        width="56"
+        height="56"
+        alt="The Messy Attic"
+        style="display:block;margin:0 auto 14px;"
+      />
+      <div style="
+        font-size:20px;
+        font-weight:700;
+        color:#111827;
+        letter-spacing:0.3px;
+      ">
+        The Messy Attic
+      </div>
+      <div style="
+        width:40px;
+        height:2px;
+        background:#e5e7eb;
+        margin:16px auto 0;
+        border-radius:2px;
+      "></div>
     </div>
 
     <!-- Heading -->
-    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0;">
+    <h2 style="
+      font-size:22px;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 8px;
+      text-align:center;
+    ">
       New post published
     </h2>
 
-    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+    <p style="
+      font-size:14px;
+      color:#6b7280;
+      margin:0 0 28px;
+      text-align:center;
+    ">
       From ${authorName}
     </p>
 
@@ -68,47 +79,53 @@ export async function sendNewPostEmail({
         alt=""
         style="
           width:100%;
-          border-radius:12px;
-          margin-bottom:20px;
+          border-radius:14px;
+          margin-bottom:24px;
           object-fit:cover;
+          display:block;
         "
       />
     `
         : ""
     }
 
-    <!-- Post title -->
+    <!-- Post Title -->
     <h3 style="
       font-size:18px;
       font-weight:700;
       color:#111827;
-      margin-bottom:12px;
+      margin:0 0 14px;
     ">
       ${postTitle}
     </h3>
 
-    <!-- Body preview -->
-    <p style="
+    <!-- Excerpt -->
+    <div style="
+      margin:0 0 32px;
+      padding:18px 20px;
+      background:#f9fafb;
+      border-radius:12px;
+      border:1px solid #e5e7eb;
       font-size:14px;
       color:#374151;
-      line-height:1.6;
-      margin-bottom:24px;
+      line-height:1.7;
     ">
       ${excerpt}${excerpt?.length >= 220 ? "…" : ""}
-    </p>
+    </div>
 
     <!-- CTA -->
-    <div style="text-align:center;margin:30px 0;">
+    <div style="text-align:center;margin:32px 0;">
       <a
         href="${postUrl}"
         target="_blank"
         style="
           background:#7bed9f;
-          color:#000;
-          padding:14px 36px;
-          border-radius:8px;
+          color:#000000;
+          padding:14px 38px;
+          border-radius:10px;
           text-decoration:none;
           font-weight:700;
+          font-size:14px;
           display:inline-block;
         "
       >
@@ -117,13 +134,22 @@ export async function sendNewPostEmail({
     </div>
 
     <!-- Footer -->
-    <p style="font-size:13px;color:#6b7280;text-align:center;">
+    <div style="
+      margin-top:36px;
+      padding-top:20px;
+      border-top:1px solid #f1f5f9;
+      text-align:center;
+      font-size:13px;
+      color:#6b7280;
+      line-height:1.6;
+    ">
       You’re receiving this because you’re subscribed to ${authorName}.
-    </p>
+      <br/>
+      <span style="display:inline-block;margin-top:8px;">
+        — The Messy Attic
+      </span>
+    </div>
 
-    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — The Messy Attic
-    </p>
   </div>
 </div>
 `;

@@ -8,6 +8,7 @@ import {
   getUserFragments,
   getUserNameById,
   updateFragment,
+  uploadFragmentAudioHelper,
 } from "../../db/fragments/dbFragments.js";
 import { fragmentEmailQueue } from "../../queues/fragmentEmailQueue.js";
 
@@ -15,15 +16,25 @@ const router = express.Router();
 
 router.post("/", authenticateToken, async (req, res) => {
   try {
-    const { body, reshareFragmentId = null } = req.body;
+    const {
+      body,
+      reshareFragmentId = null,
+      audio_url = null,
+      audio_title = null,
+      audio_duration_seconds = null,
+      audio_file_size = null,
+      audio_mime_type = null,
+    } = req.body;
 
-    if (!body?.trim() && !reshareFragmentId) {
+    const hasText = body?.trim();
+    const hasAudio = !!audio_url;
+
+    if (!hasText && !reshareFragmentId && !hasAudio) {
       return res.status(400).json({
         success: false,
-        message: "Fragment body is required",
+        message: "Fragment cannot be empty",
       });
     }
-
     const authorName = await getUserNameById(req.user.id);
 
     const fragmentId = await createFragment({
@@ -31,6 +42,11 @@ router.post("/", authenticateToken, async (req, res) => {
       authorUsername: authorName,
       body,
       reshareFragmentId,
+      audio_url,
+      audio_title,
+      audio_duration_seconds,
+      audio_file_size,
+      audio_mime_type,
     });
 
     await fragmentEmailQueue.add("send-fragment-email", {
@@ -125,12 +141,25 @@ router.get("/:fragmentId", authenticateToken, async (req, res) => {
 router.put("/:fragmentId", authenticateToken, async (req, res) => {
   try {
     const { fragmentId } = req.params;
-    const { body } = req.body;
+
+    const {
+      body,
+      audio_url = null,
+      audio_title = null,
+      audio_duration_seconds = null,
+      audio_file_size = null,
+      audio_mime_type = null,
+    } = req.body;
 
     await updateFragment({
       fragmentId,
       userId: req.user.id,
       body,
+      audio_url,
+      audio_title,
+      audio_duration_seconds,
+      audio_file_size,
+      audio_mime_type,
     });
 
     res.json({ success: true });
@@ -160,6 +189,38 @@ router.delete("/:id", authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch {
     res.status(500).json({ message: "Failed to delete fragment" });
+  }
+});
+
+router.post("/upload-audio", authenticateToken, async (req, res) => {
+  try {
+    if (!req.files || !req.files.audio) {
+      console.log("❌ No audio in req.files");
+      return res.status(400).json({
+        success: false,
+        message: "No audio file uploaded",
+      });
+    }
+
+    const file = req.files.audio;
+
+    const result = await uploadFragmentAudioHelper({
+      userId: req.user.id,
+      file,
+    });
+
+    res.json({
+      success: true,
+      publicUrl: result.publicUrl,
+      fileSize: result.fileSize,
+      mimeType: result.mimeType,
+    });
+  } catch (err) {
+    console.error("❌ BACKEND ERROR:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
 

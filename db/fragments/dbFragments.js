@@ -2,12 +2,22 @@ import { notifyMentions } from "../../helpers/notifyMentions.js";
 import { sanitizeHtml } from "../../utils/sanitizeHtml.js";
 import { linkifyMentions } from "../community/dbPosts.js";
 import connect from "../connect.js";
+import crypto from "crypto";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { s3 } from "../../services/spacesClientV3.js";
+import { uploadFileToSpaces } from "../../helpers/uploadToSpace.js";
 
 export async function createFragment({
   userId,
   authorUsername,
   body,
   reshareFragmentId = null,
+  audio_url = null,
+  audio_title = null,
+  audio_duration_seconds = null,
+  audio_file_size = null,
+  audio_mime_type = null,
 }) {
   const db = connect();
 
@@ -17,8 +27,51 @@ export async function createFragment({
       ?.replace(/\s+/g, " ")
       ?.trim();
 
-    if (!rawTextOnly && !reshareFragmentId) {
-      throw new Error("Fragment body is empty");
+    const hasText = !!rawTextOnly;
+    const hasAudio = typeof audio_url === "string" && audio_url.trim() !== "";
+
+    if (!hasText && !reshareFragmentId && !hasAudio) {
+      throw new Error("Fragment cannot be empty");
+    }
+
+    // 🔒 AUDIO VALIDATION
+    if (hasAudio) {
+      const MAX_AUDIO_SECONDS = 10800; // 3 hours
+      const MAX_AUDIO_BYTES = 500 * 1024 * 1024;
+
+      const allowedMimeTypes = [
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/mp4",
+        "audio/x-m4a",
+      ];
+
+      if (!allowedMimeTypes.includes(audio_mime_type)) {
+        throw new Error("Invalid audio format");
+      }
+      if (
+        typeof audio_duration_seconds !== "number" ||
+        audio_duration_seconds <= 0 ||
+        audio_duration_seconds > MAX_AUDIO_SECONDS
+      ) {
+        throw new Error("Audio exceeds maximum length");
+      }
+
+      if (
+        typeof audio_file_size !== "number" ||
+        audio_file_size <= 0 ||
+        audio_file_size > MAX_AUDIO_BYTES
+      ) {
+        throw new Error("Audio file too large");
+      }
+
+      if (
+        !audio_url.includes(
+          "cre8tlystudio.nyc3.cdn.digitaloceanspaces.com/fragment_audio/",
+        )
+      ) {
+        throw new Error("Invalid audio source");
+      }
     }
 
     const fragmentId = crypto.randomUUID();
@@ -33,19 +86,35 @@ export async function createFragment({
         id,
         user_id,
         body,
-        reshare_fragment_id
-      ) VALUES (?, ?, ?, ?)
+        reshare_fragment_id,
+        audio_url,
+        audio_title,
+        audio_duration_seconds,
+        audio_file_size,
+        audio_mime_type
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [fragmentId, userId, cleanBody, reshareFragmentId],
+      [
+        fragmentId,
+        userId,
+        cleanBody,
+        reshareFragmentId,
+        audio_url,
+        audio_title,
+        audio_duration_seconds,
+        audio_file_size,
+        audio_mime_type,
+      ],
     );
 
-    await notifyMentions({
-      body,
-      authorId: userId,
-      authorUsername,
-      fragmentId,
-    });
-
+    if (hasText) {
+      await notifyMentions({
+        body,
+        authorId: userId,
+        authorUsername,
+        fragmentId,
+      });
+    }
     // Increment reshare count if this is a reshare
     if (reshareFragmentId) {
       await db.query(
@@ -89,6 +158,12 @@ export async function getFragmentFeed({
       f.created_at,
       f.updated_at,
       f.views,
+
+      f.audio_url,
+      f.audio_title,
+      f.audio_duration_seconds,
+      f.audio_file_size,
+      f.audio_mime_type,
 
       COUNT(fl.id) AS like_count,
 
@@ -148,6 +223,15 @@ export async function getFragmentFeed({
     like_count: Number(r.like_count) || 0,
     has_liked: Boolean(r.has_liked),
     comment_count: Number(r.comment_count) || 0,
+    reshare_count: Number(r.reshare_count) || 0,
+
+    audio_url: r.audio_url || null,
+    audio_title: r.audio_title || null,
+    audio_duration_seconds: r.audio_duration_seconds
+      ? Number(r.audio_duration_seconds)
+      : null,
+    audio_file_size: r.audio_file_size ? Number(r.audio_file_size) : null,
+    audio_mime_type: r.audio_mime_type || null,
   }));
 }
 
@@ -175,6 +259,13 @@ export async function getFragmentById(fragmentId, userId = null) {
         f.created_at,
         f.updated_at,
         f.views, 
+
+        f.audio_url,
+        f.audio_title,
+        f.audio_duration_seconds,
+        f.audio_file_size,
+        f.audio_mime_type,
+
 
         COUNT(fl.id) AS like_count,
         MAX(ul.user_id IS NOT NULL) AS has_liked,
@@ -246,6 +337,17 @@ export async function getFragmentById(fragmentId, userId = null) {
           like_count: Number(row.like_count) || 0,
           has_liked: Boolean(row.has_liked),
           comment_count: Number(row.comment_count) || 0,
+          reshare_count: Number(row.reshare_count) || 0,
+
+          audio_url: row.audio_url || null,
+          audio_title: row.audio_title || null,
+          audio_duration_seconds: row.audio_duration_seconds
+            ? Number(row.audio_duration_seconds)
+            : null,
+          audio_file_size: row.audio_file_size
+            ? Number(row.audio_file_size)
+            : null,
+          audio_mime_type: row.audio_mime_type || null,
         }
       : null;
   } catch (err) {
@@ -263,10 +365,15 @@ export async function getUserFragments(userId) {
       SELECT
         f.id,
         f.body,
-        f.image_url,
         f.created_at,
         f.updated_at,
         f.reshare_fragment_id,
+
+        f.audio_url,
+        f.audio_title,
+        f.audio_duration_seconds,
+        f.audio_file_size,
+        f.audio_mime_type,
 
         rf.body AS reshared_body,
         rf.created_at AS reshared_created_at,
@@ -289,7 +396,16 @@ export async function getUserFragments(userId) {
       [userId],
     );
 
-    return rows;
+    return rows.map((r) => ({
+      ...r,
+      audio_url: r.audio_url || null,
+      audio_title: r.audio_title || null,
+      audio_duration_seconds: r.audio_duration_seconds
+        ? Number(r.audio_duration_seconds)
+        : null,
+      audio_file_size: r.audio_file_size ? Number(r.audio_file_size) : null,
+      audio_mime_type: r.audio_mime_type || null,
+    }));
   } catch (err) {
     console.error("getUserFragments failed:", err);
     throw err;
@@ -315,17 +431,101 @@ export async function deleteFragmentById(fragmentId, userId) {
   }
 }
 
-export async function updateFragment({ fragmentId, userId, body }) {
+export async function updateFragment({
+  fragmentId,
+  userId,
+  body,
+  audio_url = null,
+  audio_title = null,
+  audio_duration_seconds = null,
+  audio_file_size = null,
+  audio_mime_type = null,
+}) {
   const db = connect();
 
-  await db.query(
-    `
-    UPDATE fragments
-    SET body = ?, updated_at = NOW()
-    WHERE id = ? AND user_id = ? AND deleted_at IS NULL
-    `,
-    [body, fragmentId, userId],
-  );
+  try {
+    const rawTextOnly = body
+      ?.replace(/<[^>]*>/g, " ")
+      ?.replace(/\s+/g, " ")
+      ?.trim();
+
+    const hasText = !!rawTextOnly;
+    const hasAudio = typeof audio_url === "string" && audio_url.trim() !== "";
+
+    if (!hasText && !hasAudio) {
+      throw new Error("Fragment cannot be empty");
+    }
+
+    if (hasAudio) {
+      const MAX_AUDIO_SECONDS = 10800;
+      const MAX_AUDIO_BYTES = 500 * 1024 * 1024;
+
+      const allowedMimeTypes = [
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/mp4",
+        "audio/x-m4a",
+      ];
+
+      if (!allowedMimeTypes.includes(audio_mime_type)) {
+        throw new Error("Invalid audio format");
+      }
+
+      if (
+        typeof audio_duration_seconds !== "number" ||
+        audio_duration_seconds <= 0 ||
+        audio_duration_seconds > MAX_AUDIO_SECONDS
+      ) {
+        throw new Error("Audio exceeds maximum length");
+      }
+
+      if (
+        typeof audio_file_size !== "number" ||
+        audio_file_size <= 0 ||
+        audio_file_size > MAX_AUDIO_BYTES
+      ) {
+        throw new Error("Audio file too large");
+      }
+
+      if (
+        !audio_url.includes(
+          "cre8tlystudio.nyc3.cdn.digitaloceanspaces.com/fragment_audio/",
+        )
+      ) {
+        throw new Error("Invalid audio source");
+      }
+    }
+
+    await db.query(
+      `
+      UPDATE fragments
+      SET
+        body = ?,
+        audio_url = ?,
+        audio_title = ?,
+        audio_duration_seconds = ?,
+        audio_file_size = ?,
+        audio_mime_type = ?,
+        updated_at = NOW()
+      WHERE id = ?
+        AND user_id = ?
+        AND deleted_at IS NULL
+      `,
+      [
+        body,
+        hasAudio ? audio_url : null,
+        hasAudio ? audio_title : null,
+        hasAudio ? audio_duration_seconds : null,
+        hasAudio ? audio_file_size : null,
+        hasAudio ? audio_mime_type : null,
+        fragmentId,
+        userId,
+      ],
+    );
+  } catch (err) {
+    console.error("❌ updateFragment failed:", err);
+    throw err;
+  }
 }
 
 export async function getUserNameById(userId) {
@@ -345,6 +545,48 @@ export async function getUserNameById(userId) {
     return row?.name || null;
   } catch (err) {
     console.error("❌ getUserNameById error:", err);
+    throw err;
+  }
+}
+
+export async function uploadFragmentAudioHelper({ userId, file }) {
+  try {
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const allowedMimeTypes = [
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/mp4",
+      "audio/x-m4a",
+    ];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new Error("Unsupported audio format");
+    }
+
+    const MAX_AUDIO_BYTES = 500 * 1024 * 1024;
+
+    if (file.size > MAX_AUDIO_BYTES) {
+      throw new Error("Audio file too large");
+    }
+
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    const key = `fragment_audio/${userId}-${crypto.randomUUID()}.${ext}`;
+
+    // 🔥 THIS is the important fix
+    await uploadFileToSpaces(file.tempFilePath, key, file.mimetype);
+
+    const publicUrl = `https://cre8tlystudio.nyc3.cdn.digitaloceanspaces.com/${key}`;
+
+    return {
+      publicUrl,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+    };
+  } catch (err) {
+    console.error("❌ uploadFragmentAudioHelper failed:", err);
     throw err;
   }
 }

@@ -8,6 +8,19 @@ import { saveNotification } from "./notifications/notifications.js";
 import { getFragmentFeed } from "../fragments/dbFragments.js";
 import { notifyMentions } from "../../helpers/notifyMentions.js";
 
+function generatePreview(html, max = 600) {
+  if (!html) return "";
+
+  return html
+    .replace(/&nbsp;/gi, " ") // ✅ remove non-breaking spaces
+    .replace(/<\/(p|div|h\d|li)>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
 // Community Feed
 export async function getCommunityFeed({ userId, limit = 20, offset = 0 }) {
   const db = connect();
@@ -91,6 +104,8 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
         p.comments_visibility,
         p.comments_locked,
 
+         p.body AS body_preview,
+
          CASE
           WHEN p.user_id = ? THEN 1
           ELSE 0
@@ -169,7 +184,12 @@ export async function getAllCommunityPosts({ userId, limit = 20, offset = 0 }) {
       [userId, userId, userId, userId, limit, offset],
     );
 
-    return rows;
+    const cleaned = rows.map((row) => ({
+      ...row,
+      body_preview: generatePreview(row.body_preview),
+    }));
+
+    return cleaned;
   } catch (err) {
     throw err;
   }
@@ -207,13 +227,13 @@ export async function createPost({
       throw new Error("Post body is required");
     }
 
-    const wordCount = rawTextOnly.split(" ").length;
+    const charCount = rawTextOnly.length;
 
-    const MIN_POST_WORDS = 501;
+    const MIN_POST_CHARS = 501;
 
-    if (wordCount < MIN_POST_WORDS) {
+    if (charCount < MIN_POST_CHARS) {
       const err = new Error(
-        `Posts require at least ${MIN_POST_WORDS} words. Please post a fragment instead.`,
+        `Posts require at least ${MIN_POST_CHARS} characters. Please post a fragment instead.`,
       );
       err.code = "POST_TOO_SHORT";
       throw err;
@@ -223,11 +243,6 @@ export async function createPost({
 
     // ✅ SANITIZE FINAL HTML
     const cleanBody = withMentions ? sanitizeHtml(withMentions) : null;
-
-    console.log("🧪 FINAL BODY CHECK", {
-      containsLink: cleanBody?.includes("<a"),
-      preview: cleanBody?.slice(0, 200),
-    });
 
     const slug = await generateUniqueSlug(db, title);
 

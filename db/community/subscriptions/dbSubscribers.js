@@ -565,86 +565,127 @@ export async function sendCommunityInviteEmail({
   inviteUrl,
 }) {
   const inviteHtml = `
-<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+<div style="min-height:100%;background:#f9fafb;padding:60px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="
-    max-width:420px;
+    max-width:460px;
     margin:0 auto;
     background:#ffffff;
-    padding:32px;
-    border-radius:16px;
+    padding:40px 32px;
+    border-radius:18px;
     border:1px solid #e5e7eb;
-    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+    box-shadow:0 25px 60px rgba(0,0,0,0.06);
   ">
-    <div style="margin-bottom:32px;">
-  <table align="center" cellpadding="0" cellspacing="0" role="presentation">
-    <tr>
-      <td style="padding-right:10px;vertical-align:middle;">
-        <img
-          src="https://themessyattic.com/themessyattic-logo.png"
-          width="36"
-          height="36"
-          alt="The Messy Attic"
-          style="display:block;"
-        />
-      </td>
-      <td style="vertical-align:middle;">
-        <div
-          style="
-            font-size:20px;
-            font-weight:700;
-            color:#111827;
-            line-height:1;
-            font-family:Arial,sans-serif;
-          "
-        >
-          The Messy Attic
-        </div>
-      </td>
-    </tr>
-  </table>
-</div>
 
+    <!-- Brand -->
+    <div style="text-align:center;margin-bottom:36px;">
+      <img
+        src="https://themessyattic.com/themessyattic-logo.png"
+        width="56"
+        height="56"
+        alt="The Messy Attic"
+        style="display:block;margin:0 auto 14px;"
+      />
+      <div style="
+        font-size:20px;
+        font-weight:700;
+        color:#111827;
+        letter-spacing:0.3px;
+      ">
+        The Messy Attic
+      </div>
+      <div style="
+        width:40px;
+        height:2px;
+        background:#e5e7eb;
+        margin:16px auto 0;
+        border-radius:2px;
+      "></div>
+    </div>
 
-    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0 8px;">
+    <!-- Heading -->
+    <h2 style="
+      font-size:22px;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 8px;
+      text-align:center;
+    ">
       You’ve been invited
     </h2>
 
-    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+    <p style="
+      font-size:14px;
+      color:#6b7280;
+      margin:0 0 28px;
+      text-align:center;
+    ">
       A personal invitation
     </p>
 
-    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
-  <strong>${authorName}</strong> has personally invited you to join an amazing private community for writers, authors, and readers on The Messy Attic.
-</p>
+    <!-- Invite Card -->
+    <div style="
+      margin:0 0 28px;
+      padding:22px;
+      background:#f9fafb;
+      border-radius:14px;
+      border:1px solid #e5e7eb;
+      text-align:center;
+    ">
+      <div style="
+        font-size:15px;
+        color:#111827;
+        line-height:1.6;
+      ">
+        <strong>${authorName}</strong> has personally invited you to join a private community for writers, authors, and readers.
+      </div>
 
-    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
-      Subscribing lets you follow what they publish and stay connected, without algorithms or noise.
-    </p>
+      <div style="
+        font-size:13px;
+        color:#6b7280;
+        margin-top:10px;
+        line-height:1.6;
+      ">
+        Subscribing lets you follow what they publish and stay connected, without algorithms or noise.
+      </div>
+    </div>
 
-    <div style="text-align:center;margin:30px 0;">
+    <!-- CTA -->
+    <div style="text-align:center;margin:32px 0;">
       <a
         href="${inviteUrl}"
         target="_blank"
         style="
           background:#7bed9f;
-          color:#000;
-          padding:14px 36px;
-          border-radius:8px;
+          color:#000000;
+          padding:14px 38px;
+          border-radius:10px;
           text-decoration:none;
           font-weight:700;
+          font-size:14px;
+          display:inline-block;
         "
       >
-        Accept invite
+        Accept invitation
       </a>
     </div>
 
-    <p style="font-size:13px;color:#6b7280;text-align:center;">
+    <!-- Footer -->
+    <div style="
+      margin-top:36px;
+      padding-top:20px;
+      border-top:1px solid #f1f5f9;
+      text-align:center;
+      font-size:13px;
+      color:#6b7280;
+      line-height:1.6;
+    ">
       If you don’t have an account yet, you’ll be prompted to create one first.
-    </p>
+      <br/>
+      <span style="display:inline-block;margin-top:8px;">
+        — The Messy Attic
+      </span>
+    </div>
 
-    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — The Messy Attic
-    </p>
   </div>
 </div>
 `;
@@ -667,73 +708,103 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
   }
 
   const html = `
-<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+<div style="min-height:100%;background:#f9fafb;padding:60px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="
-    max-width:420px;
+    max-width:460px;
     margin:0 auto;
     background:#ffffff;
-    padding:32px;
-    border-radius:16px;
+    padding:40px 32px;
+    border-radius:18px;
     border:1px solid #e5e7eb;
-    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+    box-shadow:0 25px 60px rgba(0,0,0,0.06);
   ">
+
     <!-- Brand -->
-    <div style="margin-bottom:32px;">
-      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
-        <tr>
-          <td style="padding-right:10px;vertical-align:middle;">
-            <img
-              src="https://themessyattic.com/themessyattic-logo.png"
-              width="36"
-              height="36"
-              alt="The Messy Attic"
-              style="display:block;"
-            />
-          </td>
-          <td style="vertical-align:middle;">
-            <div style="
-              font-size:20px;
-              font-weight:700;
-              color:#111827;
-              line-height:1;
-            ">
-              The Messy Attic
-            </div>
-          </td>
-        </tr>
-      </table>
+    <div style="text-align:center;margin-bottom:36px;">
+      <img
+        src="https://themessyattic.com/themessyattic-logo.png"
+        width="56"
+        height="56"
+        alt="The Messy Attic"
+        style="display:block;margin:0 auto 14px;"
+      />
+      <div style="
+        font-size:20px;
+        font-weight:700;
+        color:#111827;
+        letter-spacing:0.3px;
+      ">
+        The Messy Attic
+      </div>
+      <div style="
+        width:40px;
+        height:2px;
+        background:#e5e7eb;
+        margin:16px auto 0;
+        border-radius:2px;
+      "></div>
     </div>
 
     <!-- Heading -->
-    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0;">
+    <h2 style="
+      font-size:22px;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 8px;
+      text-align:center;
+    ">
       New subscriber
     </h2>
 
-    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+    <p style="
+      font-size:14px;
+      color:#6b7280;
+      margin:0 0 28px;
+      text-align:center;
+    ">
       Your community is growing
     </p>
 
-    <!-- Body -->
-    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
-      <strong>${subscriberName || "Someone"}</strong> just subscribed to your community on The Messy Attic.
-    </p>
+    <!-- Subscriber Info Card -->
+    <div style="
+      margin:0 0 28px;
+      padding:20px;
+      background:#f9fafb;
+      border-radius:12px;
+      border:1px solid #e5e7eb;
+      text-align:center;
+    ">
+      <div style="
+        font-size:15px;
+        color:#111827;
+        line-height:1.6;
+      ">
+        <strong>${subscriberName || "Someone"}</strong> just subscribed to your community.
+      </div>
 
-    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
-      They’ll now see what you publish and can take part in discussions when you share new posts.
-    </p>
+      <div style="
+        font-size:14px;
+        color:#6b7280;
+        margin-top:10px;
+        line-height:1.6;
+      ">
+        They’ll now see what you publish and can join discussions when you share new posts.
+      </div>
+    </div>
 
     <!-- CTA -->
-    <div style="text-align:center;margin:30px 0;">
+    <div style="text-align:center;margin:32px 0;">
       <a
         href="https://themessyattic.com/community"
         target="_blank"
         style="
           background:#7bed9f;
-          color:#000;
-          padding:14px 36px;
-          border-radius:8px;
+          color:#000000;
+          padding:14px 38px;
+          border-radius:10px;
           text-decoration:none;
           font-weight:700;
+          font-size:14px;
           display:inline-block;
         "
       >
@@ -742,13 +813,22 @@ export async function sendNewSubscriberEmail({ to, subscriberName }) {
     </div>
 
     <!-- Footer -->
-    <p style="font-size:13px;color:#6b7280;text-align:center;">
+    <div style="
+      margin-top:36px;
+      padding-top:20px;
+      border-top:1px solid #f1f5f9;
+      text-align:center;
+      font-size:13px;
+      color:#6b7280;
+      line-height:1.6;
+    ">
       You can manage subscribers and notifications from your dashboard.
-    </p>
+      <br/>
+      <span style="display:inline-block;margin-top:8px;">
+        — The Messy Attic
+      </span>
+    </div>
 
-    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — The Messy Attic
-    </p>
   </div>
 </div>
 `;
@@ -772,80 +852,124 @@ export async function sendPaidSubscriberEmail({
   }
 
   const html = `
-<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+<div style="min-height:100%;background:#f9fafb;padding:60px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="
-    max-width:420px;
+    max-width:460px;
     margin:0 auto;
     background:#ffffff;
-    padding:32px;
-    border-radius:16px;
+    padding:40px 32px;
+    border-radius:18px;
     border:1px solid #e5e7eb;
-    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+    box-shadow:0 25px 60px rgba(0,0,0,0.06);
   ">
+
     <!-- Brand -->
-    <div style="margin-bottom:32px;">
-      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
-        <tr>
-          <td style="padding-right:10px;vertical-align:middle;">
-            <img
-              src="https://themessyattic.com/themessyattic-logo.png"
-              width="36"
-              height="36"
-              alt="The Messy Attic"
-              style="display:block;"
-            />
-          </td>
-          <td style="vertical-align:middle;">
-            <div style="
-              font-size:20px;
-              font-weight:700;
-              color:#111827;
-              line-height:1;
-            ">
-              The Messy Attic
-            </div>
-          </td>
-        </tr>
-      </table>
+    <div style="text-align:center;margin-bottom:36px;">
+      <img
+        src="https://themessyattic.com/themessyattic-logo.png"
+        width="56"
+        height="56"
+        alt="The Messy Attic"
+        style="display:block;margin:0 auto 14px;"
+      />
+      <div style="
+        font-size:20px;
+        font-weight:700;
+        color:#111827;
+        letter-spacing:0.3px;
+      ">
+        The Messy Attic
+      </div>
+      <div style="
+        width:40px;
+        height:2px;
+        background:#e5e7eb;
+        margin:16px auto 0;
+        border-radius:2px;
+      "></div>
     </div>
 
     <!-- Heading -->
-    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0;">
+    <h2 style="
+      font-size:22px;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 8px;
+      text-align:center;
+    ">
       You have a new paid subscriber
     </h2>
 
-    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+    <p style="
+      font-size:14px;
+      color:#6b7280;
+      margin:0 0 28px;
+      text-align:center;
+    ">
       Someone just chose to support your work
     </p>
 
-    <!-- Body -->
-    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
-      <strong>${subscriberName || "Someone"}</strong> just started a
-      <strong>paid subscription</strong> to your community on The Messy Attic.
-    </p>
+    <!-- Highlight Card -->
+    <div style="
+      margin:0 0 28px;
+      padding:22px;
+      background:#f0fdf4;
+      border-radius:14px;
+      border:1px solid #bbf7d0;
+      text-align:center;
+    ">
+      <div style="
+        font-size:15px;
+        color:#111827;
+        line-height:1.6;
+      ">
+        <strong>${subscriberName || "Someone"}</strong> started a
+        <strong>paid subscription</strong>.
+      </div>
 
-    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:16px;">
-      This subscriber is now supporting you at
-      <strong>$${amount}/${interval}</strong> and has full access to your
-      community and paid content.
-    </p>
+      <div style="
+        font-size:14px;
+        color:#065f46;
+        margin-top:10px;
+        font-weight:600;
+      ">
+        $${amount}/${interval}
+      </div>
 
-    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
+      <div style="
+        font-size:13px;
+        color:#6b7280;
+        margin-top:8px;
+        line-height:1.6;
+      ">
+        They now have full access to your community and paid content.
+      </div>
+    </div>
+
+    <!-- Encouragement -->
+    <p style="
+      font-size:14px;
+      color:#374151;
+      line-height:1.6;
+      margin:0 0 28px;
+      text-align:center;
+    ">
       You’ve officially earned from your writing. Keep going.
     </p>
 
     <!-- CTA -->
-    <div style="text-align:center;margin:30px 0;">
+    <div style="text-align:center;margin:32px 0;">
       <a
         href="https://themessyattic.com/community"
         target="_blank"
         style="
           background:#7bed9f;
-          color:#000;
-          padding:14px 36px;
-          border-radius:8px;
+          color:#000000;
+          padding:14px 38px;
+          border-radius:10px;
           text-decoration:none;
           font-weight:700;
+          font-size:14px;
           display:inline-block;
         "
       >
@@ -854,13 +978,22 @@ export async function sendPaidSubscriberEmail({
     </div>
 
     <!-- Footer -->
-    <p style="font-size:13px;color:#6b7280;text-align:center;">
+    <div style="
+      margin-top:36px;
+      padding-top:20px;
+      border-top:1px solid #f1f5f9;
+      text-align:center;
+      font-size:13px;
+      color:#6b7280;
+      line-height:1.6;
+    ">
       You can manage paid subscribers and earnings from your dashboard.
-    </p>
+      <br/>
+      <span style="display:inline-block;margin-top:8px;">
+        — The Messy Attic
+      </span>
+    </div>
 
-    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — The Messy Attic
-    </p>
   </div>
 </div>
 `;
@@ -878,73 +1011,103 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
   }
 
   const html = `
-<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+<div style="min-height:100%;background:#f9fafb;padding:60px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="
-    max-width:420px;
+    max-width:460px;
     margin:0 auto;
     background:#ffffff;
-    padding:32px;
-    border-radius:16px;
+    padding:40px 32px;
+    border-radius:18px;
     border:1px solid #e5e7eb;
-    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+    box-shadow:0 25px 60px rgba(0,0,0,0.06);
   ">
+
     <!-- Brand -->
-    <div style="margin-bottom:32px;">
-      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
-        <tr>
-          <td style="padding-right:10px;vertical-align:middle;">
-            <img
-              src="https://themessyattic.com/themessyattic-logo.png"
-              width="36"
-              height="36"
-              alt="The Messy Attic"
-              style="display:block;"
-            />
-          </td>
-          <td style="vertical-align:middle;">
-            <div style="
-              font-size:20px;
-              font-weight:700;
-              color:#111827;
-              line-height:1;
-            ">
-              The Messy Attic
-            </div>
-          </td>
-        </tr>
-      </table>
+    <div style="text-align:center;margin-bottom:36px;">
+      <img
+        src="https://themessyattic.com/themessyattic-logo.png"
+        width="56"
+        height="56"
+        alt="The Messy Attic"
+        style="display:block;margin:0 auto 14px;"
+      />
+      <div style="
+        font-size:20px;
+        font-weight:700;
+        color:#111827;
+        letter-spacing:0.3px;
+      ">
+        The Messy Attic
+      </div>
+      <div style="
+        width:40px;
+        height:2px;
+        background:#e5e7eb;
+        margin:16px auto 0;
+        border-radius:2px;
+      "></div>
     </div>
 
     <!-- Heading -->
-    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0;">
-      Subscriber left
+    <h2 style="
+      font-size:22px;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 8px;
+      text-align:center;
+    ">
+      A subscriber left
     </h2>
 
-    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+    <p style="
+      font-size:14px;
+      color:#6b7280;
+      margin:0 0 28px;
+      text-align:center;
+    ">
       A free subscription was canceled
     </p>
 
-    <!-- Body -->
-    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
-      <strong>${subscriberName || "Someone"}</strong> has unsubscribed from your community.
-    </p>
+    <!-- Info Card -->
+    <div style="
+      margin:0 0 28px;
+      padding:20px;
+      background:#f9fafb;
+      border-radius:12px;
+      border:1px solid #e5e7eb;
+      text-align:center;
+    ">
+      <div style="
+        font-size:15px;
+        color:#111827;
+        line-height:1.6;
+      ">
+        <strong>${subscriberName || "Someone"}</strong> has unsubscribed from your community.
+      </div>
 
-    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
-      No action is needed. They simply won’t receive future posts or updates unless they resubscribe.
-    </p>
+      <div style="
+        font-size:13px;
+        color:#6b7280;
+        margin-top:10px;
+        line-height:1.6;
+      ">
+        No action is needed. They won’t receive future posts unless they choose to resubscribe.
+      </div>
+    </div>
 
     <!-- CTA -->
-    <div style="text-align:center;margin:30px 0;">
+    <div style="text-align:center;margin:32px 0;">
       <a
         href="https://themessyattic.com/community"
         target="_blank"
         style="
           background:#7bed9f;
-          color:#000;
-          padding:14px 36px;
-          border-radius:8px;
+          color:#000000;
+          padding:14px 38px;
+          border-radius:10px;
           text-decoration:none;
           font-weight:700;
+          font-size:14px;
           display:inline-block;
         "
       >
@@ -953,13 +1116,22 @@ export async function sendFreeUnsubscribedEmail({ to, subscriberName }) {
     </div>
 
     <!-- Footer -->
-    <p style="font-size:13px;color:#6b7280;text-align:center;">
-      You can manage notifications from your dashboard.
-    </p>
+    <div style="
+      margin-top:36px;
+      padding-top:20px;
+      border-top:1px solid #f1f5f9;
+      text-align:center;
+      font-size:13px;
+      color:#6b7280;
+      line-height:1.6;
+    ">
+      You can manage subscribers and notifications from your dashboard.
+      <br/>
+      <span style="display:inline-block;margin-top:8px;">
+        — The Messy Attic
+      </span>
+    </div>
 
-    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — The Messy Attic
-    </p>
   </div>
 </div>
 `;
@@ -978,67 +1150,104 @@ export async function sendPaidUnsubscribedEmail({ to, subscriberName }) {
   }
 
   const html = `
-<div style="min-height:100%;background:#ffffff;padding:60px 20px;font-family:Arial,sans-serif;">
+<div style="min-height:100%;background:#f9fafb;padding:60px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="
-    max-width:420px;
+    max-width:460px;
     margin:0 auto;
     background:#ffffff;
-    padding:32px;
-    border-radius:16px;
+    padding:40px 32px;
+    border-radius:18px;
     border:1px solid #e5e7eb;
-    box-shadow:0 20px 40px rgba(0,0,0,0.08);
+    box-shadow:0 25px 60px rgba(0,0,0,0.06);
   ">
+
     <!-- Brand -->
-    <div style="margin-bottom:32px;">
-      <table align="center" cellpadding="0" cellspacing="0" role="presentation">
-        <tr>
-          <td style="padding-right:10px;vertical-align:middle;">
-            <img
-              src="https://themessyattic.com/themessyattic-logo.png"
-              width="36"
-              height="36"
-              alt="The Messy Attic"
-              style="display:block;"
-            />
-          </td>
-          <td style="vertical-align:middle;">
-            <div style="font-size:20px;font-weight:700;color:#111827;">
-              The Messy Attic
-            </div>
-          </td>
-        </tr>
-      </table>
+    <div style="text-align:center;margin-bottom:36px;">
+      <img
+        src="https://themessyattic.com/themessyattic-logo.png"
+        width="56"
+        height="56"
+        alt="The Messy Attic"
+        style="display:block;margin:0 auto 14px;"
+      />
+      <div style="
+        font-size:20px;
+        font-weight:700;
+        color:#111827;
+        letter-spacing:0.3px;
+      ">
+        The Messy Attic
+      </div>
+      <div style="
+        width:40px;
+        height:2px;
+        background:#e5e7eb;
+        margin:16px auto 0;
+        border-radius:2px;
+      "></div>
     </div>
 
-    <h2 style="font-size:26px;font-weight:700;color:#111827;margin:8px 0;">
+    <!-- Heading -->
+    <h2 style="
+      font-size:22px;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 8px;
+      text-align:center;
+    ">
       A paid subscriber canceled
     </h2>
 
-    <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">
+    <p style="
+      font-size:14px;
+      color:#6b7280;
+      margin:0 0 28px;
+      text-align:center;
+    ">
       A supporter has ended their paid subscription
     </p>
 
-    <p style="font-size:15px;color:#111827;line-height:1.6;margin-bottom:20px;">
-      <strong>${subscriberName || "Someone"}</strong> has canceled their
-      <strong>paid subscription</strong> to your community.
-    </p>
+    <!-- Info Card -->
+    <div style="
+      margin:0 0 28px;
+      padding:20px;
+      background:#f9fafb;
+      border-radius:12px;
+      border:1px solid #e5e7eb;
+      text-align:center;
+    ">
+      <div style="
+        font-size:15px;
+        color:#111827;
+        line-height:1.6;
+      ">
+        <strong>${subscriberName || "Someone"}</strong> has canceled their
+        <strong>paid subscription</strong>.
+      </div>
 
-    <p style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px;">
-      They will no longer be billed and will lose access to paid content once
-      their billing period ends.
-    </p>
+      <div style="
+        font-size:13px;
+        color:#6b7280;
+        margin-top:10px;
+        line-height:1.6;
+      ">
+        They will no longer be billed and will lose access to paid content at the end of their billing period.
+      </div>
+    </div>
 
-    <div style="text-align:center;margin:30px 0;">
+    <!-- CTA -->
+    <div style="text-align:center;margin:32px 0;">
       <a
         href="https://themessyattic.com/community"
         target="_blank"
         style="
           background:#7bed9f;
-          color:#000;
-          padding:14px 36px;
-          border-radius:8px;
+          color:#000000;
+          padding:14px 38px;
+          border-radius:10px;
           text-decoration:none;
           font-weight:700;
+          font-size:14px;
           display:inline-block;
         "
       >
@@ -1046,13 +1255,23 @@ export async function sendPaidUnsubscribedEmail({ to, subscriberName }) {
       </a>
     </div>
 
-    <p style="font-size:13px;color:#6b7280;text-align:center;">
+    <!-- Footer -->
+    <div style="
+      margin-top:36px;
+      padding-top:20px;
+      border-top:1px solid #f1f5f9;
+      text-align:center;
+      font-size:13px;
+      color:#6b7280;
+      line-height:1.6;
+    ">
       You can review subscribers and earnings in your dashboard.
-    </p>
+      <br/>
+      <span style="display:inline-block;margin-top:8px;">
+        — The Messy Attic
+      </span>
+    </div>
 
-    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:12px;">
-      — The Messy Attic
-    </p>
   </div>
 </div>
 `;
