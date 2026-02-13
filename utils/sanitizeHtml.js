@@ -11,6 +11,7 @@ export function sanitizeHtml(html) {
       "p",
       "br",
       "hr", // ✅ allow divider
+      "div",
       "strong",
       "em",
       "u",
@@ -34,6 +35,8 @@ export function sanitizeHtml(html) {
 
     // ⚠️ IMPORTANT: use ARRAY, not object
     ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "style", "class"],
+
+    ALLOW_DATA_ATTR: true,
 
     KEEP_CONTENT: true,
 

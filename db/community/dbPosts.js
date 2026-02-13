@@ -11,8 +11,17 @@ import { notifyMentions } from "../../helpers/notifyMentions.js";
 function generatePreview(html, max = 600) {
   if (!html) return "";
 
-  return html
-    .replace(/&nbsp;/gi, " ") // ✅ remove non-breaking spaces
+  const divider = '<div data-subscriber-divider="true"></div>';
+
+  let freePortion = html;
+
+  // ✅ Split BEFORE stripping tags
+  if (html.includes(divider)) {
+    freePortion = html.split(divider)[0];
+  }
+
+  return freePortion
+    .replace(/&nbsp;/gi, " ")
     .replace(/<\/(p|div|h\d|li)>/gi, " ")
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<[^>]+>/g, "")
@@ -502,6 +511,18 @@ export async function getPostById(identifier, userId) {
         ELSE 0
       END AS has_liked,
 
+      CASE
+        WHEN p.user_id = ? THEN 1
+        WHEN sub.id IS NOT NULL THEN 1
+        ELSE 0
+      END AS viewer_has_paid_subscription,
+
+      CASE
+        WHEN LOCATE('data-subscriber-divider="true"', p.body) > 0
+        THEN 1
+        ELSE 0
+      END AS has_paid_section,
+
         CASE
         WHEN ub.user_id IS NOT NULL THEN 1
         ELSE 0
@@ -527,17 +548,37 @@ export async function getPostById(identifier, userId) {
           FROM post_bookmarks
           GROUP BY post_id
         ) pb ON pb.post_id = p.id
+        LEFT JOIN author_subscriptions sub
+            ON sub.author_user_id = p.user_id
+            AND sub.subscriber_user_id = ?
+            AND sub.paid_subscription = 1
+            AND sub.deleted_at IS NULL
+            AND (
+                  sub.cancel_at_period_end = 0
+                  OR (sub.cancel_at_period_end = 1 AND sub.current_period_end > NOW())
+                )
+            AND (
+        sub.current_period_end IS NULL
+        OR sub.current_period_end > NOW()
+      )
+
 
       WHERE 
         (p.slug = ? OR p.id = ?)
         AND p.deleted_at IS NULL
       LIMIT 1
       `,
-      [userId, userId, identifier, identifier],
+      [userId, userId, userId, userId, identifier, identifier],
     );
 
     const post = rows[0] || null;
     if (!post) return null;
+
+    if (!post.viewer_has_paid_subscription) {
+      post.body = post.body?.split(
+        '<div data-subscriber-divider="true"></div>',
+      )[0];
+    }
 
     // ✅ THIS IS THE MISSING PIECE
     post.related_topic_ids = post.related_topic_ids

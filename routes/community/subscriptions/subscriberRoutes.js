@@ -13,6 +13,7 @@ import {
   isSubscribedToAuthor,
   removeSubscriber,
   resendSubscriptionInvite,
+  subscriberHasPaidSubscription,
   subscribeToAuthor,
   unsubscribeFromAuthor,
 } from "../../../db/community/subscriptions/dbSubscribers.js";
@@ -73,10 +74,17 @@ router.get("/:authorUserId/status", authenticateToken, async (req, res) => {
     );
 
     const hasPaidSubscription = await authorHasPaidSubscription(authorUserId);
+    // 👆 LEAVE THIS EXACTLY AS IS (author offers paid)
+
+    const subscriberHasPaid = await subscriberHasPaidSubscription({
+      authorUserId,
+      subscriberUserId,
+    });
 
     res.json({
       subscribed,
-      has_paid_subscription: hasPaidSubscription,
+      has_paid_subscription: hasPaidSubscription, // 👈 DO NOT CHANGE
+      subscriber_has_paid: subscriberHasPaid, // 👈 NEW FIELD
     });
   } catch (err) {
     console.error("Subscription status route error:", err);

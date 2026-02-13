@@ -1361,6 +1361,36 @@ export async function authorHasPaidSubscription(authorUserId) {
   }
 }
 
+export async function subscriberHasPaidSubscription({
+  authorUserId,
+  subscriberUserId,
+}) {
+  const db = connect();
+
+  const [[row]] = await db.query(
+    `
+    SELECT id
+    FROM author_subscriptions
+    WHERE author_user_id = ?
+      AND subscriber_user_id = ?
+      AND paid_subscription = 1
+      AND deleted_at IS NULL
+      AND (
+        cancel_at_period_end = 0
+        OR (cancel_at_period_end = 1 AND current_period_end > NOW())
+      )
+      AND (
+        current_period_end IS NULL
+        OR current_period_end > NOW()
+      )
+    LIMIT 1
+    `,
+    [authorUserId, subscriberUserId],
+  );
+
+  return !!row;
+}
+
 export async function hasAuthorSubscription({
   authorUserId,
   subscriberUserId,
